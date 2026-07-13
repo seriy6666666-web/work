@@ -32,3 +32,27 @@ export function useDistributionUpdates(siteId: string | null | undefined, onChan
     };
   }, [siteId]);
 }
+
+/**
+ * Subscribes to new-notification events for the current user and calls
+ * `onNew` (which typically refetches the notification list + unread count).
+ */
+export function useNotificationUpdates(userId: string | null | undefined, onNew: () => void) {
+  const callbackRef = useRef(onNew);
+  callbackRef.current = onNew;
+
+  useEffect(() => {
+    if (!userId) return;
+    const socket: Socket = io(API_URL, { transports: ['websocket'] });
+
+    const handler = (payload: { userId: string }) => {
+      if (payload.userId === userId) callbackRef.current();
+    };
+
+    socket.on('notification:new', handler);
+    return () => {
+      socket.off('notification:new', handler);
+      socket.disconnect();
+    };
+  }, [userId]);
+}

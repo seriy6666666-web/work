@@ -20,7 +20,9 @@ export type IconName =
   | 'moon'
   | 'sun'
   | 'sort'
-  | 'download';
+  | 'download'
+  | 'bell'
+  | 'check';
 
 const PATHS: Record<IconName, React.ReactNode> = {
   grid: (
@@ -169,6 +171,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M4 21h16" />
     </>
   ),
+  bell: (
+    <>
+      <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 01-3.4 0" />
+    </>
+  ),
+  check: <path d="M20 6L9 17l-5-5" />,
 };
 
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {

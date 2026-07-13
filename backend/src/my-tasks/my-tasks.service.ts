@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { OrdersService } from '../orders/orders.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
 
 const MAX_CORRECTIONS = 2;
@@ -26,7 +27,10 @@ function toTask<T extends { completionRecords: { correctionCount: number }[] }>(
 
 @Injectable()
 export class MyTasksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private ordersService: OrdersService,
+  ) {}
 
   async list(userId: string) {
     const assignments = await this.prisma.assignment.findMany({
@@ -78,6 +82,8 @@ export class MyTasksService {
         },
       });
     }
+
+    await this.ordersService.recomputeStatus(assignment.operation.order.id);
 
     const updated = await this.prisma.assignment.findUniqueOrThrow({
       where: { id: assignmentId },

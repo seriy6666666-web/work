@@ -155,7 +155,31 @@ export const api = {
     params.set('page', String(filters.page ?? 1));
     return request<AuditLogPage>(`/audit-log?${params.toString()}`, {}, token);
   },
+
+  getNotifications: (token: string) => request<AppNotification[]>('/notifications', {}, token),
+  getUnreadCount: (token: string) =>
+    request<{ count: number }>('/notifications/unread-count', {}, token),
+  markNotificationRead: (token: string, id: string) =>
+    request<{ ok: boolean }>(`/notifications/${id}/read`, { method: 'PATCH' }, token),
+  markAllNotificationsRead: (token: string) =>
+    request<{ ok: boolean }>('/notifications/read-all', { method: 'PATCH' }, token),
 };
+
+export type NotificationType =
+  | 'ASSIGNMENT'
+  | 'TRANSFER_REQUEST'
+  | 'TRANSFER_RESPONSE'
+  | 'ORDER_DONE'
+  | 'ORDER_AT_RISK';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  message: string;
+  link: string | null;
+  read: boolean;
+  createdAt: string;
+}
 
 export interface CurrentUser {
   id: string;

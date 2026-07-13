@@ -1,6 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { OrderStatus, Role } from '../generated/prisma/enums';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 
@@ -15,7 +17,60 @@ function withOperationsSummary<T extends { operations: { quantity: number }[] }>
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {}
+
+  /**
+   * Recalculate an order's status from its operations' progress and move it
+   * automatically: CREATED → IN_PROGRESS once anything is assigned, and
+   * → DONE once every operation is fully completed. Shipped orders are left
+   * untouched. Notifies planners when an order becomes DONE.
+   */
+  async recomputeStatus(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        operations: {
+          include: { assignments: { include: { completionRecords: true } } },
+        },
+      },
+    });
+    if (!order || order.status === OrderStatus.SHIPPED) return;
+
+    const hasOperations = order.operations.length > 0;
+    const hasAnyAssignment = order.operations.some((op) => op.assignments.length > 0);
+    const allComplete =
+      hasOperations &&
+      order.operations.every((op) => {
+        const done = op.assignments.reduce(
+          (sum, a) => sum + (a.completionRecords[0]?.doneQuantity ?? 0),
+          0,
+        );
+        return done >= op.quantity;
+      });
+
+    let next = order.status;
+    if (allComplete) next = OrderStatus.DONE;
+    else if (hasAnyAssignment) next = OrderStatus.IN_PROGRESS;
+
+    if (next === order.status) return;
+
+    await this.prisma.order.update({ where: { id: orderId }, data: { status: next } });
+
+    if (next === OrderStatus.DONE) {
+      const planners = await this.prisma.user.findMany({ where: { role: Role.PLANNER } });
+      await this.notifications.createMany(
+        planners.map((p) => p.id),
+        {
+          type: 'ORDER_DONE',
+          message: `Заказ «${order.name}» выполнен на 100%`,
+          link: `/planner/orders/${order.id}`,
+        },
+      );
+    }
+  }
 
   async list() {
     const orders = await this.prisma.order.findMany({

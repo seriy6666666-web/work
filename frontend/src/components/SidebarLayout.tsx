@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { Logo } from './Logo';
 import { Avatar } from './Avatar';
 import { Icon, type IconName } from './Icon';
+import { NotificationBell } from './NotificationBell';
 import { useThemeMode } from '../theme-mode';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
@@ -118,6 +119,7 @@ export function SidebarLayout({
           </div>
           <div style={styles.headerExtra}>
             {headerExtra}
+            <NotificationBell />
             <button
               style={styles.themeToggle}
               onClick={toggleTheme}

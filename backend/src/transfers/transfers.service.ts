@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Role, TransferStatus } from '../generated/prisma/enums';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { RespondTransferDto } from './dto/respond-transfer.dto';
@@ -12,7 +13,22 @@ const includeParties = {
 
 @Injectable()
 export class TransfersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {}
+
+  private async notifySiteLeads(siteId: string, message: string) {
+    const leads = await this.prisma.user.findMany({
+      where: { role: Role.SITE_LEAD, siteId },
+      select: { id: true },
+    });
+    await this.notifications.createMany(leads.map((l) => l.id), {
+      type: 'TRANSFER_REQUEST',
+      message,
+      link: '/site-lead/transfers',
+    });
+  }
 
   async eligibleUsers(requesterSiteId: string) {
     return this.prisma.user.findMany({
@@ -38,7 +54,7 @@ export class TransfersService {
       throw new BadRequestException('Сотрудник уже работает на вашем участке');
     }
 
-    return this.prisma.transfer.create({
+    const transfer = await this.prisma.transfer.create({
       data: {
         userId: dto.userId,
         fromSiteId: target.siteId,
@@ -49,6 +65,13 @@ export class TransfersService {
       },
       include: includeParties,
     });
+
+    await this.notifySiteLeads(
+      transfer.fromSiteId,
+      `Запрос на перевод сотрудника «${transfer.user.fullName}» на участок «${transfer.toSite.name}»`,
+    );
+
+    return transfer;
   }
 
   listIncoming(siteId: string) {
@@ -79,7 +102,7 @@ export class TransfersService {
       throw new BadRequestException('Запрос уже обработан');
     }
 
-    return this.prisma.transfer.update({
+    const updated = await this.prisma.transfer.update({
       where: { id },
       data: {
         status: dto.approve ? TransferStatus.APPROVED : TransferStatus.REJECTED,
@@ -87,6 +110,17 @@ export class TransfersService {
       },
       include: includeParties,
     });
+
+    await this.notifications.create({
+      userId: updated.requestedByUserId,
+      type: 'TRANSFER_RESPONSE',
+      message: dto.approve
+        ? `Перевод сотрудника «${updated.user.fullName}» подтверждён`
+        : `Перевод сотрудника «${updated.user.fullName}» отклонён`,
+      link: '/site-lead/transfers',
+    });
+
+    return updated;
   }
 
   async getActiveIncomingTransfers(siteId: string) {

@@ -11,6 +11,7 @@ import {
 } from '../../api/client';
 import { ABSENCE_TYPES, ABSENCE_TYPE_LABELS } from '../../constants/absenceTypes';
 import { DOWNTIME_REASON_CODES, DOWNTIME_REASON_LABELS } from '../../constants/downtimeReasons';
+import { NotificationBell } from '../../components/NotificationBell';
 
 export function TasksPage() {
   const { user, token, logout } = useAuth();
@@ -133,9 +134,12 @@ export function TasksPage() {
           <h1 style={styles.title}>Мои задания</h1>
           <p style={styles.subtitle}>{user?.fullName}</p>
         </div>
-        <button style={styles.logoutButton} onClick={logout}>
-          Выйти
-        </button>
+        <div style={styles.headerActions}>
+          <NotificationBell />
+          <button style={styles.logoutButton} onClick={logout}>
+            Выйти
+          </button>
+        </div>
       </header>
 
       <main style={styles.content}>
@@ -306,6 +310,11 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'center',
     flexWrap: 'wrap',
+    gap: '12px',
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
     gap: '12px',
   },
   title: {

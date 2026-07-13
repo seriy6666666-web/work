@@ -4,6 +4,8 @@ import { TransfersService } from '../transfers/transfers.service';
 import { AbsencesService } from '../absences/absences.service';
 import { StatsService } from '../stats/stats.service';
 import { AttendanceService } from '../attendance/attendance.service';
+import { OrdersService } from '../orders/orders.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ConfirmReasonDto } from './dto/confirm-reason.dto';
@@ -22,6 +24,8 @@ export class DistributionService {
     private absencesService: AbsencesService,
     private statsService: StatsService,
     private attendanceService: AttendanceService,
+    private ordersService: OrdersService,
+    private notifications: NotificationsService,
   ) {}
 
   async listOperations(siteId: string) {
@@ -120,7 +124,7 @@ export class DistributionService {
       throw new BadRequestException('Сотрудник отсутствует');
     }
 
-    return this.prisma.assignment.create({
+    const assignment = await this.prisma.assignment.create({
       data: {
         operationId: dto.operationId,
         userId: dto.userId,
@@ -128,6 +132,16 @@ export class DistributionService {
       },
       include: includeAssignmentUser,
     });
+
+    await this.notifications.create({
+      userId: dto.userId,
+      type: 'ASSIGNMENT',
+      message: 'Вам назначена новая операция',
+      link: '/worker/tasks',
+    });
+    await this.ordersService.recomputeStatus(operation.orderId);
+
+    return assignment;
   }
 
   async updateAssignment(siteId: string, id: string, dto: UpdateAssignmentDto) {
@@ -152,7 +166,7 @@ export class DistributionService {
   async removeAssignment(siteId: string, id: string) {
     const assignment = await this.prisma.assignment.findUnique({
       where: { id },
-      include: { operation: { select: { siteId: true, secondarySiteId: true } } },
+      include: { operation: { select: { siteId: true, secondarySiteId: true, orderId: true } } },
     });
     if (!assignment) {
       throw new NotFoundException('Назначение не найдено');
@@ -162,6 +176,7 @@ export class DistributionService {
     }
 
     await this.prisma.assignment.delete({ where: { id } });
+    await this.ordersService.recomputeStatus(assignment.operation.orderId);
   }
 
   async confirmReason(siteId: string, completionRecordId: string, dto: ConfirmReasonDto) {

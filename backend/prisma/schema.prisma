@@ -76,6 +76,29 @@ model User {
   transfers          Transfer[] @relation("TransferUser")
   requestedTransfers Transfer[] @relation("TransferRequestedBy")
   respondedTransfers Transfer[] @relation("TransferRespondedBy")
+  notifications      Notification[]
+}
+
+enum NotificationType {
+  ASSIGNMENT
+  TRANSFER_REQUEST
+  TRANSFER_RESPONSE
+  ORDER_DONE
+  ORDER_AT_RISK
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  message   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  @@index([userId, read])
 }
 
 model Absence {

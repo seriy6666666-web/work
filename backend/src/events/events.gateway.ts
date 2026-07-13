@@ -17,4 +17,9 @@ export class EventsGateway {
       this.server?.emit('distribution:changed', { siteId });
     }
   }
+
+  /** Tell the target user a new notification arrived. Client filters by userId. */
+  emitNotification(userId: string) {
+    this.server?.emit('notification:new', { userId });
+  }
 }
