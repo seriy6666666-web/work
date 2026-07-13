@@ -13,6 +13,7 @@ import { OrdersPage } from './pages/planner/OrdersPage';
 import { OrderDetailPage } from './pages/planner/OrderDetailPage';
 import { SkillsPage } from './pages/planner/SkillsPage';
 import { ProductsPage } from './pages/planner/ProductsPage';
+import { MaterialsPage } from './pages/planner/MaterialsPage';
 import { CompetencyMatrixPage } from './pages/site-lead/CompetencyMatrixPage';
 import { DistributionPage } from './pages/site-lead/DistributionPage';
 import { AbsencesPage } from './pages/site-lead/AbsencesPage';
@@ -21,6 +22,7 @@ import { StatsPage } from './pages/site-lead/StatsPage';
 import { EquipmentPage } from './pages/site-lead/EquipmentPage';
 import { PlantSummaryPage } from './pages/production-head/PlantSummaryPage';
 import { EquipmentOverviewPage } from './pages/production-head/EquipmentOverviewPage';
+import { MaterialsOverviewPage } from './pages/production-head/MaterialsOverviewPage';
 import { SiteDetailPage } from './pages/production-head/SiteDetailPage';
 import { WarningsPage } from './pages/production-head/WarningsPage';
 import { TasksPage } from './pages/worker/TasksPage';
@@ -99,6 +101,14 @@ function App() {
               }
             />
             <Route
+              path="/planner/materials"
+              element={
+                <ProtectedRoute allowedRoles={['PLANNER']}>
+                  <MaterialsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/site-lead/competency"
               element={
                 <ProtectedRoute allowedRoles={['SITE_LEAD']}>
@@ -167,6 +177,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['PRODUCTION_HEAD']}>
                   <EquipmentOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/production-head/materials"
+              element={
+                <ProtectedRoute allowedRoles={['PRODUCTION_HEAD']}>
+                  <MaterialsOverviewPage />
                 </ProtectedRoute>
               }
             />

@@ -172,6 +172,16 @@ export const api = {
   createOrderFromProduct: (token: string, payload: CreateOrderFromProductPayload) =>
     request<Order>('/orders/from-product', { method: 'POST', body: JSON.stringify(payload) }, token),
 
+  listMaterials: (token: string) => request<Material[]>('/materials', {}, token),
+  createMaterial: (token: string, payload: CreateMaterialPayload) =>
+    request<Material>('/materials', { method: 'POST', body: JSON.stringify(payload) }, token),
+  updateMaterial: (token: string, id: string, payload: UpdateMaterialPayload) =>
+    request<Material>(`/materials/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  adjustMaterial: (token: string, id: string, delta: number) =>
+    request<Material>(`/materials/${id}/adjust`, { method: 'POST', body: JSON.stringify({ delta }) }, token),
+  deleteMaterial: (token: string, id: string) =>
+    request<void>(`/materials/${id}`, { method: 'DELETE' }, token),
+
   listEquipment: (token: string) => request<Equipment[]>('/equipment', {}, token),
   listAllEquipment: (token: string) => request<Equipment[]>('/equipment/all', {}, token),
   createEquipment: (token: string, payload: CreateEquipmentPayload) =>
@@ -195,7 +205,8 @@ export type NotificationType =
   | 'TRANSFER_REQUEST'
   | 'TRANSFER_RESPONSE'
   | 'ORDER_DONE'
-  | 'ORDER_AT_RISK';
+  | 'ORDER_AT_RISK'
+  | 'MATERIAL_LOW';
 
 export interface AppNotification {
   id: string;
@@ -351,6 +362,28 @@ export interface CreateOrderFromProductPayload {
   quantity: number;
   dueDate: string;
   priority?: number;
+}
+
+export interface Material {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  lowStockThreshold: number;
+  createdAt: string;
+}
+
+export interface CreateMaterialPayload {
+  name: string;
+  unit: string;
+  quantity?: number;
+  lowStockThreshold?: number;
+}
+
+export interface UpdateMaterialPayload {
+  name?: string;
+  unit?: string;
+  lowStockThreshold?: number;
 }
 
 export type EquipmentStatus = 'OPERATIONAL' | 'MAINTENANCE' | 'BROKEN';

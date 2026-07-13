@@ -105,6 +105,16 @@ enum NotificationType {
   TRANSFER_RESPONSE
   ORDER_DONE
   ORDER_AT_RISK
+  MATERIAL_LOW
+}
+
+model Material {
+  id                String   @id @default(uuid())
+  name              String   @unique
+  unit              String
+  quantity          Float    @default(0)
+  lowStockThreshold Float    @default(0)
+  createdAt         DateTime @default(now())
 }
 
 model Notification {
