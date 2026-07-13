@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type Order } from '../../api/client';
+import { api, ApiError, type Order, type Product } from '../../api/client';
 import { ORDER_STATUS_LABELS } from '../../constants/orderStatus';
 import { PlannerLayout } from './PlannerLayout';
 import { Badge, type BadgeVariant } from '../../components/Badge';
@@ -31,19 +31,45 @@ export function OrdersPage() {
   const { token } = useAuth();
   const toast = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<OrderFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
+
+  const [fromProduct, setFromProduct] = useState({ productId: '', quantity: '', dueDate: '' });
+  const [creatingFromProduct, setCreatingFromProduct] = useState(false);
 
   async function refresh() {
     if (!token) return;
     setLoading(true);
     try {
-      setOrders(await api.listOrders(token));
+      const [ordersData, productsData] = await Promise.all([api.listOrders(token), api.listProducts(token)]);
+      setOrders(ordersData);
+      setProducts(productsData);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось загрузить заказы');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCreateFromProduct(e: FormEvent) {
+    e.preventDefault();
+    if (!token || !fromProduct.productId || !fromProduct.quantity || !fromProduct.dueDate) return;
+    setCreatingFromProduct(true);
+    try {
+      await api.createOrderFromProduct(token, {
+        productId: fromProduct.productId,
+        quantity: Number(fromProduct.quantity),
+        dueDate: fromProduct.dueDate,
+      });
+      setFromProduct({ productId: '', quantity: '', dueDate: '' });
+      toast.success('Заказ создан из продукта — операции подставлены');
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось создать заказ');
+    } finally {
+      setCreatingFromProduct(false);
     }
   }
 
@@ -125,6 +151,43 @@ export function OrdersPage() {
         </button>
       </form>
 
+      {products.length > 0 && (
+        <form onSubmit={handleCreateFromProduct} style={styles.createForm}>
+          <select
+            style={styles.input}
+            value={fromProduct.productId}
+            onChange={(e) => setFromProduct({ ...fromProduct, productId: e.target.value })}
+            required
+          >
+            <option value="">Из продукта (шаблон)...</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.operations.length} оп.)
+              </option>
+            ))}
+          </select>
+          <input
+            style={styles.input}
+            placeholder="Количество"
+            type="number"
+            min={1}
+            value={fromProduct.quantity}
+            onChange={(e) => setFromProduct({ ...fromProduct, quantity: e.target.value })}
+            required
+          />
+          <input
+            style={styles.input}
+            type="date"
+            value={fromProduct.dueDate}
+            onChange={(e) => setFromProduct({ ...fromProduct, dueDate: e.target.value })}
+            required
+          />
+          <button style={styles.buttonSecondary} type="submit" disabled={creatingFromProduct}>
+            Создать из продукта
+          </button>
+        </form>
+      )}
+
       {!loading && orders.length > 0 && (
         <div style={styles.toolbar}>
           <SearchInput value={controls.query} onChange={controls.setQuery} placeholder="Поиск по наименованию, статусу..." />
@@ -201,6 +264,16 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     background: COLORS.accent,
     color: COLORS.white,
+    fontSize: '15px',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  buttonSecondary: {
+    padding: '10px 20px',
+    borderRadius: RADIUS.sm,
+    border: `1px solid ${COLORS.accent}`,
+    background: 'transparent',
+    color: COLORS.accentDark,
     fontSize: '15px',
     fontWeight: 600,
     cursor: 'pointer',

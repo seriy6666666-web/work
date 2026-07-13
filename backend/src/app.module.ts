@@ -22,6 +22,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { EventsModule } from './events/events.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AuditModule,
     EventsModule,
     NotificationsModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_INTERCEPTOR, useClass: AuditInterceptor }],

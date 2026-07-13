@@ -12,6 +12,7 @@ import { AuditLogPage } from './pages/admin/AuditLogPage';
 import { OrdersPage } from './pages/planner/OrdersPage';
 import { OrderDetailPage } from './pages/planner/OrderDetailPage';
 import { SkillsPage } from './pages/planner/SkillsPage';
+import { ProductsPage } from './pages/planner/ProductsPage';
 import { CompetencyMatrixPage } from './pages/site-lead/CompetencyMatrixPage';
 import { DistributionPage } from './pages/site-lead/DistributionPage';
 import { AbsencesPage } from './pages/site-lead/AbsencesPage';
@@ -84,6 +85,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['PLANNER']}>
                   <SkillsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/planner/products"
+              element={
+                <ProtectedRoute allowedRoles={['PLANNER']}>
+                  <ProductsPage />
                 </ProtectedRoute>
               }
             />

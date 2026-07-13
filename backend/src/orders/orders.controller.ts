@@ -5,6 +5,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Role } from '../generated/prisma/enums';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { CreateOrderFromProductDto } from './dto/create-order-from-product.dto';
 import { OrdersService } from './orders.service';
 
 @UseGuards(JwtAuthGuard)
@@ -27,6 +28,13 @@ export class OrdersController {
   @Post()
   create(@Body() dto: CreateOrderDto) {
     return this.ordersService.create(dto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.PLANNER)
+  @Post('from-product')
+  createFromProduct(@Body() dto: CreateOrderFromProductDto) {
+    return this.ordersService.createFromProduct(dto);
   }
 
   @UseGuards(RolesGuard)

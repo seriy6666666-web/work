@@ -156,6 +156,22 @@ export const api = {
     return request<AuditLogPage>(`/audit-log?${params.toString()}`, {}, token);
   },
 
+  listProducts: (token: string) => request<Product[]>('/products', {}, token),
+  createProduct: (token: string, payload: { name: string }) =>
+    request<Product>('/products', { method: 'POST', body: JSON.stringify(payload) }, token),
+  deleteProduct: (token: string, id: string) =>
+    request<void>(`/products/${id}`, { method: 'DELETE' }, token),
+  addProductOperation: (token: string, productId: string, payload: CreateProductOperationPayload) =>
+    request<Product>(
+      `/products/${productId}/operations`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token,
+    ),
+  deleteProductOperation: (token: string, id: string) =>
+    request<void>(`/product-operations/${id}`, { method: 'DELETE' }, token),
+  createOrderFromProduct: (token: string, payload: CreateOrderFromProductPayload) =>
+    request<Order>('/orders/from-product', { method: 'POST', body: JSON.stringify(payload) }, token),
+
   getNotifications: (token: string) => request<AppNotification[]>('/notifications', {}, token),
   getUnreadCount: (token: string) =>
     request<{ count: number }>('/notifications/unread-count', {}, token),
@@ -293,6 +309,39 @@ export interface Skill {
   id: string;
   name: string;
   createdAt: string;
+}
+
+export interface ProductOperation {
+  id: string;
+  sequence: number;
+  skillId: string;
+  siteId: string;
+  secondarySiteId: string | null;
+  skill: { id: string; name: string };
+  site: { id: string; name: string };
+  secondarySite: { id: string; name: string } | null;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  createdAt: string;
+  operations: ProductOperation[];
+}
+
+export interface CreateProductOperationPayload {
+  skillId: string;
+  siteId: string;
+  secondarySiteId?: string;
+  sequence?: number;
+}
+
+export interface CreateOrderFromProductPayload {
+  productId: string;
+  name?: string;
+  quantity: number;
+  dueDate: string;
+  priority?: number;
 }
 
 export interface CreateSkillPayload {

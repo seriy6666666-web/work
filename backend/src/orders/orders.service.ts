@@ -5,6 +5,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { OrderStatus, Role } from '../generated/prisma/enums';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { CreateOrderFromProductDto } from './dto/create-order-from-product.dto';
 
 function withOperationsSummary<T extends { operations: { quantity: number }[] }>(order: T) {
   const { operations, ...rest } = order;
@@ -107,6 +108,36 @@ export class OrdersService {
         dueDate: new Date(dto.dueDate),
         priority: dto.priority ?? 0,
       },
+    });
+  }
+
+  /**
+   * Create an order from a product routing template: the order gets one
+   * operation per template step, each sized to the order quantity.
+   */
+  async createFromProduct(dto: CreateOrderFromProductDto) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: dto.productId },
+      include: { operations: { orderBy: { sequence: 'asc' } } },
+    });
+    if (!product) throw new NotFoundException('Продукт не найден');
+
+    return this.prisma.order.create({
+      data: {
+        name: dto.name?.trim() || product.name,
+        quantity: dto.quantity,
+        dueDate: new Date(dto.dueDate),
+        priority: dto.priority ?? 0,
+        operations: {
+          create: product.operations.map((op) => ({
+            quantity: dto.quantity,
+            skillId: op.skillId,
+            siteId: op.siteId,
+            secondarySiteId: op.secondarySiteId,
+          })),
+        },
+      },
+      include: { operations: { select: { id: true } } },
     });
   }
 

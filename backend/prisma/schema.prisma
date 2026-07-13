@@ -55,6 +55,8 @@ model Site {
   secondaryOperations Operation[] @relation("OperationSecondarySite")
   transfersFrom       Transfer[]  @relation("TransferFromSite")
   transfersTo         Transfer[]  @relation("TransferToSite")
+  productOperations          ProductOperation[] @relation("ProductOpSite")
+  secondaryProductOperations ProductOperation[] @relation("ProductOpSecondarySite")
 }
 
 model User {
@@ -147,11 +149,36 @@ model Shift {
 }
 
 model Skill {
-  id           String       @id @default(uuid())
-  name         String       @unique
-  createdAt    DateTime     @default(now())
-  operations   Operation[]
-  competencies Competency[]
+  id                String             @id @default(uuid())
+  name              String             @unique
+  createdAt         DateTime           @default(now())
+  operations        Operation[]
+  competencies      Competency[]
+  productOperations ProductOperation[]
+}
+
+model Product {
+  id         String             @id @default(uuid())
+  name       String             @unique
+  createdAt  DateTime           @default(now())
+  operations ProductOperation[]
+}
+
+model ProductOperation {
+  id       String @id @default(uuid())
+  sequence Int    @default(0)
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+
+  skill   Skill  @relation(fields: [skillId], references: [id])
+  skillId String
+
+  site   Site   @relation("ProductOpSite", fields: [siteId], references: [id])
+  siteId String
+
+  secondarySite   Site?   @relation("ProductOpSecondarySite", fields: [secondarySiteId], references: [id])
+  secondarySiteId String?
 }
 
 model Competency {
