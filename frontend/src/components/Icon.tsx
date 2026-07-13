@@ -24,6 +24,7 @@ export type IconName =
   | 'bell'
   | 'wrench'
   | 'layers'
+  | 'calendar'
   | 'check';
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -187,6 +188,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M12 3l9 5-9 5-9-5 9-5z" />
       <path d="M3 13l9 5 9-5" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M8 3v4M16 3v4" />
     </>
   ),
 };

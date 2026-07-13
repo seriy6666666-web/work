@@ -25,6 +25,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ProductsModule } from './products/products.module';
 import { EquipmentModule } from './equipment/equipment.module';
 import { MaterialsModule } from './materials/materials.module';
+import { PlannedShiftsModule } from './planned-shifts/planned-shifts.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { MaterialsModule } from './materials/materials.module';
     ProductsModule,
     EquipmentModule,
     MaterialsModule,
+    PlannedShiftsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_INTERCEPTOR, useClass: AuditInterceptor }],

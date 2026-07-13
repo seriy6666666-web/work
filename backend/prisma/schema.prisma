@@ -58,6 +58,7 @@ model Site {
   productOperations          ProductOperation[] @relation("ProductOpSite")
   secondaryProductOperations ProductOperation[] @relation("ProductOpSecondarySite")
   equipment                  Equipment[]
+  plannedShifts              PlannedShift[]
 }
 
 enum EquipmentStatus {
@@ -87,9 +88,10 @@ model User {
   siteId       String?
   createdAt    DateTime @default(now())
 
-  assignments  Assignment[]
-  competencies Competency[]
-  shifts       Shift[]
+  assignments   Assignment[]
+  competencies  Competency[]
+  shifts        Shift[]
+  plannedShifts PlannedShift[]
 
   absences           Absence[]  @relation("AbsenceUser")
   createdAbsences    Absence[]  @relation("AbsenceCreatedBy")
@@ -174,6 +176,27 @@ model Shift {
 
   user   User   @relation(fields: [userId], references: [id])
   userId String
+}
+
+enum ShiftType {
+  DAY
+  NIGHT
+}
+
+model PlannedShift {
+  id        String    @id @default(uuid())
+  date      DateTime
+  type      ShiftType @default(DAY)
+  createdAt DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  site   Site   @relation(fields: [siteId], references: [id])
+  siteId String
+
+  @@unique([userId, date])
+  @@index([siteId, date])
 }
 
 model Skill {

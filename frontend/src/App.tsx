@@ -20,6 +20,7 @@ import { AbsencesPage } from './pages/site-lead/AbsencesPage';
 import { TransfersPage } from './pages/site-lead/TransfersPage';
 import { StatsPage } from './pages/site-lead/StatsPage';
 import { EquipmentPage } from './pages/site-lead/EquipmentPage';
+import { ShiftPlanningPage } from './pages/site-lead/ShiftPlanningPage';
 import { PlantSummaryPage } from './pages/production-head/PlantSummaryPage';
 import { EquipmentOverviewPage } from './pages/production-head/EquipmentOverviewPage';
 import { MaterialsOverviewPage } from './pages/production-head/MaterialsOverviewPage';
@@ -137,6 +138,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['SITE_LEAD']}>
                   <TransfersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/site-lead/shifts"
+              element={
+                <ProtectedRoute allowedRoles={['SITE_LEAD']}>
+                  <ShiftPlanningPage />
                 </ProtectedRoute>
               }
             />

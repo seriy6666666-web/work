@@ -172,6 +172,13 @@ export const api = {
   createOrderFromProduct: (token: string, payload: CreateOrderFromProductPayload) =>
     request<Order>('/orders/from-product', { method: 'POST', body: JSON.stringify(payload) }, token),
 
+  getPlannedShiftsWeek: (token: string, start: string) =>
+    request<PlannedShiftWeek>(`/planned-shifts/week?start=${encodeURIComponent(start)}`, {}, token),
+  setPlannedShift: (token: string, payload: SetPlannedShiftPayload) =>
+    request<PlannedShift>('/planned-shifts', { method: 'POST', body: JSON.stringify(payload) }, token),
+  deletePlannedShift: (token: string, id: string) =>
+    request<void>(`/planned-shifts/${id}`, { method: 'DELETE' }, token),
+
   listMaterials: (token: string) => request<Material[]>('/materials', {}, token),
   createMaterial: (token: string, payload: CreateMaterialPayload) =>
     request<Material>('/materials', { method: 'POST', body: JSON.stringify(payload) }, token),
@@ -371,6 +378,28 @@ export interface Material {
   quantity: number;
   lowStockThreshold: number;
   createdAt: string;
+}
+
+export type ShiftType = 'DAY' | 'NIGHT';
+
+export interface PlannedShift {
+  id: string;
+  userId: string;
+  date: string;
+  type: ShiftType;
+}
+
+export interface PlannedShiftWeek {
+  weekStart: string;
+  days: string[];
+  workers: { id: string; fullName: string }[];
+  shifts: PlannedShift[];
+}
+
+export interface SetPlannedShiftPayload {
+  userId: string;
+  date: string;
+  type: ShiftType;
 }
 
 export interface CreateMaterialPayload {
