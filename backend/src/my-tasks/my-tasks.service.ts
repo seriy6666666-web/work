@@ -62,6 +62,7 @@ export class MyTasksService {
         data: {
           assignmentId,
           doneQuantity: dto.doneQuantity,
+          defectQuantity: dto.defectQuantity ?? 0,
           reasonCode: dto.reasonCode,
           reasonComment: dto.reasonComment,
           correctionCount: 0,
@@ -75,6 +76,7 @@ export class MyTasksService {
         where: { id: existing.id },
         data: {
           doneQuantity: dto.doneQuantity,
+          defectQuantity: dto.defectQuantity ?? 0,
           reasonCode: dto.reasonCode,
           reasonComment: dto.reasonComment,
           reasonConfirmed: false,

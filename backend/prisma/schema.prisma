@@ -226,6 +226,7 @@ model AuditLog {
 model CompletionRecord {
   id              String   @id @default(uuid())
   doneQuantity    Int?
+  defectQuantity  Int      @default(0)
   doneFlag        Boolean?
   correctionCount Int      @default(0)
   recordedAt      DateTime @default(now())

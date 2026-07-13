@@ -9,6 +9,8 @@ export interface SiteRankingEntry {
   completionRate: number | null;
   excusedCount: number;
   totalCount: number;
+  defectCount: number;
+  defectRate: number | null;
 }
 
 export interface SiteRanking {
@@ -18,6 +20,8 @@ export interface SiteRanking {
   siteCompletionRate: number | null;
   siteDone: number;
   siteAssigned: number;
+  siteDefectCount: number;
+  siteDefectRate: number | null;
 }
 
 const RISK_THRESHOLD = 0.15;
@@ -45,11 +49,21 @@ export class StatsService {
 
     const byUser = new Map<
       string,
-      { fullName: string; done: number; assigned: number; excusedCount: number; totalCount: number }
+      {
+        fullName: string;
+        done: number;
+        assigned: number;
+        excusedCount: number;
+        totalCount: number;
+        defect: number;
+        producedGood: number;
+      }
     >();
 
     let siteDone = 0;
     let siteAssigned = 0;
+    let siteDefect = 0;
+    let siteProducedGood = 0;
 
     for (const a of assignments) {
       const record = a.completionRecords[0];
@@ -61,8 +75,17 @@ export class StatsService {
         assigned: 0,
         excusedCount: 0,
         totalCount: 0,
+        defect: 0,
+        producedGood: 0,
       };
       entry.totalCount += 1;
+
+      // Defects/quality are tracked regardless of the rating exclusion, since
+      // they reflect what was actually produced.
+      entry.defect += record.defectQuantity ?? 0;
+      entry.producedGood += record.doneQuantity ?? 0;
+      siteDefect += record.defectQuantity ?? 0;
+      siteProducedGood += record.doneQuantity ?? 0;
 
       if (record.reasonConfirmed) {
         entry.excusedCount += 1;
@@ -77,6 +100,11 @@ export class StatsService {
       byUser.set(a.userId, entry);
     }
 
+    const defectRate = (defect: number, good: number) => {
+      const total = defect + good;
+      return total > 0 ? defect / total : null;
+    };
+
     const entries: SiteRankingEntry[] = Array.from(byUser.entries())
       .map(([userId, e]) => ({
         userId,
@@ -84,6 +112,8 @@ export class StatsService {
         completionRate: e.assigned > 0 ? e.done / e.assigned : null,
         excusedCount: e.excusedCount,
         totalCount: e.totalCount,
+        defectCount: e.defect,
+        defectRate: defectRate(e.defect, e.producedGood),
       }))
       .sort((a, b) => (b.completionRate ?? -1) - (a.completionRate ?? -1));
 
@@ -94,15 +124,20 @@ export class StatsService {
       siteCompletionRate: siteAssigned > 0 ? siteDone / siteAssigned : null,
       siteDone,
       siteAssigned,
+      siteDefectCount: siteDefect,
+      siteDefectRate: defectRate(siteDefect, siteProducedGood),
     };
   }
 
   async toCsv(ranking: SiteRanking): Promise<string> {
-    const header = 'ФИО,Выполнение (%),Исключено (уважительная причина),Всего назначений';
+    const header =
+      'ФИО,Выполнение (%),Брак (шт),Брак (%),Исключено (уважительная причина),Всего назначений';
     const rows = ranking.entries.map((e) =>
       [
         `"${e.fullName.replace(/"/g, '""')}"`,
         e.completionRate === null ? '' : Math.round(e.completionRate * 100),
+        e.defectCount,
+        e.defectRate === null ? '' : Math.round(e.defectRate * 100),
         e.excusedCount,
         e.totalCount,
       ].join(','),

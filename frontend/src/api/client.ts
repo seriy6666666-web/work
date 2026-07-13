@@ -386,6 +386,7 @@ export type DowntimeReasonCode =
 export interface CompletionRecord {
   id: string;
   doneQuantity: number | null;
+  defectQuantity: number;
   doneFlag: boolean | null;
   correctionCount: number;
   recordedAt: string;
@@ -413,6 +414,7 @@ export interface MyTask {
 
 export interface SubmitCompletionPayload {
   doneQuantity: number;
+  defectQuantity?: number;
   reasonCode?: DowntimeReasonCode;
   reasonComment?: string;
 }
@@ -484,6 +486,8 @@ export interface SiteRankingEntry {
   completionRate: number | null;
   excusedCount: number;
   totalCount: number;
+  defectCount: number;
+  defectRate: number | null;
 }
 
 export interface SiteRanking {
@@ -491,6 +495,8 @@ export interface SiteRanking {
   siteName: string;
   entries: SiteRankingEntry[];
   siteCompletionRate: number | null;
+  siteDefectCount: number;
+  siteDefectRate: number | null;
 }
 
 export interface PlantSummaryEntry {

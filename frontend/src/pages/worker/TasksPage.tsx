@@ -22,6 +22,7 @@ export function TasksPage() {
   const [error, setError] = useState<string | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [inputs, setInputs] = useState<Record<string, string>>({});
+  const [defectInputs, setDefectInputs] = useState<Record<string, string>>({});
   const [reasonOpen, setReasonOpen] = useState<Record<string, boolean>>({});
   const [reasonInputs, setReasonInputs] = useState<
     Record<string, { code: DowntimeReasonCode; comment: string }>
@@ -54,6 +55,15 @@ export function TasksPage() {
             next[task.id] = String(
               task.completionRecord?.doneQuantity ?? task.assignedQuantity ?? task.operation.quantity,
             );
+          }
+        }
+        return next;
+      });
+      setDefectInputs((prev) => {
+        const next = { ...prev };
+        for (const task of tasksData) {
+          if (next[task.id] === undefined) {
+            next[task.id] = String(task.completionRecord?.defectQuantity ?? 0);
           }
         }
         return next;
@@ -94,6 +104,7 @@ export function TasksPage() {
       const reason = reasonOpen[task.id] ? reasonInputs[task.id] : undefined;
       const updated = await api.submitCompletion(token, task.id, {
         doneQuantity: Number(value),
+        defectQuantity: Number(defectInputs[task.id] || 0),
         reasonCode: reason?.code,
         reasonComment: reason?.comment || undefined,
       });
@@ -233,14 +244,28 @@ export function TasksPage() {
                 ) : (
                   <>
                     <div style={styles.form}>
-                      <input
-                        style={styles.input}
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        value={inputs[task.id] ?? ''}
-                        onChange={(e) => setInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
-                      />
+                      <label style={styles.fieldLabel}>
+                        Годных, шт
+                        <input
+                          style={styles.input}
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          value={inputs[task.id] ?? ''}
+                          onChange={(e) => setInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                        />
+                      </label>
+                      <label style={styles.fieldLabel}>
+                        Брак, шт
+                        <input
+                          style={styles.defectInput}
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          value={defectInputs[task.id] ?? '0'}
+                          onChange={(e) => setDefectInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                        />
+                      </label>
                       <button
                         style={styles.submitButton}
                         onClick={() => handleSubmit(task)}
@@ -427,14 +452,32 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '12px',
     marginTop: '4px',
   },
+  fieldLabel: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    fontSize: '13px',
+    color: '#8fa8b0',
+    flex: '1 1 120px',
+  },
   input: {
-    flex: '1 1 140px',
+    width: '100%',
     padding: '16px',
     borderRadius: '12px',
     border: '2px solid #e8f5ee',
     background: '#f4f7f6',
     fontSize: '20px',
     textAlign: 'center',
+  },
+  defectInput: {
+    width: '100%',
+    padding: '16px',
+    borderRadius: '12px',
+    border: '2px solid #fdecea',
+    background: '#fff6f5',
+    fontSize: '20px',
+    textAlign: 'center',
+    color: '#c0392b',
   },
   submitButton: {
     flex: '1 1 200px',

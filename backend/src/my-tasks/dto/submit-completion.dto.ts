@@ -7,6 +7,11 @@ export class SubmitCompletionDto {
   doneQuantity: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  defectQuantity?: number;
+
+  @IsOptional()
   @IsEnum(DowntimeReasonCode)
   reasonCode?: DowntimeReasonCode;
 

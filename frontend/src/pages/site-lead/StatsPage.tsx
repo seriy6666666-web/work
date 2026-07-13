@@ -84,6 +84,10 @@ export function StatsPage() {
           <p style={styles.muted}>
             Выполнение по участку «{ranking.siteName}»:{' '}
             {ranking.siteCompletionRate === null ? '—' : `${Math.round(ranking.siteCompletionRate * 100)}%`}
+            {' · '}Брак:{' '}
+            <span style={ranking.siteDefectRate && ranking.siteDefectRate > 0 ? styles.defectValue : undefined}>
+              {ranking.siteDefectRate === null ? '—' : `${Math.round(ranking.siteDefectRate * 100)}%`}
+            </span>
           </p>
 
           {ranking.entries.some((e) => e.completionRate !== null) && (
@@ -105,6 +109,7 @@ export function StatsPage() {
               <tr>
                 <th style={styles.th}>Сотрудник</th>
                 <th style={styles.th}>Выполнение</th>
+                <th style={styles.th}>Брак</th>
                 <th style={styles.th}>Исключено (уважительная причина)</th>
                 <th style={styles.th}>Всего назначений</th>
               </tr>
@@ -121,13 +126,16 @@ export function StatsPage() {
                   <td style={styles.td}>
                     {e.completionRate === null ? '—' : `${Math.round(e.completionRate * 100)}%`}
                   </td>
+                  <td style={{ ...styles.td, ...(e.defectRate && e.defectRate > 0 ? styles.defectValue : {}) }}>
+                    {e.defectRate === null ? '—' : `${Math.round(e.defectRate * 100)}% (${e.defectCount})`}
+                  </td>
                   <td style={styles.td}>{e.excusedCount}</td>
                   <td style={styles.td}>{e.totalCount}</td>
                 </tr>
               ))}
               {ranking.entries.length === 0 && (
                 <tr>
-                  <td style={styles.td} colSpan={4}>
+                  <td style={styles.td} colSpan={5}>
                     За выбранный период данных нет
                   </td>
                 </tr>
@@ -184,6 +192,10 @@ const styles: Record<string, React.CSSProperties> = {
   muted: {
     color: COLORS.mutedText,
     fontSize: '14px',
+  },
+  defectValue: {
+    color: COLORS.error,
+    fontWeight: 700,
   },
   table: {
     width: '100%',

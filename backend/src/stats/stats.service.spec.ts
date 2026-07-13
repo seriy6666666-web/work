@@ -73,6 +73,31 @@ describe('StatsService', () => {
       const ranking = await makeService(prisma).computeSiteRanking('s1', 'week');
       expect(ranking.entries[0].completionRate).toBeCloseTo(0.7);
     });
+
+    it('computes defect rate from defective units produced', async () => {
+      const prisma = {
+        site: { findUniqueOrThrow: async () => ({ id: 's1', name: 'Сборка' }) },
+        assignment: {
+          findMany: async () => [
+            {
+              userId: 'u1',
+              assignedQuantity: 10,
+              user: { id: 'u1', fullName: 'Иван' },
+              operation: { quantity: 10 },
+              completionRecords: [
+                { doneQuantity: 7, defectQuantity: 3, reasonConfirmed: false, recordedAt: new Date() },
+              ],
+            },
+          ],
+        },
+      };
+
+      const ranking = await makeService(prisma).computeSiteRanking('s1', 'week');
+      // 3 defective out of 10 produced = 30%
+      expect(ranking.entries[0].defectCount).toBe(3);
+      expect(ranking.entries[0].defectRate).toBeCloseTo(0.3);
+      expect(ranking.siteDefectRate).toBeCloseTo(0.3);
+    });
   });
 
   describe('toCsv — export format', () => {
@@ -83,17 +108,19 @@ describe('StatsService', () => {
         siteCompletionRate: 1,
         siteDone: 10,
         siteAssigned: 10,
+        siteDefectCount: 2,
+        siteDefectRate: 0.1,
         entries: [
-          { userId: 'u1', fullName: 'Иван "Мастер"', completionRate: 0.85, excusedCount: 1, totalCount: 3 },
-          { userId: 'u2', fullName: 'Пётр', completionRate: null, excusedCount: 2, totalCount: 2 },
+          { userId: 'u1', fullName: 'Иван "Мастер"', completionRate: 0.85, excusedCount: 1, totalCount: 3, defectCount: 2, defectRate: 0.1 },
+          { userId: 'u2', fullName: 'Пётр', completionRate: null, excusedCount: 2, totalCount: 2, defectCount: 0, defectRate: null },
         ],
       });
 
       expect(csv.charCodeAt(0)).toBe(0xfeff); // BOM
       const lines = csv.slice(1).split('\n');
       expect(lines[0]).toContain('ФИО');
-      expect(lines[1]).toBe('"Иван ""Мастер""",85,1,3'); // quotes doubled, rate rounded
-      expect(lines[2]).toBe('"Пётр",,2,2'); // null rate -> empty cell
+      expect(lines[1]).toBe('"Иван ""Мастер""",85,2,10,1,3'); // quotes doubled, rate rounded
+      expect(lines[2]).toBe('"Пётр",,0,,2,2'); // null rates -> empty cells
     });
   });
 
