@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+generated/
+.env
+.env.*.local
+*.log
+.DS_Store
+.claude/settings.local.json
+test-results/
+playwright-report/
+backups/

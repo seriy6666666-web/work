@@ -1,0 +1,216 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  PLANNER
+  PRODUCTION_HEAD
+  SITE_LEAD
+  WORKER
+}
+
+enum OrderStatus {
+  CREATED
+  IN_PROGRESS
+  DONE
+  SHIPPED
+}
+
+enum AbsenceType {
+  SICK_LEAVE
+  VACATION
+  UNPAID_LEAVE
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DowntimeReasonCode {
+  NO_MATERIAL
+  EQUIPMENT_BREAKDOWN
+  NO_ELECTRICITY
+  HEALTH_ISSUE
+  OTHER
+}
+
+model Site {
+  id                  String      @id @default(uuid())
+  name                String      @unique
+  createdAt           DateTime    @default(now())
+  users               User[]
+  operations          Operation[] @relation("OperationSite")
+  secondaryOperations Operation[] @relation("OperationSecondarySite")
+  transfersFrom       Transfer[]  @relation("TransferFromSite")
+  transfersTo         Transfer[]  @relation("TransferToSite")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  site         Site?    @relation(fields: [siteId], references: [id])
+  siteId       String?
+  createdAt    DateTime @default(now())
+
+  assignments  Assignment[]
+  competencies Competency[]
+  shifts       Shift[]
+
+  absences           Absence[]  @relation("AbsenceUser")
+  createdAbsences    Absence[]  @relation("AbsenceCreatedBy")
+  transfers          Transfer[] @relation("TransferUser")
+  requestedTransfers Transfer[] @relation("TransferRequestedBy")
+  respondedTransfers Transfer[] @relation("TransferRespondedBy")
+}
+
+model Absence {
+  id        String      @id @default(uuid())
+  type      AbsenceType
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime    @default(now())
+
+  user   User   @relation("AbsenceUser", fields: [userId], references: [id])
+  userId String
+
+  createdBy       User   @relation("AbsenceCreatedBy", fields: [createdByUserId], references: [id])
+  createdByUserId String
+}
+
+model Transfer {
+  id        String         @id @default(uuid())
+  startDate DateTime
+  endDate   DateTime
+  status    TransferStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+
+  user   User   @relation("TransferUser", fields: [userId], references: [id])
+  userId String
+
+  fromSite   Site   @relation("TransferFromSite", fields: [fromSiteId], references: [id])
+  fromSiteId String
+
+  toSite   Site   @relation("TransferToSite", fields: [toSiteId], references: [id])
+  toSiteId String
+
+  requestedBy       User   @relation("TransferRequestedBy", fields: [requestedByUserId], references: [id])
+  requestedByUserId String
+
+  respondedBy       User?   @relation("TransferRespondedBy", fields: [respondedByUserId], references: [id])
+  respondedByUserId String?
+}
+
+model Shift {
+  id        String   @id @default(uuid())
+  checkInAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+}
+
+model Skill {
+  id           String       @id @default(uuid())
+  name         String       @unique
+  createdAt    DateTime     @default(now())
+  operations   Operation[]
+  competencies Competency[]
+}
+
+model Competency {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  skill   Skill  @relation(fields: [skillId], references: [id])
+  skillId String
+
+  @@unique([userId, skillId])
+}
+
+model Order {
+  id         String      @id @default(uuid())
+  name       String
+  quantity   Int
+  dueDate    DateTime
+  priority   Int         @default(0)
+  status     OrderStatus @default(CREATED)
+  createdAt  DateTime    @default(now())
+  operations Operation[]
+}
+
+model Operation {
+  id       String @id @default(uuid())
+  quantity Int
+
+  order   Order  @relation(fields: [orderId], references: [id])
+  orderId String
+
+  site   Site   @relation("OperationSite", fields: [siteId], references: [id])
+  siteId String
+
+  secondarySite   Site?   @relation("OperationSecondarySite", fields: [secondarySiteId], references: [id])
+  secondarySiteId String?
+
+  skill   Skill  @relation(fields: [skillId], references: [id])
+  skillId String
+
+  assignments Assignment[]
+}
+
+model Assignment {
+  id               String   @id @default(uuid())
+  assignedQuantity Int?
+  createdAt        DateTime @default(now())
+
+  operation   Operation @relation(fields: [operationId], references: [id])
+  operationId String
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  completionRecords CompletionRecord[]
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  username   String?
+  role       Role?
+  method     String
+  path       String
+  statusCode Int
+  body       Json?
+  createdAt  DateTime @default(now())
+}
+
+model CompletionRecord {
+  id              String   @id @default(uuid())
+  doneQuantity    Int?
+  doneFlag        Boolean?
+  correctionCount Int      @default(0)
+  recordedAt      DateTime @default(now())
+
+  reasonCode      DowntimeReasonCode?
+  reasonComment   String?
+  reasonConfirmed Boolean             @default(false)
+
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  assignmentId String     @unique
+}

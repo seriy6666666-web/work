@@ -1,0 +1,89 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { Role } from '../generated/prisma/enums';
+import type { AuthenticatedRequest } from '../auth/jwt.strategy';
+import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { UpdateAssignmentDto } from './dto/update-assignment.dto';
+import { ConfirmReasonDto } from './dto/confirm-reason.dto';
+import { DistributionService } from './distribution.service';
+import { EventsGateway } from '../events/events.gateway';
+
+function requireSiteId(req: AuthenticatedRequest): string {
+  if (!req.user.siteId) {
+    throw new ForbiddenException('У вас не указан участок');
+  }
+  return req.user.siteId;
+}
+
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.SITE_LEAD)
+@Controller()
+export class DistributionController {
+  constructor(
+    private distributionService: DistributionService,
+    private events: EventsGateway,
+  ) {}
+
+  @Get('distribution/operations')
+  listOperations(@Req() req: AuthenticatedRequest) {
+    return this.distributionService.listOperations(requireSiteId(req));
+  }
+
+  @Get('distribution/summary')
+  getSummary(@Req() req: AuthenticatedRequest) {
+    return this.distributionService.getSummary(requireSiteId(req));
+  }
+
+  @Post('assignments')
+  async createAssignment(@Req() req: AuthenticatedRequest, @Body() dto: CreateAssignmentDto) {
+    const siteId = requireSiteId(req);
+    const result = await this.distributionService.createAssignment(siteId, dto);
+    this.events.emitDistributionChanged(siteId);
+    return result;
+  }
+
+  @Patch('assignments/:id')
+  async updateAssignment(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateAssignmentDto,
+  ) {
+    const siteId = requireSiteId(req);
+    const result = await this.distributionService.updateAssignment(siteId, id, dto);
+    this.events.emitDistributionChanged(siteId);
+    return result;
+  }
+
+  @Delete('assignments/:id')
+  async removeAssignment(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const siteId = requireSiteId(req);
+    const result = await this.distributionService.removeAssignment(siteId, id);
+    this.events.emitDistributionChanged(siteId);
+    return result;
+  }
+
+  @Patch('completion-records/:id/confirm')
+  async confirmReason(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: ConfirmReasonDto,
+  ) {
+    const siteId = requireSiteId(req);
+    const result = await this.distributionService.confirmReason(siteId, id, dto);
+    this.events.emitDistributionChanged(siteId);
+    return result;
+  }
+}

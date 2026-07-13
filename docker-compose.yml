@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-belmy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-belmy_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-belmy}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-belmy}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-belmy}:${POSTGRES_PASSWORD:-belmy_dev_password}@postgres:5432/${POSTGRES_DB:-belmy}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      PORT: 3000
+    ports:
+      - '3000:3000'
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '5173:80'
+
+  backup:
+    image: prodrigestivill/postgres-backup-local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-belmy}
+      POSTGRES_USER: ${POSTGRES_USER:-belmy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-belmy_dev_password}
+      SCHEDULE: '@daily'
+      BACKUP_KEEP_DAYS: 7
+    volumes:
+      - ./backups:/backups
+
+volumes:
+  postgres_data:
