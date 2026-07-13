@@ -18,7 +18,9 @@ import { DistributionPage } from './pages/site-lead/DistributionPage';
 import { AbsencesPage } from './pages/site-lead/AbsencesPage';
 import { TransfersPage } from './pages/site-lead/TransfersPage';
 import { StatsPage } from './pages/site-lead/StatsPage';
+import { EquipmentPage } from './pages/site-lead/EquipmentPage';
 import { PlantSummaryPage } from './pages/production-head/PlantSummaryPage';
+import { EquipmentOverviewPage } from './pages/production-head/EquipmentOverviewPage';
 import { SiteDetailPage } from './pages/production-head/SiteDetailPage';
 import { WarningsPage } from './pages/production-head/WarningsPage';
 import { TasksPage } from './pages/worker/TasksPage';
@@ -129,6 +131,14 @@ function App() {
               }
             />
             <Route
+              path="/site-lead/equipment"
+              element={
+                <ProtectedRoute allowedRoles={['SITE_LEAD']}>
+                  <EquipmentPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/site-lead/stats"
               element={
                 <ProtectedRoute allowedRoles={['SITE_LEAD']}>
@@ -149,6 +159,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['PRODUCTION_HEAD']}>
                   <SiteDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/production-head/equipment"
+              element={
+                <ProtectedRoute allowedRoles={['PRODUCTION_HEAD']}>
+                  <EquipmentOverviewPage />
                 </ProtectedRoute>
               }
             />

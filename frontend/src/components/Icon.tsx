@@ -22,6 +22,7 @@ export type IconName =
   | 'sort'
   | 'download'
   | 'bell'
+  | 'wrench'
   | 'check';
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -178,6 +179,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   check: <path d="M20 6L9 17l-5-5" />,
+  wrench: (
+    <path d="M14.7 6.3a4 4 0 00-5.2 5.2l-6.1 6.1a1.5 1.5 0 002.1 2.1l6.1-6.1a4 4 0 005.2-5.2l-2.5 2.5-2.1-2.1 2.5-2.5z" />
+  ),
 };
 
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {

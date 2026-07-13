@@ -57,6 +57,24 @@ model Site {
   transfersTo         Transfer[]  @relation("TransferToSite")
   productOperations          ProductOperation[] @relation("ProductOpSite")
   secondaryProductOperations ProductOperation[] @relation("ProductOpSecondarySite")
+  equipment                  Equipment[]
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  MAINTENANCE
+  BROKEN
+}
+
+model Equipment {
+  id                String          @id @default(uuid())
+  name              String
+  status            EquipmentStatus @default(OPERATIONAL)
+  nextMaintenanceAt DateTime?
+  createdAt         DateTime        @default(now())
+
+  site   Site   @relation(fields: [siteId], references: [id])
+  siteId String
 }
 
 model User {

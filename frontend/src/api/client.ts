@@ -172,6 +172,15 @@ export const api = {
   createOrderFromProduct: (token: string, payload: CreateOrderFromProductPayload) =>
     request<Order>('/orders/from-product', { method: 'POST', body: JSON.stringify(payload) }, token),
 
+  listEquipment: (token: string) => request<Equipment[]>('/equipment', {}, token),
+  listAllEquipment: (token: string) => request<Equipment[]>('/equipment/all', {}, token),
+  createEquipment: (token: string, payload: CreateEquipmentPayload) =>
+    request<Equipment>('/equipment', { method: 'POST', body: JSON.stringify(payload) }, token),
+  updateEquipment: (token: string, id: string, payload: UpdateEquipmentPayload) =>
+    request<Equipment>(`/equipment/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  deleteEquipment: (token: string, id: string) =>
+    request<void>(`/equipment/${id}`, { method: 'DELETE' }, token),
+
   getNotifications: (token: string) => request<AppNotification[]>('/notifications', {}, token),
   getUnreadCount: (token: string) =>
     request<{ count: number }>('/notifications/unread-count', {}, token),
@@ -342,6 +351,29 @@ export interface CreateOrderFromProductPayload {
   quantity: number;
   dueDate: string;
   priority?: number;
+}
+
+export type EquipmentStatus = 'OPERATIONAL' | 'MAINTENANCE' | 'BROKEN';
+
+export interface Equipment {
+  id: string;
+  name: string;
+  status: EquipmentStatus;
+  nextMaintenanceAt: string | null;
+  createdAt: string;
+  siteId: string;
+  site?: { id: string; name: string };
+}
+
+export interface CreateEquipmentPayload {
+  name: string;
+  nextMaintenanceAt?: string | null;
+}
+
+export interface UpdateEquipmentPayload {
+  name?: string;
+  status?: EquipmentStatus;
+  nextMaintenanceAt?: string | null;
 }
 
 export interface CreateSkillPayload {

@@ -6,6 +6,7 @@ const TABS: SidebarTab[] = [
   { path: '/site-lead/competency', label: 'Матрица компетенций', icon: 'checklist' },
   { path: '/site-lead/absences', label: 'Отсутствия', icon: 'calendar-x' },
   { path: '/site-lead/transfers', label: 'Переводы', icon: 'swap' },
+  { path: '/site-lead/equipment', label: 'Оборудование', icon: 'wrench' },
   { path: '/site-lead/stats', label: 'Статистика', icon: 'bar-chart' },
 ];
 
