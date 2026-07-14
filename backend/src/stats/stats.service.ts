@@ -7,6 +7,8 @@ export interface SiteRankingEntry {
   userId: string;
   fullName: string;
   completionRate: number | null;
+  /** Выработка относительно нормы операции (годных / сумма норм смен). null — норм нет. */
+  normRate: number | null;
   excusedCount: number;
   totalCount: number;
   defectCount: number;
@@ -18,6 +20,7 @@ export interface SiteRanking {
   siteName: string;
   entries: SiteRankingEntry[];
   siteCompletionRate: number | null;
+  siteNormRate: number | null;
   siteDone: number;
   siteAssigned: number;
   siteDefectCount: number;
@@ -26,6 +29,8 @@ export interface SiteRanking {
 
 const RISK_THRESHOLD = 0.15;
 const UNDERPERFORMING_THRESHOLD = 0.7;
+// Ниже этой доли нормы сотрудник считается отстающим (объективный сигнал).
+const NORM_UNDERPERFORMING_THRESHOLD = 0.85;
 
 @Injectable()
 export class StatsService {
@@ -42,7 +47,7 @@ export class StatsService {
       },
       include: {
         user: { select: { id: true, fullName: true } },
-        operation: { select: { quantity: true } },
+        operation: { select: { quantity: true, skill: { select: { norm: true } } } },
         completionRecords: true,
       },
     });
@@ -57,6 +62,8 @@ export class StatsService {
         totalCount: number;
         defect: number;
         producedGood: number;
+        normGood: number;
+        normSum: number;
       }
     >();
 
@@ -64,6 +71,8 @@ export class StatsService {
     let siteAssigned = 0;
     let siteDefect = 0;
     let siteProducedGood = 0;
+    let siteNormGood = 0;
+    let siteNormSum = 0;
 
     for (const a of assignments) {
       const record = a.completionRecords[0];
@@ -77,6 +86,8 @@ export class StatsService {
         totalCount: 0,
         defect: 0,
         producedGood: 0,
+        normGood: 0,
+        normSum: 0,
       };
       entry.totalCount += 1;
 
@@ -95,6 +106,17 @@ export class StatsService {
         entry.assigned += assignedQty;
         siteDone += record.doneQuantity ?? 0;
         siteAssigned += assignedQty;
+
+        // Норма выработки: одна запись ≈ выработка за смену по операции.
+        // Учитываем только операции, у которых задана положительная норма.
+        const norm = a.operation.skill?.norm ?? null;
+        if (norm && norm > 0) {
+          const good = record.doneQuantity ?? 0;
+          entry.normGood += good;
+          entry.normSum += norm;
+          siteNormGood += good;
+          siteNormSum += norm;
+        }
       }
 
       byUser.set(a.userId, entry);
@@ -110,18 +132,20 @@ export class StatsService {
         userId,
         fullName: e.fullName,
         completionRate: e.assigned > 0 ? e.done / e.assigned : null,
+        normRate: e.normSum > 0 ? e.normGood / e.normSum : null,
         excusedCount: e.excusedCount,
         totalCount: e.totalCount,
         defectCount: e.defect,
         defectRate: defectRate(e.defect, e.producedGood),
       }))
-      .sort((a, b) => (b.completionRate ?? -1) - (a.completionRate ?? -1));
+      .sort((a, b) => (b.normRate ?? b.completionRate ?? -1) - (a.normRate ?? a.completionRate ?? -1));
 
     return {
       siteId: site.id,
       siteName: site.name,
       entries,
       siteCompletionRate: siteAssigned > 0 ? siteDone / siteAssigned : null,
+      siteNormRate: siteNormSum > 0 ? siteNormGood / siteNormSum : null,
       siteDone,
       siteAssigned,
       siteDefectCount: siteDefect,
@@ -131,11 +155,12 @@ export class StatsService {
 
   async toCsv(ranking: SiteRanking): Promise<string> {
     const header =
-      'ФИО,Выполнение (%),Брак (шт),Брак (%),Исключено (уважительная причина),Всего назначений';
+      'ФИО,Выполнение (%),Выполнение нормы (%),Брак (шт),Брак (%),Исключено (уважительная причина),Всего назначений';
     const rows = ranking.entries.map((e) =>
       [
         `"${e.fullName.replace(/"/g, '""')}"`,
         e.completionRate === null ? '' : Math.round(e.completionRate * 100),
+        e.normRate === null ? '' : Math.round(e.normRate * 100),
         e.defectCount,
         e.defectRate === null ? '' : Math.round(e.defectRate * 100),
         e.excusedCount,
@@ -154,6 +179,7 @@ export class StatsService {
           siteId: site.id,
           siteName: site.name,
           completionRate: ranking.siteCompletionRate,
+          normRate: ranking.siteNormRate,
           workersCount: ranking.entries.length,
         };
       }),
@@ -209,12 +235,19 @@ export class StatsService {
     const rankings = await Promise.all(sites.map((site) => this.computeSiteRanking(site.id, 'week')));
     const workerWarnings = rankings.flatMap((ranking) =>
       ranking.entries
-        .filter((e) => e.completionRate !== null && e.completionRate < UNDERPERFORMING_THRESHOLD)
+        .filter((e) =>
+          // Объективный сигнал — выработка ниже нормы; при отсутствии норм
+          // откатываемся к выполнению назначенного.
+          e.normRate !== null
+            ? e.normRate < NORM_UNDERPERFORMING_THRESHOLD
+            : e.completionRate !== null && e.completionRate < UNDERPERFORMING_THRESHOLD,
+        )
         .map((e) => ({
           userId: e.userId,
           fullName: e.fullName,
           siteName: ranking.siteName,
           completionRate: e.completionRate,
+          normRate: e.normRate,
         })),
     );
 

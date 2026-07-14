@@ -337,6 +337,7 @@ export interface UpdateOperationPayload {
 export interface Skill {
   id: string;
   name: string;
+  norm: number | null;
   createdAt: string;
 }
 
@@ -442,10 +443,12 @@ export interface UpdateEquipmentPayload {
 
 export interface CreateSkillPayload {
   name: string;
+  norm?: number | null;
 }
 
 export interface UpdateSkillPayload {
   name?: string;
+  norm?: number | null;
 }
 
 export interface CompetencyMatrix {
@@ -629,6 +632,7 @@ export interface SiteRankingEntry {
   userId: string;
   fullName: string;
   completionRate: number | null;
+  normRate: number | null;
   excusedCount: number;
   totalCount: number;
   defectCount: number;
@@ -640,6 +644,7 @@ export interface SiteRanking {
   siteName: string;
   entries: SiteRankingEntry[];
   siteCompletionRate: number | null;
+  siteNormRate: number | null;
   siteDefectCount: number;
   siteDefectRate: number | null;
 }
@@ -648,6 +653,7 @@ export interface PlantSummaryEntry {
   siteId: string;
   siteName: string;
   completionRate: number | null;
+  normRate: number | null;
   workersCount: number;
 }
 
@@ -680,6 +686,7 @@ export interface WorkerWarning {
   fullName: string;
   siteName: string;
   completionRate: number | null;
+  normRate: number | null;
 }
 
 export interface Warnings {

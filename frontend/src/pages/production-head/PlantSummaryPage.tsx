@@ -57,11 +57,11 @@ export function PlantSummaryPage() {
         <>
           <div style={{ marginBottom: '24px' }}>
             <BarChart
-              title="Выполнение плана по участкам"
-              threshold={0.7}
+              title={summary.some((s) => s.normRate !== null) ? 'Выработка по норме' : 'Выполнение плана по участкам'}
+              threshold={summary.some((s) => s.normRate !== null) ? 0.85 : 0.7}
               data={summary.map((s) => ({
                 label: s.siteName,
-                value: s.completionRate,
+                value: s.normRate ?? s.completionRate,
                 sub: `${s.workersCount} сотр. с данными`,
               }))}
             />
@@ -71,6 +71,7 @@ export function PlantSummaryPage() {
             <thead>
               <tr>
                 <th style={styles.th}>Участок</th>
+                <th style={styles.th}>Выработка по норме</th>
                 <th style={styles.th}>Выполнение плана</th>
                 <th style={styles.th}>Сотрудников с данными</th>
                 <th style={styles.th}></th>
@@ -80,6 +81,9 @@ export function PlantSummaryPage() {
               {summary.map((s) => (
                 <tr key={s.siteId}>
                   <td style={styles.td}>{s.siteName}</td>
+                  <td style={{ ...styles.td, fontWeight: 600 }}>
+                    {s.normRate === null ? '—' : `${Math.round(s.normRate * 100)}%`}
+                  </td>
                   <td style={styles.td}>
                     {s.completionRate === null ? '—' : `${Math.round(s.completionRate * 100)}%`}
                   </td>

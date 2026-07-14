@@ -10,6 +10,14 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { Icon } from '../../components/Icon';
 import { COLORS, RADIUS } from '../../theme';
 
+/** Colour the norm-rate cell: red below 85% of norm, green when at/above norm. */
+function normStyle(rate: number | null): React.CSSProperties {
+  if (rate === null) return {};
+  if (rate < 0.85) return { color: COLORS.error, fontWeight: 700 };
+  if (rate >= 1) return { color: COLORS.accentDark, fontWeight: 700 };
+  return { fontWeight: 600 };
+}
+
 export function StatsPage() {
   const { token } = useAuth();
   const toast = useToast();
@@ -82,7 +90,11 @@ export function StatsPage() {
       ) : ranking ? (
         <>
           <p style={styles.muted}>
-            Выполнение по участку «{ranking.siteName}»:{' '}
+            Выработка по норме «{ranking.siteName}»:{' '}
+            <strong>
+              {ranking.siteNormRate === null ? '—' : `${Math.round(ranking.siteNormRate * 100)}%`}
+            </strong>
+            {' · '}Выполнение назначенного:{' '}
             {ranking.siteCompletionRate === null ? '—' : `${Math.round(ranking.siteCompletionRate * 100)}%`}
             {' · '}Брак:{' '}
             <span style={ranking.siteDefectRate && ranking.siteDefectRate > 0 ? styles.defectValue : undefined}>
@@ -90,10 +102,22 @@ export function StatsPage() {
             </span>
           </p>
 
-          {ranking.entries.some((e) => e.completionRate !== null) && (
+          {ranking.entries.some((e) => e.normRate !== null) ? (
             <div style={{ margin: '16px 0 24px' }}>
               <BarChart
-                title="Выполнение по сотрудникам"
+                title="Выработка по норме, %"
+                threshold={0.85}
+                data={ranking.entries.map((e) => ({
+                  label: e.fullName,
+                  value: e.normRate,
+                  sub: `${e.totalCount} назнач.${e.excusedCount ? ` · ${e.excusedCount} искл.` : ''}`,
+                }))}
+              />
+            </div>
+          ) : ranking.entries.some((e) => e.completionRate !== null) ? (
+            <div style={{ margin: '16px 0 24px' }}>
+              <BarChart
+                title="Выполнение назначенного, %"
                 threshold={0.7}
                 data={ranking.entries.map((e) => ({
                   label: e.fullName,
@@ -102,13 +126,14 @@ export function StatsPage() {
                 }))}
               />
             </div>
-          )}
+          ) : null}
 
           <table style={styles.table}>
             <thead>
               <tr>
                 <th style={styles.th}>Сотрудник</th>
-                <th style={styles.th}>Выполнение</th>
+                <th style={styles.th}>Выработка по норме</th>
+                <th style={styles.th}>Выполнение назначенного</th>
                 <th style={styles.th}>Брак</th>
                 <th style={styles.th}>Исключено (уважительная причина)</th>
                 <th style={styles.th}>Всего назначений</th>
@@ -123,6 +148,9 @@ export function StatsPage() {
                       {e.fullName}
                     </div>
                   </td>
+                  <td style={{ ...styles.td, ...normStyle(e.normRate) }}>
+                    {e.normRate === null ? '—' : `${Math.round(e.normRate * 100)}%`}
+                  </td>
                   <td style={styles.td}>
                     {e.completionRate === null ? '—' : `${Math.round(e.completionRate * 100)}%`}
                   </td>
@@ -135,7 +163,7 @@ export function StatsPage() {
               ))}
               {ranking.entries.length === 0 && (
                 <tr>
-                  <td style={styles.td} colSpan={5}>
+                  <td style={styles.td} colSpan={6}>
                     За выбранный период данных нет
                   </td>
                 </tr>

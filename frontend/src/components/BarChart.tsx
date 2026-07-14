@@ -41,7 +41,7 @@ export function BarChart({
                 <div
                   style={{
                     ...styles.bar,
-                    width: `${d.value === null ? 2 : Math.max(pct, 2)}%`,
+                    width: `${d.value === null ? 2 : Math.min(Math.max(pct, 2), 100)}%`,
                     background: barColor,
                     opacity: d.value === null ? 0.4 : 1,
                   }}

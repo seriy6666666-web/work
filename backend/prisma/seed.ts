@@ -24,7 +24,14 @@ const SEED_USERS: { username: string; fullName: string; role: Role; site?: strin
   { username: 'smirnov', fullName: 'Смирнов Дмитрий', role: Role.WORKER, site: 'Упаковка' },
 ];
 
-const SKILLS = ['Сборка АКБ', 'Пайка', 'Тестирование', 'Контроль качества', 'Упаковка'];
+// [название, норма выработки за смену (годных единиц)]
+const SKILLS: [string, number][] = [
+  ['Сборка АКБ', 40],
+  ['Пайка', 60],
+  ['Тестирование', 50],
+  ['Контроль качества', 80],
+  ['Упаковка', 200],
+];
 
 // worker username -> skills they are certified for
 const COMPETENCIES: Record<string, string[]> = {
@@ -87,8 +94,10 @@ async function main() {
 
   // --- Skills (idempotent) ---
   const skillByName = new Map<string, string>();
-  for (const name of SKILLS) {
-    const skill = await prisma.skill.upsert({ where: { name }, update: {}, create: { name } });
+  for (const [name, norm] of SKILLS) {
+    // Норму задаём только при создании — при повторном запуске не затираем
+    // возможные правки норм пользователем.
+    const skill = await prisma.skill.upsert({ where: { name }, update: {}, create: { name, norm } });
     skillByName.set(name, skill.id);
   }
 

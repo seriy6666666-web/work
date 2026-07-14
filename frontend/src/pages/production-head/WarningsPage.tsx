@@ -67,7 +67,8 @@ export function WarningsPage() {
                 <tr>
                   <th style={styles.th}>Сотрудник</th>
                   <th style={styles.th}>Участок</th>
-                  <th style={styles.th}>Выполнение</th>
+                  <th style={styles.th}>Выработка по норме</th>
+                  <th style={styles.th}>Выполнение назначенного</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,6 +81,9 @@ export function WarningsPage() {
                       </div>
                     </td>
                     <td style={styles.td}>{w.siteName}</td>
+                    <td style={{ ...styles.td, color: COLORS.error, fontWeight: 700 }}>
+                      {w.normRate === null ? '—' : `${Math.round(w.normRate * 100)}%`}
+                    </td>
                     <td style={styles.td}>
                       {w.completionRate === null ? '—' : `${Math.round(w.completionRate * 100)}%`}
                     </td>

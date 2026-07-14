@@ -17,10 +17,12 @@ export function SkillsPage() {
   const [loading, setLoading] = useState(true);
 
   const [newName, setNewName] = useState('');
+  const [newNorm, setNewNorm] = useState('');
   const [creating, setCreating] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [editingNorm, setEditingNorm] = useState('');
 
   async function refresh() {
     if (!token) return;
@@ -44,8 +46,12 @@ export function SkillsPage() {
     if (!token || !newName.trim()) return;
     setCreating(true);
     try {
-      await api.createSkill(token, { name: newName.trim() });
+      await api.createSkill(token, {
+        name: newName.trim(),
+        norm: newNorm.trim() ? Number(newNorm) : null,
+      });
       setNewName('');
+      setNewNorm('');
       toast.success('Навык создан');
       await refresh();
     } catch (err) {
@@ -58,17 +64,21 @@ export function SkillsPage() {
   function startEdit(skill: Skill) {
     setEditingId(skill.id);
     setEditingName(skill.name);
+    setEditingNorm(skill.norm === null ? '' : String(skill.norm));
   }
 
   async function saveEdit(id: string) {
     if (!token || !editingName.trim()) return;
     try {
-      await api.updateSkill(token, id, { name: editingName.trim() });
+      await api.updateSkill(token, id, {
+        name: editingName.trim(),
+        norm: editingNorm.trim() ? Number(editingNorm) : null,
+      });
       setEditingId(null);
       toast.success('Сохранено');
       await refresh();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Не удалось переименовать навык');
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось сохранить навык');
     }
   }
 
@@ -95,12 +105,26 @@ export function SkillsPage() {
   return (
     <PlannerLayout title="Навыки" breadcrumb="Планирование">
 
+      <p style={styles.hint}>
+        Норма выработки — сколько годных единиц за смену. По ней объективно считается
+        производительность сотрудников, сопоставимая между разными операциями.
+      </p>
+
       <form onSubmit={handleCreate} style={styles.createForm}>
         <input
           style={styles.input}
           placeholder="Название навыка (например «Сварка шин»)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
+        />
+        <input
+          style={styles.normInput}
+          type="number"
+          step="any"
+          min="0"
+          placeholder="Норма/смена"
+          value={newNorm}
+          onChange={(e) => setNewNorm(e.target.value)}
         />
         <button style={styles.button} type="submit" disabled={creating || !newName.trim()}>
           Добавить
@@ -114,7 +138,7 @@ export function SkillsPage() {
       )}
 
       {loading ? (
-        <SkeletonTable rows={4} cols={2} />
+        <SkeletonTable rows={4} cols={3} />
       ) : skills.length === 0 ? (
         <EmptyState icon="star" title="Навыков пока нет" hint="Добавьте первый навык в форме выше." />
       ) : controls.result.length === 0 ? (
@@ -124,6 +148,7 @@ export function SkillsPage() {
           <thead>
             <tr>
               <th style={styles.th}>Название</th>
+              <th style={{ ...styles.th, textAlign: 'right' }}>Норма/смена</th>
               <th style={styles.th}></th>
             </tr>
           </thead>
@@ -140,6 +165,23 @@ export function SkillsPage() {
                     />
                   ) : (
                     skill.name
+                  )}
+                </td>
+                <td style={{ ...styles.td, textAlign: 'right' }}>
+                  {editingId === skill.id ? (
+                    <input
+                      style={styles.normInput}
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="—"
+                      value={editingNorm}
+                      onChange={(e) => setEditingNorm(e.target.value)}
+                    />
+                  ) : skill.norm === null ? (
+                    <span style={styles.muted}>—</span>
+                  ) : (
+                    skill.norm
                   )}
                 </td>
                 <td style={{ ...styles.td, textAlign: 'right' }}>
@@ -173,6 +215,23 @@ export function SkillsPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  hint: {
+    color: COLORS.mutedText,
+    fontSize: '14px',
+    marginTop: 0,
+    marginBottom: '16px',
+  },
+  muted: {
+    color: COLORS.mutedText,
+  },
+  normInput: {
+    width: '130px',
+    padding: '10px 12px',
+    borderRadius: RADIUS.sm,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    background: COLORS.lightGrayBg,
+    fontSize: '15px',
+  },
   createForm: {
     display: 'flex',
     gap: '12px',

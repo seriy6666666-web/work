@@ -202,6 +202,7 @@ model PlannedShift {
 model Skill {
   id                String             @id @default(uuid())
   name              String             @unique
+  norm              Float?
   createdAt         DateTime           @default(now())
   operations        Operation[]
   competencies      Competency[]
