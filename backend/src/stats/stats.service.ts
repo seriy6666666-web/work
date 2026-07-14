@@ -220,4 +220,82 @@ export class StatsService {
 
     return { orderWarnings, workerWarnings };
   }
+
+  /**
+   * Plant-wide daily production trend over the last `days` calendar days
+   * (based on when completion records were logged).
+   */
+  async trends(days = 14): Promise<TrendResult> {
+    const span = Math.min(Math.max(Math.trunc(days) || 14, 1), 90);
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (span - 1));
+
+    const records = await this.prisma.completionRecord.findMany({
+      where: { recordedAt: { gte: start } },
+      select: { doneQuantity: true, defectQuantity: true, recordedAt: true },
+    });
+
+    // Pre-seed every day in the window so gaps render as zero.
+    const buckets = new Map<string, { producedGood: number; defects: number }>();
+    for (let i = 0; i < span; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      buckets.set(dayKey(d), { producedGood: 0, defects: 0 });
+    }
+
+    for (const r of records) {
+      const key = dayKey(r.recordedAt);
+      const bucket = buckets.get(key);
+      if (!bucket) continue;
+      bucket.producedGood += r.doneQuantity ?? 0;
+      bucket.defects += r.defectQuantity;
+    }
+
+    const points: TrendPoint[] = [...buckets.entries()].map(([date, b]) => {
+      const total = b.producedGood + b.defects;
+      return {
+        date,
+        producedGood: b.producedGood,
+        defects: b.defects,
+        defectRate: total > 0 ? b.defects / total : null,
+      };
+    });
+
+    const totalGood = points.reduce((s, p) => s + p.producedGood, 0);
+    const totalDefects = points.reduce((s, p) => s + p.defects, 0);
+    const grandTotal = totalGood + totalDefects;
+
+    return {
+      days: span,
+      points,
+      totalProducedGood: totalGood,
+      totalDefects,
+      overallDefectRate: grandTotal > 0 ? totalDefects / grandTotal : null,
+    };
+  }
+}
+
+export interface TrendPoint {
+  date: string; // YYYY-MM-DD
+  producedGood: number;
+  defects: number;
+  defectRate: number | null;
+}
+
+export interface TrendResult {
+  days: number;
+  points: TrendPoint[];
+  totalProducedGood: number;
+  totalDefects: number;
+  overallDefectRate: number | null;
+}
+
+/** Local calendar-day key (YYYY-MM-DD) matching how records are bucketed. */
+function dayKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }

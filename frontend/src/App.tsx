@@ -24,6 +24,7 @@ import { ShiftPlanningPage } from './pages/site-lead/ShiftPlanningPage';
 import { PlantSummaryPage } from './pages/production-head/PlantSummaryPage';
 import { EquipmentOverviewPage } from './pages/production-head/EquipmentOverviewPage';
 import { MaterialsOverviewPage } from './pages/production-head/MaterialsOverviewPage';
+import { TrendsPage } from './pages/production-head/TrendsPage';
 import { SiteDetailPage } from './pages/production-head/SiteDetailPage';
 import { WarningsPage } from './pages/production-head/WarningsPage';
 import { TasksPage } from './pages/worker/TasksPage';
@@ -194,6 +195,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['PRODUCTION_HEAD']}>
                   <MaterialsOverviewPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/production-head/trends"
+              element={
+                <ProtectedRoute allowedRoles={['PRODUCTION_HEAD']}>
+                  <TrendsPage />
                 </ProtectedRoute>
               }
             />

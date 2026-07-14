@@ -145,6 +145,8 @@ export const api = {
   getSiteDetail: (token: string, siteId: string, period: StatsPeriod) =>
     request<SiteRanking>(`/stats/site-detail/${siteId}?period=${period}`, {}, token),
   getWarnings: (token: string) => request<Warnings>('/stats/warnings', {}, token),
+  getStatsTrends: (token: string, days = 14) =>
+    request<StatsTrends>(`/stats/trends?days=${days}`, {}, token),
 
   getAuditLog: (token: string, filters: AuditLogFilters) => {
     const params = new URLSearchParams();
@@ -647,6 +649,21 @@ export interface PlantSummaryEntry {
   siteName: string;
   completionRate: number | null;
   workersCount: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  producedGood: number;
+  defects: number;
+  defectRate: number | null;
+}
+
+export interface StatsTrends {
+  days: number;
+  points: TrendPoint[];
+  totalProducedGood: number;
+  totalDefects: number;
+  overallDefectRate: number | null;
 }
 
 export interface OrderWarning {

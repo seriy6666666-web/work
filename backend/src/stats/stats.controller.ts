@@ -57,4 +57,10 @@ export class StatsController {
   warnings() {
     return this.statsService.warnings();
   }
+
+  @Roles(Role.PRODUCTION_HEAD)
+  @Get('trends')
+  trends(@Query('days') days?: string) {
+    return this.statsService.trends(days ? Number(days) : 14);
+  }
 }
