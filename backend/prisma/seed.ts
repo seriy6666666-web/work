@@ -208,6 +208,13 @@ async function main() {
     });
   }
 
+  // --- Today's check-ins (so "на смене" is populated on the board) ---
+  for (const username of ['worker', 'ivanov', 'petrov']) {
+    await prisma.shift.create({
+      data: { userId: userByUsername.get(username)!, checkInAt: at(0, 8) },
+    });
+  }
+
   // --- Equipment (varied statuses across sites) ---
   await prisma.equipment.createMany({
     data: [
