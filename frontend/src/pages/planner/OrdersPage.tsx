@@ -64,7 +64,7 @@ export function OrdersPage() {
         dueDate: fromProduct.dueDate,
       });
       setFromProduct({ productId: '', quantity: '', dueDate: '' });
-      toast.success('Заказ создан из продукта — операции подставлены');
+      toast.success('Заказ создан из проекта — операции подставлены');
       await refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось создать заказ');
@@ -159,7 +159,7 @@ export function OrdersPage() {
             onChange={(e) => setFromProduct({ ...fromProduct, productId: e.target.value })}
             required
           >
-            <option value="">Из продукта (шаблон)...</option>
+            <option value="">Из проекта (шаблон)...</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.operations.length} оп.)
@@ -183,7 +183,7 @@ export function OrdersPage() {
             required
           />
           <button style={styles.buttonSecondary} type="submit" disabled={creatingFromProduct}>
-            Создать из продукта
+            Создать из проекта
           </button>
         </form>
       )}

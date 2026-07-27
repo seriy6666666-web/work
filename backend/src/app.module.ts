@@ -26,6 +26,7 @@ import { ProductsModule } from './products/products.module';
 import { EquipmentModule } from './equipment/equipment.module';
 import { MaterialsModule } from './materials/materials.module';
 import { PlannedShiftsModule } from './planned-shifts/planned-shifts.module';
+import { PlatformsModule } from './platforms/platforms.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { PlannedShiftsModule } from './planned-shifts/planned-shifts.module';
     EquipmentModule,
     MaterialsModule,
     PlannedShiftsModule,
+    PlatformsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_INTERCEPTOR, useClass: AuditInterceptor }],

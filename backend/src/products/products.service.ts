@@ -1,8 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProjectStatus } from '../generated/prisma/enums';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductOperationDto } from './dto/create-product-operation.dto';
+import { SetPlatformsDto } from './dto/set-platforms.dto';
 
 const includeOps = {
   operations: {
@@ -13,14 +15,19 @@ const includeOps = {
     },
     orderBy: { sequence: 'asc' },
   },
+  platforms: { select: { id: true, name: true } },
 } as const;
 
 @Injectable()
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
-  list() {
-    return this.prisma.product.findMany({ include: includeOps, orderBy: { name: 'asc' } });
+  list(includeArchived = false) {
+    return this.prisma.product.findMany({
+      where: includeArchived ? undefined : { status: ProjectStatus.ACTIVE },
+      include: includeOps,
+      orderBy: { name: 'asc' },
+    });
   }
 
   async create(dto: CreateProductDto) {
@@ -28,7 +35,37 @@ export class ProductsService {
       return await this.prisma.product.create({ data: { name: dto.name.trim() }, include: includeOps });
     } catch (err) {
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new ConflictException('Продукт с таким названием уже существует');
+        throw new ConflictException('Проект с таким названием уже существует');
+      }
+      throw err;
+    }
+  }
+
+  async setArchived(id: string, archived: boolean) {
+    try {
+      return await this.prisma.product.update({
+        where: { id },
+        data: { status: archived ? ProjectStatus.ARCHIVED : ProjectStatus.ACTIVE },
+        include: includeOps,
+      });
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new NotFoundException('Проект не найден');
+      }
+      throw err;
+    }
+  }
+
+  async setPlatforms(id: string, dto: SetPlatformsDto) {
+    try {
+      return await this.prisma.product.update({
+        where: { id },
+        data: { platforms: { set: dto.platformIds.map((pid) => ({ id: pid })) } },
+        include: includeOps,
+      });
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new NotFoundException('Проект или площадка не найдены');
       }
       throw err;
     }
@@ -39,7 +76,7 @@ export class ProductsService {
       await this.prisma.product.delete({ where: { id } });
     } catch (err) {
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
-        throw new NotFoundException('Продукт не найден');
+        throw new NotFoundException('Проект не найден');
       }
       throw err;
     }
@@ -47,7 +84,7 @@ export class ProductsService {
 
   async addOperation(productId: string, dto: CreateProductOperationDto) {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
-    if (!product) throw new NotFoundException('Продукт не найден');
+    if (!product) throw new NotFoundException('Проект не найден');
 
     const count = await this.prisma.productOperation.count({ where: { productId } });
     await this.prisma.productOperation.create({

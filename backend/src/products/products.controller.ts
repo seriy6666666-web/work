@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { Role } from '../generated/prisma/enums';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductOperationDto } from './dto/create-product-operation.dto';
+import { SetPlatformsDto } from './dto/set-platforms.dto';
 import { ProductsService } from './products.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -14,13 +15,23 @@ export class ProductsController {
   constructor(private products: ProductsService) {}
 
   @Get('products')
-  list() {
-    return this.products.list();
+  list(@Query('includeArchived') includeArchived?: string) {
+    return this.products.list(includeArchived === 'true');
   }
 
   @Post('products')
   create(@Body() dto: CreateProductDto) {
     return this.products.create(dto);
+  }
+
+  @Patch('products/:id/archive')
+  archive(@Param('id') id: string, @Body('archived') archived: boolean) {
+    return this.products.setArchived(id, archived);
+  }
+
+  @Patch('products/:id/platforms')
+  setPlatforms(@Param('id') id: string, @Body() dto: SetPlatformsDto) {
+    return this.products.setPlatforms(id, dto);
   }
 
   @Delete('products/:id')

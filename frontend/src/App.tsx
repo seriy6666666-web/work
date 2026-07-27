@@ -7,6 +7,7 @@ import { ConfirmProvider } from './components/ConfirmProvider';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SitesPage } from './pages/admin/SitesPage';
+import { PlatformsPage } from './pages/admin/PlatformsPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { AuditLogPage } from './pages/admin/AuditLogPage';
 import { OrdersPage } from './pages/planner/OrdersPage';
@@ -43,6 +44,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/platforms"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <PlatformsPage />
                 </ProtectedRoute>
               }
             />

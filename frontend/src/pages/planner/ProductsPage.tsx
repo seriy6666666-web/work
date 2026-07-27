@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type Product, type Site, type Skill } from '../../api/client';
+import { api, ApiError, type Platform, type Product, type Site, type Skill } from '../../api/client';
 import { PlannerLayout } from './PlannerLayout';
 import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
@@ -18,6 +18,10 @@ interface OpForm {
 
 const EMPTY_OP: OpForm = { skillId: '', siteId: '', secondarySiteId: '' };
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('ru-RU');
+}
+
 export function ProductsPage() {
   const { token } = useAuth();
   const toast = useToast();
@@ -25,7 +29,9 @@ export function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -35,16 +41,18 @@ export function ProductsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const [productsData, skillsData, sitesData] = await Promise.all([
-        api.listProducts(token),
+      const [productsData, skillsData, sitesData, platformsData] = await Promise.all([
+        api.listProducts(token, showArchived),
         api.listSkills(token),
         api.listSites(token),
+        api.listPlatforms(token),
       ]);
       setProducts(productsData);
       setSkills(skillsData);
       setSites(sitesData);
+      setPlatforms(platformsData);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Не удалось загрузить продукты');
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось загрузить проекты');
     } finally {
       setLoading(false);
     }
@@ -53,7 +61,7 @@ export function ProductsPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, showArchived]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -62,30 +70,55 @@ export function ProductsPage() {
     try {
       await api.createProduct(token, { name: newName.trim() });
       setNewName('');
-      toast.success('Продукт создан');
+      toast.success('Проект создан');
       await refresh();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Не удалось создать продукт');
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось создать проект');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleArchive(p: Product) {
+    if (!token) return;
+    const archived = p.status !== 'ARCHIVED';
+    try {
+      await api.archiveProduct(token, p.id, archived);
+      toast.success(archived ? 'Проект в архиве' : 'Проект восстановлен');
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось изменить статус');
+    }
+  }
+
+  async function handleTogglePlatform(p: Product, platformId: string) {
+    if (!token) return;
+    const current = new Set(p.platforms.map((pl) => pl.id));
+    if (current.has(platformId)) current.delete(platformId);
+    else current.add(platformId);
+    try {
+      await api.setProductPlatforms(token, p.id, [...current]);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось изменить площадки');
     }
   }
 
   async function handleDeleteProduct(p: Product) {
     if (!token) return;
     const ok = await confirm({
-      title: 'Удаление продукта',
-      message: `Удалить продукт «${p.name}» и его шаблон операций?`,
+      title: 'Удаление проекта',
+      message: `Удалить проект «${p.name}» и его техкарту? История по проекту не сохранится — если нужно сохранить, лучше «В архив».`,
       confirmLabel: 'Удалить',
       danger: true,
     });
     if (!ok) return;
     try {
       await api.deleteProduct(token, p.id);
-      toast.success('Продукт удалён');
+      toast.success('Проект удалён');
       await refresh();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Не удалось удалить продукт');
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось удалить проект');
     }
   }
 
@@ -101,7 +134,7 @@ export function ProductsPage() {
         secondarySiteId: form.secondarySiteId || undefined,
       });
       setOpForms((prev) => ({ ...prev, [productId]: EMPTY_OP }));
-      toast.success('Операция добавлена в шаблон');
+      toast.success('Операция добавлена в техкарту');
       await refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось добавить операцию');
@@ -120,47 +153,90 @@ export function ProductsPage() {
   }
 
   return (
-    <PlannerLayout title="Продукты (шаблоны операций)" breadcrumb="Планирование">
+    <PlannerLayout title="Проекты" breadcrumb="Планирование">
       <p style={styles.hint}>
-        Задайте типовой набор операций для продукта — при создании заказа «из продукта» операции
-        подставятся автоматически.
+        Проект — готовый шаблон изделия с техкартой (операции по участкам). При создании заказа «из
+        проекта» операции подставляются автоматически. Площадки — где проект производится.
       </p>
 
       <form onSubmit={handleCreate} style={styles.createForm}>
         <input
           style={styles.input}
-          placeholder="Название продукта (например «АКБ-1000»)"
+          placeholder="Название проекта (например «АКБ 24В 100Ач»)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
         <button style={styles.button} type="submit" disabled={creating || !newName.trim()}>
-          Добавить продукт
+          Добавить проект
         </button>
       </form>
+
+      <label style={styles.archivedToggle}>
+        <input
+          type="checkbox"
+          checked={showArchived}
+          onChange={(e) => setShowArchived(e.target.checked)}
+        />
+        Показывать архивные
+      </label>
 
       {skills.length === 0 && (
         <p style={styles.hint}>
           Справочник навыков пуст. <Link to="/planner/skills">Создайте навыки</Link>, чтобы добавлять
-          операции в шаблон.
+          операции в техкарту.
         </p>
       )}
 
       {loading ? (
         <SkeletonCards count={3} />
       ) : products.length === 0 ? (
-        <EmptyState icon="box" title="Продуктов пока нет" hint="Добавьте первый продукт в форме выше." />
+        <EmptyState icon="box" title="Проектов пока нет" hint="Добавьте первый проект в форме выше." />
       ) : (
         products.map((p) => {
           const form = opForms[p.id] ?? EMPTY_OP;
+          const archived = p.status === 'ARCHIVED';
+          const platformIds = new Set(p.platforms.map((pl) => pl.id));
           return (
-            <div key={p.id} style={styles.card}>
+            <div key={p.id} style={{ ...styles.card, ...(archived ? styles.cardArchived : null) }}>
               <div style={styles.cardHeader}>
-                <strong>{p.name}</strong>
-                <button style={styles.linkDanger} onClick={() => handleDeleteProduct(p)}>
-                  Удалить продукт
-                </button>
+                <div style={styles.titleRow}>
+                  <strong>{p.name}</strong>
+                  {archived ? <Badge variant="muted">Архив</Badge> : <Badge variant="accent">Активен</Badge>}
+                  <span style={styles.date}>от {formatDate(p.createdAt)}</span>
+                </div>
+                <div style={styles.headerActions}>
+                  <button style={styles.link} onClick={() => handleArchive(p)}>
+                    {archived ? 'Восстановить' : 'В архив'}
+                  </button>
+                  <button style={styles.linkDanger} onClick={() => handleDeleteProduct(p)}>
+                    Удалить
+                  </button>
+                </div>
               </div>
 
+              {/* Площадки */}
+              <div style={styles.platformsRow}>
+                <span style={styles.blockLabel}>Площадки:</span>
+                {platforms.length === 0 ? (
+                  <span style={styles.muted}>
+                    нет площадок — <Link to="/admin/platforms">добавьте в администрировании</Link>
+                  </span>
+                ) : (
+                  platforms.map((pl) => (
+                    <label key={pl.id} style={styles.platformChip}>
+                      <input
+                        type="checkbox"
+                        checked={platformIds.has(pl.id)}
+                        onChange={() => handleTogglePlatform(p, pl.id)}
+                      />
+                      {pl.name}
+                    </label>
+                  ))
+                )}
+              </div>
+
+              {/* Техкарта */}
+              <span style={styles.blockLabel}>Техкарта (операции):</span>
               {p.operations.length === 0 ? (
                 <p style={styles.muted}>Операции ещё не заданы.</p>
               ) : (
@@ -240,16 +316,16 @@ export function ProductsPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  hint: {
-    color: COLORS.mutedText,
+  hint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0 },
+  createForm: { display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' },
+  archivedToggle: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
     fontSize: '14px',
-    marginTop: 0,
-  },
-  createForm: {
-    display: 'flex',
-    gap: '12px',
+    color: COLORS.mutedText,
     marginBottom: '20px',
-    flexWrap: 'wrap',
+    cursor: 'pointer',
   },
   input: {
     padding: '10px 12px',
@@ -276,18 +352,39 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: SHADOW.card,
     marginBottom: '16px',
   },
+  cardArchived: { opacity: 0.7 },
   cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '10px',
+    marginBottom: '12px',
+    gap: '10px',
+    flexWrap: 'wrap',
   },
-  muted: {
-    color: COLORS.mutedText,
-    fontSize: '13px',
+  titleRow: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
+  date: { fontSize: '13px', color: COLORS.mutedText },
+  headerActions: { display: 'flex', gap: '14px' },
+  blockLabel: { fontSize: '13px', fontWeight: 600, color: COLORS.mutedText },
+  platformsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap',
+    marginBottom: '12px',
   },
+  platformChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '14px',
+    padding: '4px 10px',
+    borderRadius: RADIUS.pill,
+    background: COLORS.lightGrayBg,
+    cursor: 'pointer',
+  },
+  muted: { color: COLORS.mutedText, fontSize: '13px' },
   opList: {
-    margin: '0 0 12px',
+    margin: '6px 0 12px',
     paddingLeft: '20px',
     display: 'flex',
     flexDirection: 'column',
@@ -300,10 +397,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '10px',
     fontSize: '14px',
   },
-  opForm: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
+  opForm: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' },
+  link: {
+    border: 'none',
+    background: 'none',
+    color: COLORS.accentDark,
+    cursor: 'pointer',
+    fontSize: '13px',
   },
   linkDanger: {
     border: 'none',

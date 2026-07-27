@@ -158,11 +158,24 @@ export const api = {
     return request<AuditLogPage>(`/audit-log?${params.toString()}`, {}, token);
   },
 
-  listProducts: (token: string) => request<Product[]>('/products', {}, token),
+  listProducts: (token: string, includeArchived = false) =>
+    request<Product[]>(`/products${includeArchived ? '?includeArchived=true' : ''}`, {}, token),
   createProduct: (token: string, payload: { name: string }) =>
     request<Product>('/products', { method: 'POST', body: JSON.stringify(payload) }, token),
+  archiveProduct: (token: string, id: string, archived: boolean) =>
+    request<Product>(`/products/${id}/archive`, { method: 'PATCH', body: JSON.stringify({ archived }) }, token),
+  setProductPlatforms: (token: string, id: string, platformIds: string[]) =>
+    request<Product>(`/products/${id}/platforms`, { method: 'PATCH', body: JSON.stringify({ platformIds }) }, token),
   deleteProduct: (token: string, id: string) =>
     request<void>(`/products/${id}`, { method: 'DELETE' }, token),
+
+  listPlatforms: (token: string) => request<Platform[]>('/platforms', {}, token),
+  createPlatform: (token: string, payload: { name: string; address?: string }) =>
+    request<Platform>('/platforms', { method: 'POST', body: JSON.stringify(payload) }, token),
+  updatePlatform: (token: string, id: string, payload: { name?: string; address?: string | null }) =>
+    request<Platform>(`/platforms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  deletePlatform: (token: string, id: string) =>
+    request<void>(`/platforms/${id}`, { method: 'DELETE' }, token),
   addProductOperation: (token: string, productId: string, payload: CreateProductOperationPayload) =>
     request<Product>(
       `/products/${productId}/operations`,
@@ -352,11 +365,22 @@ export interface ProductOperation {
   secondarySite: { id: string; name: string } | null;
 }
 
+export type ProjectStatus = 'ACTIVE' | 'ARCHIVED';
+
+export interface Platform {
+  id: string;
+  name: string;
+  address: string | null;
+  createdAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
+  status: ProjectStatus;
   createdAt: string;
   operations: ProductOperation[];
+  platforms: { id: string; name: string }[];
 }
 
 export interface CreateProductOperationPayload {

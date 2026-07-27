@@ -10,6 +10,12 @@ const prisma = new PrismaClient({
 
 const SITES = ['Сборка', 'Формовка', 'Упаковка'];
 
+// [название, адрес]
+const PLATFORMS: [string, string][] = [
+  ['Площадка Минск', 'г. Минск, ул. Промышленная, 12'],
+  ['Площадка Гомель', 'г. Гомель, пр. Заводской, 5'],
+];
+
 // Core login accounts (one per role) plus extra workers so the boards look alive.
 const SEED_USERS: { username: string; fullName: string; role: Role; site?: string }[] = [
   { username: 'admin', fullName: 'Админ Тестовый', role: Role.ADMIN },
@@ -74,6 +80,17 @@ async function main() {
     siteByName.set(name, site.id);
   }
 
+  // --- Platforms (площадки/адреса, idempotent) ---
+  const platformByName = new Map<string, string>();
+  for (const [name, address] of PLATFORMS) {
+    const platform = await prisma.platform.upsert({
+      where: { name },
+      update: {},
+      create: { name, address },
+    });
+    platformByName.set(name, platform.id);
+  }
+
   // --- Users (idempotent) ---
   const passwordHash = await bcrypt.hash('password123', 10);
   const userByUsername = new Map<string, string>();
@@ -120,7 +137,12 @@ async function main() {
   }
 
   // --- Product routing template ---
-  const product = await prisma.product.create({ data: { name: 'АКБ-48В' } });
+  const product = await prisma.product.create({
+    data: {
+      name: 'АКБ-48В',
+      platforms: { connect: [{ id: platformByName.get('Площадка Минск')! }] },
+    },
+  });
   const routing = ['Сборка АКБ', 'Пайка', 'Тестирование'];
   for (let i = 0; i < routing.length; i++) {
     await prisma.productOperation.create({

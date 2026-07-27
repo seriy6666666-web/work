@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { SidebarLayout, type SidebarTab } from '../../components/SidebarLayout';
 
 const TABS: SidebarTab[] = [
-  { path: '/admin/sites', label: 'Участки', icon: 'building' },
+  { path: '/admin/platforms', label: 'Площадки', icon: 'building' },
+  { path: '/admin/sites', label: 'Участки', icon: 'grid' },
   { path: '/admin/users', label: 'Пользователи', icon: 'users' },
   { path: '/admin/audit-log', label: 'Журнал действий', icon: 'list' },
 ];

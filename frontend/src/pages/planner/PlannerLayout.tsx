@@ -3,7 +3,7 @@ import { SidebarLayout, type SidebarTab } from '../../components/SidebarLayout';
 
 const TABS: SidebarTab[] = [
   { path: '/planner/orders', label: 'Заказы', icon: 'box' },
-  { path: '/planner/products', label: 'Продукты', icon: 'grid' },
+  { path: '/planner/products', label: 'Проекты', icon: 'grid' },
   { path: '/planner/materials', label: 'Материалы', icon: 'layers' },
   { path: '/planner/skills', label: 'Навыки', icon: 'star' },
 ];

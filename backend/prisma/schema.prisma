@@ -209,11 +209,28 @@ model Skill {
   productOperations ProductOperation[]
 }
 
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+// Производственная площадка (адрес/филиал). Отдельное измерение над участками.
+model Platform {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  address   String?
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+// "Проект" в терминах заказчика: готовый шаблон изделия с техкартой (operations).
 model Product {
   id         String             @id @default(uuid())
   name       String             @unique
+  status     ProjectStatus      @default(ACTIVE)
   createdAt  DateTime           @default(now())
   operations ProductOperation[]
+  platforms  Platform[]
 }
 
 model ProductOperation {
