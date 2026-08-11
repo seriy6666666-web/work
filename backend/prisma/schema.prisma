@@ -193,11 +193,14 @@ model Transfer {
 }
 
 model Shift {
-  id        String   @id @default(uuid())
-  checkInAt DateTime @default(now())
+  id         String    @id @default(uuid())
+  checkInAt  DateTime  @default(now())
+  checkOutAt DateTime?
 
   user   User   @relation(fields: [userId], references: [id])
   userId String
+
+  @@index([userId, checkInAt])
 }
 
 enum ShiftType {

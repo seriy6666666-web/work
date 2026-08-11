@@ -120,6 +120,23 @@ export const api = {
 
   getTodayShift: (token: string) => request<Shift | null>('/attendance/today', {}, token),
   checkIn: (token: string) => request<Shift>('/attendance/check-in', { method: 'POST' }, token),
+  checkOut: (token: string) => request<Shift>('/attendance/check-out', { method: 'POST' }, token),
+  getAttendanceJournal: (token: string, from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    return request<JournalEntry[]>(`/attendance/journal?${q.toString()}`, {}, token);
+  },
+  exportAttendanceJournal: async (token: string, from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    const res = await fetch(`${API_URL}/attendance/journal/export?${q.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new ApiError(res.status, 'Не удалось скачать журнал');
+    return res.blob();
+  },
 
   listMyTasks: (token: string) => request<MyTask[]>('/my-tasks', {}, token),
   submitCompletion: (token: string, assignmentId: string, payload: SubmitCompletionPayload) =>
@@ -626,7 +643,18 @@ export interface UpdateAssignmentPayload {
 export interface Shift {
   id: string;
   checkInAt: string;
+  checkOutAt: string | null;
   userId: string;
+}
+
+/** Строка журнала приходов-уходов по участку. */
+export interface JournalEntry {
+  userId: string;
+  fullName: string;
+  date: string;
+  checkInAt: string;
+  checkOutAt: string | null;
+  hours: number | null;
 }
 
 export type DowntimeReasonCode =

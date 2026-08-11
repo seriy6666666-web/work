@@ -94,6 +94,19 @@ export function TasksPage() {
     }
   }
 
+  async function handleCheckOut() {
+    if (!token) return;
+    setCheckingIn(true);
+    setError(null);
+    try {
+      setShift(await api.checkOut(token));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось отметить уход');
+    } finally {
+      setCheckingIn(false);
+    }
+  }
+
   async function handleSubmit(task: MyTask) {
     if (!token) return;
     const value = inputs[task.id];
@@ -155,17 +168,33 @@ export function TasksPage() {
 
       <main style={styles.content}>
         <div style={styles.attendanceCard}>
-          {shift ? (
-            <p style={styles.attendanceText}>
-              ✓ Приход отмечен в {new Date(shift.checkInAt).toLocaleTimeString('ru-RU', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
-          ) : (
+          {!shift ? (
             <button style={styles.checkInButton} onClick={handleCheckIn} disabled={checkingIn}>
               {checkingIn ? 'Отмечаем...' : 'Отметить приход'}
             </button>
+          ) : (
+            <>
+              <p style={styles.attendanceText}>
+                ✓ Приход в {new Date(shift.checkInAt).toLocaleTimeString('ru-RU', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                {shift.checkOutAt && (
+                  <>
+                    {' · Уход в '}
+                    {new Date(shift.checkOutAt).toLocaleTimeString('ru-RU', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </>
+                )}
+              </p>
+              {!shift.checkOutAt && (
+                <button style={styles.checkOutButton} onClick={handleCheckOut} disabled={checkingIn}>
+                  {checkingIn ? 'Отмечаем...' : 'Отметить уход'}
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -388,6 +417,19 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#4caf82',
     color: '#fff',
     fontSize: '20px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  // Уход отличается от прихода визуально, чтобы в цеху не нажали случайно.
+  checkOutButton: {
+    width: '100%',
+    marginTop: '14px',
+    padding: '18px',
+    borderRadius: '12px',
+    border: '2px solid #4caf82',
+    background: '#fff',
+    color: '#3d9970',
+    fontSize: '19px',
     fontWeight: 700,
     cursor: 'pointer',
   },
