@@ -28,6 +28,29 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   return body as T;
 }
 
+/**
+ * Загрузка файла (multipart). Content-Type не задаём вручную — браузер сам
+ * проставит boundary, иначе сервер не разберёт тело запроса.
+ */
+async function upload<T>(path: string, file: File, token: string): Promise<T> {
+  const form = new FormData();
+  form.append('file', file);
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : undefined;
+
+  if (!res.ok) {
+    throw new ApiError(res.status, body?.message ?? `Ошибка запроса: ${res.status}`);
+  }
+  return body as T;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ accessToken: string }>('/auth/login', {
@@ -168,6 +191,15 @@ export const api = {
     request<Product>(`/products/${id}/platforms`, { method: 'PATCH', body: JSON.stringify({ platformIds }) }, token),
   deleteProduct: (token: string, id: string) =>
     request<void>(`/products/${id}`, { method: 'DELETE' }, token),
+
+  importCompetency: (token: string, file: File, dryRun: boolean) =>
+    upload<ImportReport>(`/import/competency?dryRun=${dryRun}`, file, token),
+  importNorms: (token: string, file: File, dryRun: boolean, defaultSite?: string) =>
+    upload<ImportReport>(
+      `/import/norms?dryRun=${dryRun}${defaultSite ? `&defaultSite=${encodeURIComponent(defaultSite)}` : ''}`,
+      file,
+      token,
+    ),
 
   listPlatforms: (token: string) => request<Platform[]>('/platforms', {}, token),
   createPlatform: (token: string, payload: { name: string; address?: string }) =>
@@ -384,6 +416,19 @@ export interface ProductOperation {
   site: { id: string; name: string };
   secondarySite: { id: string; name: string } | null;
   materials: OperationMaterial[];
+}
+
+export interface ImportIssue {
+  sheet: string;
+  row: number;
+  message: string;
+}
+
+export interface ImportReport {
+  dryRun: boolean;
+  summary: { label: string; value: string | number }[];
+  issues: ImportIssue[];
+  defaultPassword?: string;
 }
 
 export type ProjectStatus = 'ACTIVE' | 'ARCHIVED';
