@@ -16,6 +16,7 @@ describe('StatsService', () => {
     it('excludes confirmed-downtime assignments from numerator and denominator', async () => {
       const prisma = {
         site: { findUniqueOrThrow: async () => ({ id: 's1', name: 'Сборка' }) },
+        goal: { findMany: async () => [] },
         assignment: {
           findMany: async () => [
             {
@@ -57,6 +58,7 @@ describe('StatsService', () => {
     it('computes a partial completion rate for unconfirmed shortfalls', async () => {
       const prisma = {
         site: { findUniqueOrThrow: async () => ({ id: 's1', name: 'Сборка' }) },
+        goal: { findMany: async () => [] },
         assignment: {
           findMany: async () => [
             {
@@ -77,6 +79,7 @@ describe('StatsService', () => {
     it('computes defect rate from defective units produced', async () => {
       const prisma = {
         site: { findUniqueOrThrow: async () => ({ id: 's1', name: 'Сборка' }) },
+        goal: { findMany: async () => [] },
         assignment: {
           findMany: async () => [
             {
@@ -104,6 +107,7 @@ describe('StatsService', () => {
     it('rates output against the per-shift norm and compares across operations', async () => {
       const prisma = {
         site: { findUniqueOrThrow: async () => ({ id: 's1', name: 'Сборка' }) },
+        goal: { findMany: async () => [] },
         assignment: {
           findMany: async () => [
             {
@@ -139,6 +143,7 @@ describe('StatsService', () => {
     it('leaves norm rate null when the operation has no norm', async () => {
       const prisma = {
         site: { findUniqueOrThrow: async () => ({ id: 's1', name: 'Сборка' }) },
+        goal: { findMany: async () => [] },
         assignment: {
           findMany: async () => [
             {
@@ -162,6 +167,7 @@ describe('StatsService', () => {
     it('excludes confirmed downtime from the norm rate', async () => {
       const prisma = {
         site: { findUniqueOrThrow: async () => ({ id: 's1', name: 'Сборка' }) },
+        goal: { findMany: async () => [] },
         assignment: {
           findMany: async () => [
             {
@@ -195,16 +201,16 @@ describe('StatsService', () => {
         siteDefectCount: 2,
         siteDefectRate: 0.1,
         entries: [
-          { userId: 'u1', fullName: 'Иван "Мастер"', completionRate: 0.85, normRate: 0.9, excusedCount: 1, totalCount: 3, defectCount: 2, defectRate: 0.1 },
-          { userId: 'u2', fullName: 'Пётр', completionRate: null, normRate: null, excusedCount: 2, totalCount: 2, defectCount: 0, defectRate: null },
+          { userId: 'u1', fullName: 'Иван "Мастер"', completionRate: 0.85, normRate: 0.9, excusedCount: 1, totalCount: 3, defectCount: 2, defectRate: 0.1, reasons: ['Нет материала'] },
+          { userId: 'u2', fullName: 'Пётр', completionRate: null, normRate: null, excusedCount: 2, totalCount: 2, defectCount: 0, defectRate: null, reasons: [] },
         ],
       });
 
       expect(csv.charCodeAt(0)).toBe(0xfeff); // BOM
       const lines = csv.slice(1).split('\n');
       expect(lines[0]).toContain('ФИО');
-      expect(lines[1]).toBe('"Иван ""Мастер""",85,90,2,10,1,3'); // quotes doubled, rates rounded
-      expect(lines[2]).toBe('"Пётр",,,0,,2,2'); // null rates -> empty cells
+      expect(lines[1]).toBe('"Иван ""Мастер""",85,90,2,10,1,3,"Нет материала"'); // quotes doubled, rates rounded
+      expect(lines[2]).toBe('"Пётр",,,0,,2,2,""'); // null rates -> empty cells
     });
   });
 

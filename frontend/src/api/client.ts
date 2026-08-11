@@ -218,6 +218,33 @@ export const api = {
       token,
     ),
 
+  listGoals: (token: string, from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    return request<GoalsView>(`/goals?${q.toString()}`, {}, token);
+  },
+  setGoal: (token: string, payload: SetGoalPayload) =>
+    request<unknown>('/goals', { method: 'POST', body: JSON.stringify(payload) }, token),
+  deleteGoal: (token: string, id: string) =>
+    request<void>(`/goals/${id}`, { method: 'DELETE' }, token),
+
+  listShiftLeads: (token: string, from?: string, to?: string) => {
+    const q = new URLSearchParams();
+    if (from) q.set('from', from);
+    if (to) q.set('to', to);
+    return request<ShiftLead[]>(`/shift-leads?${q.toString()}`, {}, token);
+  },
+  listMyShiftLeads: (token: string) => request<ShiftLead[]>('/shift-leads/me', {}, token),
+  setShiftLead: (token: string, payload: SetShiftLeadPayload) =>
+    request<ShiftLead>('/shift-leads', { method: 'POST', body: JSON.stringify(payload) }, token),
+  deleteShiftLead: (token: string, id: string) =>
+    request<void>(`/shift-leads/${id}`, { method: 'DELETE' }, token),
+
+  listHandovers: (token: string) => request<Handover[]>('/handovers', {}, token),
+  createHandover: (token: string, payload: { message: string; toUserId?: string }) =>
+    request<Handover>('/handovers', { method: 'POST', body: JSON.stringify(payload) }, token),
+
   listTasks: (token: string) => request<Task[]>('/tasks', {}, token),
   listAssignableForTasks: (token: string) =>
     request<{ id: string; fullName: string; role: CurrentUser['role'] }[]>('/tasks/assignable', {}, token),
@@ -343,10 +370,13 @@ export interface AdminUser {
   role: Role;
   siteId: string | null;
   siteName: string | null;
+  managerId: string | null;
+  managerName: string | null;
   createdAt: string;
 }
 
 export interface CreateUserPayload {
+  managerId?: string | null;
   username: string;
   password: string;
   fullName: string;
@@ -359,6 +389,7 @@ export interface UpdateUserPayload {
   role?: Role;
   siteId?: string;
   password?: string;
+  managerId?: string | null;
 }
 
 export type OrderStatus = 'CREATED' | 'IN_PROGRESS' | 'DONE' | 'SHIPPED';
@@ -443,6 +474,53 @@ export interface ProductOperation {
   site: { id: string; name: string };
   secondarySite: { id: string; name: string } | null;
   materials: OperationMaterial[];
+}
+
+export interface GoalRow {
+  id: string;
+  userId: string;
+  fullName: string;
+  date: string;
+  targetQuantity: number;
+  fact: number;
+  rate: number | null;
+  missReason: string | null;
+}
+
+export interface GoalsView {
+  workers: { id: string; fullName: string }[];
+  goals: GoalRow[];
+}
+
+export interface SetGoalPayload {
+  userId: string;
+  date: string;
+  targetQuantity: number;
+  missReason?: string | null;
+}
+
+export interface ShiftLead {
+  id: string;
+  date: string;
+  type: ShiftType;
+  user: { id: string; fullName: string };
+  site: { id: string; name: string };
+}
+
+export interface SetShiftLeadPayload {
+  siteId: string;
+  userId: string;
+  date: string;
+  type: ShiftType;
+}
+
+export interface Handover {
+  id: string;
+  message: string;
+  createdAt: string;
+  site: { id: string; name: string };
+  fromUser: { id: string; fullName: string };
+  toUser: { id: string; fullName: string } | null;
 }
 
 export type TaskStatus = 'OPEN' | 'DONE';
@@ -802,6 +880,7 @@ export interface SiteRankingEntry {
   totalCount: number;
   defectCount: number;
   defectRate: number | null;
+  reasons: string[];
 }
 
 export interface SiteRanking {

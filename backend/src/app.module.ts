@@ -29,6 +29,8 @@ import { PlannedShiftsModule } from './planned-shifts/planned-shifts.module';
 import { PlatformsModule } from './platforms/platforms.module';
 import { ImportModule } from './import/import.module';
 import { TasksModule } from './tasks/tasks.module';
+import { GoalsModule } from './goals/goals.module';
+import { ShiftsOrgModule } from './shifts-org/shifts-org.module';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { TasksModule } from './tasks/tasks.module';
     PlatformsModule,
     ImportModule,
     TasksModule,
+    GoalsModule,
+    ShiftsOrgModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_INTERCEPTOR, useClass: AuditInterceptor }],

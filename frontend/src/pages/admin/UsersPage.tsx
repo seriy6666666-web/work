@@ -18,6 +18,7 @@ interface UserFormState {
   fullName: string;
   role: Role;
   siteId: string;
+  managerId: string;
 }
 
 const EMPTY_FORM: UserFormState = {
@@ -26,6 +27,7 @@ const EMPTY_FORM: UserFormState = {
   fullName: '',
   role: 'WORKER',
   siteId: '',
+  managerId: '',
 };
 
 export function UsersPage() {
@@ -40,11 +42,18 @@ export function UsersPage() {
   const [creating, setCreating] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ fullName: string; role: Role; siteId: string; password: string }>({
+  const [editForm, setEditForm] = useState<{
+    fullName: string;
+    role: Role;
+    siteId: string;
+    password: string;
+    managerId: string;
+  }>({
     fullName: '',
     role: 'WORKER',
     siteId: '',
     password: '',
+    managerId: '',
   });
 
   async function refresh() {
@@ -77,6 +86,7 @@ export function UsersPage() {
         fullName: form.fullName.trim(),
         role: form.role,
         siteId: SITE_BOUND_ROLES.includes(form.role) ? form.siteId : undefined,
+        managerId: form.managerId || undefined,
       });
       setForm(EMPTY_FORM);
       toast.success('Пользователь создан');
@@ -90,7 +100,13 @@ export function UsersPage() {
 
   function startEdit(u: AdminUser) {
     setEditingId(u.id);
-    setEditForm({ fullName: u.fullName, role: u.role, siteId: u.siteId ?? '', password: '' });
+    setEditForm({
+      fullName: u.fullName,
+      role: u.role,
+      siteId: u.siteId ?? '',
+      password: '',
+      managerId: u.managerId ?? '',
+    });
   }
 
   async function saveEdit(id: string) {
@@ -101,6 +117,7 @@ export function UsersPage() {
         role: editForm.role,
         siteId: SITE_BOUND_ROLES.includes(editForm.role) ? editForm.siteId : undefined,
         password: editForm.password ? editForm.password : undefined,
+        managerId: editForm.managerId || null,
       });
       setEditingId(null);
       toast.success('Изменения сохранены');
@@ -128,13 +145,20 @@ export function UsersPage() {
     }
   }
 
+  // Руководителем может быть только начальник участка или начальник производства.
+  const managerOptions = users.filter(
+    (u) => u.role === 'SITE_LEAD' || u.role === 'PRODUCTION_HEAD',
+  );
+
   const controls = useTableControls(users, {
-    searchText: (u) => `${u.username} ${u.fullName} ${ROLE_LABELS[u.role]} ${u.siteName ?? ''}`,
+    searchText: (u) =>
+      `${u.username} ${u.fullName} ${ROLE_LABELS[u.role]} ${u.siteName ?? ''} ${u.managerName ?? ''}`,
     sortAccessors: {
       username: (u) => u.username,
       fullName: (u) => u.fullName,
       role: (u) => ROLE_LABELS[u.role],
       site: (u) => u.siteName ?? '',
+      manager: (u) => u.managerName ?? '',
     },
   });
 
@@ -190,6 +214,18 @@ export function UsersPage() {
             ))}
           </select>
         )}
+        <select
+          style={styles.input}
+          value={form.managerId}
+          onChange={(e) => setForm({ ...form, managerId: e.target.value })}
+        >
+          <option value="">Без руководителя</option>
+          {managerOptions.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.fullName} — {ROLE_LABELS[m.role]}
+            </option>
+          ))}
+        </select>
         <button style={styles.button} type="submit" disabled={creating}>
           Добавить
         </button>
@@ -202,7 +238,7 @@ export function UsersPage() {
       )}
 
       {loading ? (
-        <SkeletonTable rows={5} cols={5} />
+        <SkeletonTable rows={5} cols={6} />
       ) : users.length === 0 ? (
         <EmptyState icon="users" title="Пользователей пока нет" hint="Добавьте первого пользователя в форме выше." />
       ) : controls.result.length === 0 ? (
@@ -215,6 +251,7 @@ export function UsersPage() {
               <SortHeader label="ФИО" sortKey="fullName" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Роль" sortKey="role" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Участок" sortKey="site" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+              <SortHeader label="Руководитель" sortKey="manager" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <th style={styles.th}></th>
             </tr>
           </thead>
@@ -262,6 +299,22 @@ export function UsersPage() {
                         '—'
                       )}
                     </td>
+                    <td style={styles.td}>
+                      <select
+                        style={styles.input}
+                        value={editForm.managerId}
+                        onChange={(e) => setEditForm({ ...editForm, managerId: e.target.value })}
+                      >
+                        <option value="">Без руководителя</option>
+                        {managerOptions
+                          .filter((m) => m.id !== u.id)
+                          .map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.fullName} — {ROLE_LABELS[m.role]}
+                            </option>
+                          ))}
+                      </select>
+                    </td>
                     <td style={{ ...styles.td, textAlign: 'right' }}>
                       <button style={styles.linkButton} onClick={() => saveEdit(u.id)}>
                         Сохранить
@@ -284,6 +337,7 @@ export function UsersPage() {
                       <Badge variant="accent">{ROLE_LABELS[u.role]}</Badge>
                     </td>
                     <td style={styles.td}>{u.siteName ?? '—'}</td>
+                    <td style={styles.td}>{u.managerName ?? '—'}</td>
                     <td style={{ ...styles.td, textAlign: 'right' }}>
                       <button style={styles.linkButton} onClick={() => startEdit(u)}>
                         Редактировать

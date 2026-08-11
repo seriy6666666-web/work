@@ -137,6 +137,7 @@ export function StatsPage() {
                 <th style={styles.th}>Брак</th>
                 <th style={styles.th}>Исключено (уважительная причина)</th>
                 <th style={styles.th}>Всего назначений</th>
+                <th style={styles.th}>Причины невыполнения</th>
               </tr>
             </thead>
             <tbody>
@@ -159,11 +160,22 @@ export function StatsPage() {
                   </td>
                   <td style={styles.td}>{e.excusedCount}</td>
                   <td style={styles.td}>{e.totalCount}</td>
+                  <td style={styles.td}>
+                    {e.reasons.length === 0 ? (
+                      <span style={styles.muted}>—</span>
+                    ) : (
+                      <ul style={styles.reasons}>
+                        {e.reasons.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
                 </tr>
               ))}
               {ranking.entries.length === 0 && (
                 <tr>
-                  <td style={styles.td} colSpan={6}>
+                  <td style={styles.td} colSpan={7}>
                     За выбранный период данных нет
                   </td>
                 </tr>
@@ -240,6 +252,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 8px',
     borderBottom: `1px solid ${COLORS.lightGreenBg}`,
   },
+  reasons: { margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '2px' },
   nameCell: {
     display: 'flex',
     alignItems: 'center',

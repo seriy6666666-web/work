@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '../generated/prisma/enums';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AbsenceType, Role } from '../generated/prisma/enums';
 import type { JwtPayload } from '../auth/jwt.strategy';
 import { CreateAbsenceDto } from './dto/create-absence.dto';
 
@@ -15,7 +16,10 @@ function isWithinToday(startDate: Date, endDate: Date): boolean {
 
 @Injectable()
 export class AbsencesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {}
 
   async create(requester: JwtPayload, dto: CreateAbsenceDto) {
     if (dto.userId !== requester.sub) {
@@ -28,7 +32,7 @@ export class AbsencesService {
       }
     }
 
-    return this.prisma.absence.create({
+    const absence = await this.prisma.absence.create({
       data: {
         type: dto.type,
         startDate: new Date(dto.startDate),
@@ -36,6 +40,31 @@ export class AbsencesService {
         userId: dto.userId,
         createdByUserId: requester.sub,
       },
+    });
+
+    await this.notifyManager(dto.userId, absence.startDate, absence.endDate, dto.type);
+    return absence;
+  }
+
+  /** ТЗ п.14: об отсутствии/больничном сообщаем руководителю сотрудника. */
+  private async notifyManager(userId: string, start: Date, end: Date, type: AbsenceType) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true, managerId: true },
+    });
+    if (!user?.managerId) return;
+
+    const label: Record<AbsenceType, string> = {
+      SICK_LEAVE: 'больничный',
+      VACATION: 'отпуск',
+      UNPAID_LEAVE: 'отгул',
+    };
+    const fmt = (d: Date) => d.toLocaleDateString('ru-RU');
+    await this.notifications.create({
+      userId: user.managerId,
+      type: 'EMPLOYEE_ABSENCE',
+      message: `${user.fullName}: ${label[type]} с ${fmt(start)} по ${fmt(end)}`,
+      link: '/site-lead/absences',
     });
   }
 

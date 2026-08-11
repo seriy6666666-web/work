@@ -20,4 +20,9 @@ export class CreateUserDto {
   @IsOptional()
   @IsUUID()
   siteId?: string;
+
+  /** Руководитель — кому уходят уведомления об отсутствии сотрудника. */
+  @IsOptional()
+  @IsUUID()
+  managerId?: string;
 }

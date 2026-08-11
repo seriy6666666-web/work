@@ -9,8 +9,10 @@ import type { AuthenticatedRequest } from './jwt.strategy';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  // Лимит на IP, а вся смена заходит через один шлюз завода: на старте смены
+  // 100 человек логинятся в одну минуту. 30/мин отрезало бы большинство из них.
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Throttle({ default: { limit: 300, ttl: 60000 } })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto.username, dto.password);

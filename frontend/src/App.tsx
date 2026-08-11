@@ -33,6 +33,9 @@ import { WarningsPage } from './pages/production-head/WarningsPage';
 import { TasksPage } from './pages/worker/TasksPage';
 import { TasksPage as ManagerTasksPage } from './pages/shared/TasksPage';
 import { MyWorkPage } from './pages/shared/MyWorkPage';
+import { HandoverPage } from './pages/shared/HandoverPage';
+import { GoalsPage } from './pages/site-lead/GoalsPage';
+import { ShiftLeadsPage } from './pages/production-head/ShiftLeadsPage';
 
 function App() {
   return (
@@ -264,6 +267,30 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['SITE_LEAD', 'PRODUCTION_HEAD']}>
                   <ManagerTasksPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/handover"
+              element={
+                <ProtectedRoute allowedRoles={['SITE_LEAD', 'PRODUCTION_HEAD']}>
+                  <HandoverPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/site-lead/goals"
+              element={
+                <ProtectedRoute allowedRoles={['SITE_LEAD']}>
+                  <GoalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/production-head/shift-leads"
+              element={
+                <ProtectedRoute allowedRoles={['PRODUCTION_HEAD']}>
+                  <ShiftLeadsPage />
                 </ProtectedRoute>
               }
             />

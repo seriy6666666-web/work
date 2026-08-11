@@ -59,6 +59,8 @@ model Site {
   secondaryProductOperations ProductOperation[] @relation("ProductOpSecondarySite")
   equipment                  Equipment[]
   plannedShifts              PlannedShift[]
+  shiftLeads                 ShiftLeadAssignment[]
+  handovers                  ShiftHandover[]
 }
 
 enum EquipmentStatus {
@@ -95,6 +97,18 @@ model User {
   tasks         Task[]         @relation("TaskAssignee")
   createdTasks  Task[]         @relation("TaskCreatedBy")
 
+  // Иерархия: у сотрудника есть руководитель (для уведомлений об отсутствии).
+  manager      User?  @relation("UserManager", fields: [managerId], references: [id])
+  managerId    String?
+  subordinates User[] @relation("UserManager")
+
+  goals        Goal[] @relation("GoalUser")
+  createdGoals Goal[] @relation("GoalCreatedBy")
+
+  shiftLeadOf   ShiftLeadAssignment[]
+  handoversFrom ShiftHandover[]       @relation("HandoverFrom")
+  handoversTo   ShiftHandover[]       @relation("HandoverTo")
+
   absences           Absence[]  @relation("AbsenceUser")
   createdAbsences    Absence[]  @relation("AbsenceCreatedBy")
   transfers          Transfer[] @relation("TransferUser")
@@ -111,6 +125,63 @@ enum NotificationType {
   ORDER_AT_RISK
   MATERIAL_LOW
   TASK_ASSIGNED
+  TRANSFER_INFO
+  EMPLOYEE_ABSENCE
+  SHIFT_HANDOVER
+}
+
+/// Персональная цель сотрудника на смену (план в штуках).
+model Goal {
+  id             String   @id @default(uuid())
+  date           DateTime
+  targetQuantity Int
+  /// Причина невыполнения — заполняет начальник участка в отчёте.
+  missReason     String?
+  createdAt      DateTime @default(now())
+
+  user   User   @relation("GoalUser", fields: [userId], references: [id])
+  userId String
+
+  createdBy   User   @relation("GoalCreatedBy", fields: [createdById], references: [id])
+  createdById String
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+/// Старший смены — кто главный, когда начальника участка нет (например ночью).
+model ShiftLeadAssignment {
+  id        String    @id @default(uuid())
+  date      DateTime
+  type      ShiftType @default(NIGHT)
+  createdAt DateTime  @default(now())
+
+  site   Site   @relation(fields: [siteId], references: [id])
+  siteId String
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  @@unique([siteId, date, type])
+  @@index([siteId, date])
+}
+
+/// Передача дел при пересменке: от старшего смены следующему, дубль начальнику производства.
+model ShiftHandover {
+  id        String   @id @default(uuid())
+  message   String
+  createdAt DateTime @default(now())
+
+  site   Site   @relation(fields: [siteId], references: [id])
+  siteId String
+
+  fromUser   User   @relation("HandoverFrom", fields: [fromUserId], references: [id])
+  fromUserId String
+
+  toUser   User?   @relation("HandoverTo", fields: [toUserId], references: [id])
+  toUserId String?
+
+  @@index([siteId, createdAt])
 }
 
 enum TaskStatus {

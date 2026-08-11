@@ -6,8 +6,10 @@ import {
   type Absence,
   type AbsenceType,
   type DowntimeReasonCode,
+  type Handover,
   type MyTask,
   type Shift,
+  type ShiftLead,
 } from '../../api/client';
 import { ABSENCE_TYPES, ABSENCE_TYPE_LABELS } from '../../constants/absenceTypes';
 import { DOWNTIME_REASON_CODES, DOWNTIME_REASON_LABELS } from '../../constants/downtimeReasons';
@@ -29,6 +31,12 @@ export function TasksPage() {
   >({});
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
 
+  // Старшим смены часто ставят рабочего — тогда ему нужна пересменка.
+  const [myLeads, setMyLeads] = useState<ShiftLead[]>([]);
+  const [handovers, setHandovers] = useState<Handover[]>([]);
+  const [handoverText, setHandoverText] = useState('');
+  const [sendingHandover, setSendingHandover] = useState(false);
+
   const [absenceForm, setAbsenceForm] = useState({
     type: 'SICK_LEAVE' as AbsenceType,
     startDate: '',
@@ -36,18 +44,39 @@ export function TasksPage() {
   });
   const [submittingAbsence, setSubmittingAbsence] = useState(false);
 
+  async function handleSendHandover(e: FormEvent) {
+    e.preventDefault();
+    if (!token || !handoverText.trim()) return;
+    setSendingHandover(true);
+    try {
+      await api.createHandover(token, { message: handoverText.trim() });
+      setHandoverText('');
+      setHandovers(await api.listHandovers(token));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось передать дела');
+    } finally {
+      setSendingHandover(false);
+    }
+  }
+
   async function refresh() {
     if (!token) return;
     setLoading(true);
     try {
-      const [shiftData, tasksData, absencesData] = await Promise.all([
+      const [shiftData, tasksData, absencesData, leadsData] = await Promise.all([
         api.getTodayShift(token),
         api.listMyTasks(token),
         api.listAbsencesMine(token),
+        api.listMyShiftLeads(token).catch(() => [] as ShiftLead[]),
       ]);
       setShift(shiftData);
       setTasks(tasksData);
       setAbsences(absencesData);
+      setMyLeads(leadsData);
+      if (leadsData.length > 0) {
+        setHandovers(await api.listHandovers(token).catch(() => [] as Handover[]));
+      }
       setInputs((prev) => {
         const next = { ...prev };
         for (const task of tasksData) {
@@ -241,6 +270,35 @@ export function TasksPage() {
             </ul>
           )}
         </details>
+
+        {myLeads.length > 0 && (
+          <details style={styles.absenceCard}>
+            <summary style={styles.absenceSummary}>
+              Пересменка — вы старший смены ({myLeads[0].type === 'NIGHT' ? 'ночная' : 'дневная'},{' '}
+              {new Date(myLeads[0].date).toLocaleDateString('ru-RU', { timeZone: 'UTC' })})
+            </summary>
+            <form onSubmit={handleSendHandover} style={styles.absenceForm}>
+              <textarea
+                style={{ ...styles.smallInput, width: '100%', minHeight: '70px', fontFamily: 'inherit' }}
+                placeholder="Что передать следующей смене: незакрытые операции, оборудование, материалы…"
+                value={handoverText}
+                onChange={(e) => setHandoverText(e.target.value)}
+              />
+              <button style={styles.smallButton} type="submit" disabled={sendingHandover || !handoverText.trim()}>
+                {sendingHandover ? 'Отправляем...' : 'Передать дела'}
+              </button>
+            </form>
+            {handovers.length > 0 && (
+              <ul style={styles.absenceList}>
+                {handovers.slice(0, 5).map((h) => (
+                  <li key={h.id}>
+                    {new Date(h.createdAt).toLocaleDateString('ru-RU')} · {h.fromUser.fullName}: {h.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </details>
+        )}
 
         {error && <p style={styles.error}>{error}</p>}
 

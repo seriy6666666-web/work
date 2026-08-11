@@ -11,14 +11,21 @@ const SITE_BOUND_ROLES: Role[] = [Role.SITE_LEAD, Role.WORKER];
 /** Начальник производства может быть привязан к участку, если сам встаёт на операции. */
 const SITE_OPTIONAL_ROLES: Role[] = [Role.PRODUCTION_HEAD];
 
-function toSafeUser<T extends { passwordHash: string; site: { id: string; name: string } | null }>(
-  user: T,
-) {
-  const { passwordHash: _passwordHash, site, ...rest } = user;
-  return { ...rest, siteName: site?.name ?? null };
+function toSafeUser<
+  T extends {
+    passwordHash: string;
+    site: { id: string; name: string } | null;
+    manager?: { id: string; fullName: string } | null;
+  },
+>(user: T) {
+  const { passwordHash: _passwordHash, site, manager, ...rest } = user;
+  return { ...rest, siteName: site?.name ?? null, managerName: manager?.fullName ?? null };
 }
 
-const includeSite = { site: { select: { id: true, name: true } } } as const;
+const includeSite = {
+  site: { select: { id: true, name: true } },
+  manager: { select: { id: true, fullName: true } },
+} as const;
 
 @Injectable()
 export class UsersService {
@@ -44,6 +51,7 @@ export class UsersService {
           fullName: dto.fullName,
           role: dto.role,
           siteId,
+          managerId: dto.managerId ?? null,
         },
         include: includeSite,
       });
@@ -65,6 +73,10 @@ export class UsersService {
       throw new NotFoundException('Пользователь не найден');
     }
 
+    if (dto.managerId === id) {
+      throw new BadRequestException('Сотрудник не может быть руководителем самому себе');
+    }
+
     const nextRole = dto.role ?? existing.role;
     const siteId = this.resolveSiteId(nextRole, dto.siteId ?? existing.siteId ?? undefined);
     const passwordHash = dto.password ? await bcrypt.hash(dto.password, 10) : undefined;
@@ -76,6 +88,7 @@ export class UsersService {
           fullName: dto.fullName,
           role: dto.role,
           siteId,
+          managerId: dto.managerId,
           ...(passwordHash ? { passwordHash } : {}),
         },
         include: includeSite,

@@ -21,11 +21,13 @@ test('planner: skill → order → operation → cleanup', async ({ page }) => {
   await expect(page.getByText('Навык создан')).toBeVisible();
 
   // 2. Create an order.
+  // На странице две формы: обычный заказ и «из проекта (шаблон)» — берём первую.
   await page.getByRole('link', { name: 'Заказы' }).click();
-  await page.getByPlaceholder(/Наименование/).fill(orderName);
-  await page.getByPlaceholder('Количество').fill('100');
-  await page.locator('input[type="date"]').fill('2026-12-31');
-  await page.getByRole('button', { name: 'Создать' }).click();
+  const orderForm = page.locator('form').first();
+  await orderForm.getByPlaceholder(/Наименование/).fill(orderName);
+  await orderForm.getByPlaceholder('Количество').fill('100');
+  await orderForm.locator('input[type="date"]').fill('2026-12-31');
+  await orderForm.getByRole('button', { name: 'Создать' }).click();
   await expect(page.getByText('Заказ создан')).toBeVisible();
 
   // 3. Open the order and add an operation.

@@ -6,7 +6,9 @@ const TABS: SidebarTab[] = [
   { path: '/production-head/equipment', label: 'Оборудование', icon: 'wrench' },
   { path: '/production-head/materials', label: 'Материалы', icon: 'layers' },
   { path: '/production-head/trends', label: 'Тренды', icon: 'bar-chart' },
+  { path: '/production-head/shift-leads', label: 'Старшие смен', icon: 'users' },
   { path: '/production-head/warnings', label: 'Предупреждения', icon: 'warning' },
+  { path: '/handover', label: 'Пересменка', icon: 'swap' },
   { path: '/my-work', label: 'Моя работа', icon: 'check' },
   { path: '/tasks', label: 'Задачи', icon: 'checklist' },
 ];

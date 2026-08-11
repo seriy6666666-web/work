@@ -13,6 +13,8 @@ export interface SiteRankingEntry {
   totalCount: number;
   defectCount: number;
   defectRate: number | null;
+  /** Причины простоев и невыполнения целей — ТЗ п.13. */
+  reasons: string[];
 }
 
 export interface SiteRanking {
@@ -26,6 +28,15 @@ export interface SiteRanking {
   siteDefectCount: number;
   siteDefectRate: number | null;
 }
+
+/** Человекочитаемые причины простоя (коды из отметок рабочих). */
+const DOWNTIME_LABELS: Record<string, string> = {
+  NO_MATERIAL: 'Нет материала',
+  EQUIPMENT_BREAKDOWN: 'Поломка оборудования',
+  NO_ELECTRICITY: 'Нет электричества',
+  HEALTH_ISSUE: 'Состояние здоровья',
+  OTHER: 'Другое',
+};
 
 const RISK_THRESHOLD = 0.15;
 const UNDERPERFORMING_THRESHOLD = 0.7;
@@ -64,6 +75,7 @@ export class StatsService {
         producedGood: number;
         normGood: number;
         normSum: number;
+        reasons: Set<string>;
       }
     >();
 
@@ -88,8 +100,17 @@ export class StatsService {
         producedGood: 0,
         normGood: 0,
         normSum: 0,
+        reasons: new Set<string>(),
       };
       entry.totalCount += 1;
+
+      // Причина простоя из отметки рабочего (код + комментарий).
+      if (record.reasonCode) {
+        entry.reasons.add(
+          DOWNTIME_LABELS[record.reasonCode] +
+            (record.reasonComment ? `: ${record.reasonComment}` : ''),
+        );
+      }
 
       // Defects/quality are tracked regardless of the rating exclusion, since
       // they reflect what was actually produced.
@@ -122,6 +143,30 @@ export class StatsService {
       byUser.set(a.userId, entry);
     }
 
+    // Причины невыполнения целей за тот же период — ТЗ п.13.
+    const missedGoals = await this.prisma.goal.findMany({
+      where: { date: { gte: start }, missReason: { not: null }, user: { siteId } },
+      select: { userId: true, missReason: true, user: { select: { fullName: true } } },
+    });
+    for (const g of missedGoals) {
+      // Если человеку в этот период ничего не назначали — строку всё равно показываем:
+      // именно тогда причина простоя важнее всего.
+      const entry = byUser.get(g.userId) ?? {
+        fullName: g.user.fullName,
+        done: 0,
+        assigned: 0,
+        excusedCount: 0,
+        totalCount: 0,
+        defect: 0,
+        producedGood: 0,
+        normGood: 0,
+        normSum: 0,
+        reasons: new Set<string>(),
+      };
+      entry.reasons.add(`Цель не выполнена: ${g.missReason}`);
+      byUser.set(g.userId, entry);
+    }
+
     const defectRate = (defect: number, good: number) => {
       const total = defect + good;
       return total > 0 ? defect / total : null;
@@ -137,6 +182,7 @@ export class StatsService {
         totalCount: e.totalCount,
         defectCount: e.defect,
         defectRate: defectRate(e.defect, e.producedGood),
+        reasons: [...e.reasons],
       }))
       .sort((a, b) => (b.normRate ?? b.completionRate ?? -1) - (a.normRate ?? a.completionRate ?? -1));
 
@@ -155,7 +201,7 @@ export class StatsService {
 
   async toCsv(ranking: SiteRanking): Promise<string> {
     const header =
-      'ФИО,Выполнение (%),Выполнение нормы (%),Брак (шт),Брак (%),Исключено (уважительная причина),Всего назначений';
+      'ФИО,Выполнение (%),Выполнение нормы (%),Брак (шт),Брак (%),Исключено (уважительная причина),Всего назначений,Причины';
     const rows = ranking.entries.map((e) =>
       [
         `"${e.fullName.replace(/"/g, '""')}"`,
@@ -165,6 +211,7 @@ export class StatsService {
         e.defectRate === null ? '' : Math.round(e.defectRate * 100),
         e.excusedCount,
         e.totalCount,
+        `"${e.reasons.join('; ').replace(/"/g, '""')}"`,
       ].join(','),
     );
     return '﻿' + [header, ...rows].join('\n');

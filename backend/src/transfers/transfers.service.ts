@@ -30,6 +30,19 @@ export class TransfersService {
     });
   }
 
+  /** ТЗ п.11: о переводах сотрудников информируем начальника производства. */
+  private async notifyProductionHeads(message: string) {
+    const heads = await this.prisma.user.findMany({
+      where: { role: Role.PRODUCTION_HEAD },
+      select: { id: true },
+    });
+    await this.notifications.createMany(heads.map((h) => h.id), {
+      type: 'TRANSFER_INFO',
+      message,
+      link: '/production-head/summary',
+    });
+  }
+
   async eligibleUsers(requesterSiteId: string) {
     return this.prisma.user.findMany({
       where: {
@@ -69,6 +82,9 @@ export class TransfersService {
     await this.notifySiteLeads(
       transfer.fromSiteId,
       `Запрос на перевод сотрудника «${transfer.user.fullName}» на участок «${transfer.toSite.name}»`,
+    );
+    await this.notifyProductionHeads(
+      `Запрошен перевод «${transfer.user.fullName}»: «${transfer.fromSite.name}» → «${transfer.toSite.name}»`,
     );
 
     return transfer;
@@ -119,6 +135,12 @@ export class TransfersService {
         : `Перевод сотрудника «${updated.user.fullName}» отклонён`,
       link: '/site-lead/transfers',
     });
+
+    await this.notifyProductionHeads(
+      dto.approve
+        ? `Перевод «${updated.user.fullName}» на участок «${updated.toSite.name}» подтверждён`
+        : `Перевод «${updated.user.fullName}» на участок «${updated.toSite.name}» отклонён`,
+    );
 
     return updated;
   }
