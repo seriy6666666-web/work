@@ -118,22 +118,37 @@ export class OrdersService {
   async createFromProduct(dto: CreateOrderFromProductDto) {
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
-      include: { operations: { orderBy: { sequence: 'asc' } } },
+      include: {
+        operations: { orderBy: { sequence: 'asc' }, include: { materials: true } },
+      },
     });
-    if (!product) throw new NotFoundException('Продукт не найден');
+    if (!product) throw new NotFoundException('Проект не найден');
 
+    const platform = await this.prisma.platform.findUnique({ where: { id: dto.platformId } });
+    if (!platform) throw new NotFoundException('Площадка не найдена');
+
+    // Заказ привязан к проекту и площадке; расход материалов из техкарты
+    // копируется на операции заказа (снимок на момент создания).
     return this.prisma.order.create({
       data: {
         name: dto.name?.trim() || product.name,
         quantity: dto.quantity,
         dueDate: new Date(dto.dueDate),
         priority: dto.priority ?? 0,
+        projectId: product.id,
+        platformId: platform.id,
         operations: {
           create: product.operations.map((op) => ({
             quantity: dto.quantity,
             skillId: op.skillId,
             siteId: op.siteId,
             secondarySiteId: op.secondarySiteId,
+            materialReqs: {
+              create: op.materials.map((m) => ({
+                materialId: m.materialId,
+                quantityPerUnit: m.quantityPerUnit,
+              })),
+            },
           })),
         },
       },

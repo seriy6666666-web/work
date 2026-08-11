@@ -110,13 +110,35 @@ enum NotificationType {
   MATERIAL_LOW
 }
 
+// Каталог материалов. Остатки хранятся в разрезе площадка × проект (MaterialStock).
 model Material {
-  id                String   @id @default(uuid())
-  name              String   @unique
-  unit              String
-  quantity          Float    @default(0)
-  lowStockThreshold Float    @default(0)
-  createdAt         DateTime @default(now())
+  id        String   @id @default(uuid())
+  name      String   @unique
+  unit      String
+  createdAt DateTime @default(now())
+
+  stocks        MaterialStock[]
+  techcardReqs  OperationMaterial[]
+  operationReqs OperationMaterialReq[]
+}
+
+// Остаток материала в разрезе (площадка × проект). "не общее количество".
+model MaterialStock {
+  id                String @id @default(uuid())
+  quantity          Float  @default(0)
+  lowStockThreshold Float  @default(0)
+
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  materialId String
+
+  platform   Platform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  platformId String
+
+  project   Product @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+
+  @@unique([materialId, platformId, projectId])
+  @@index([platformId, projectId])
 }
 
 model Notification {
@@ -216,11 +238,13 @@ enum ProjectStatus {
 
 // Производственная площадка (адрес/филиал). Отдельное измерение над участками.
 model Platform {
-  id        String    @id @default(uuid())
-  name      String    @unique
+  id        String          @id @default(uuid())
+  name      String          @unique
   address   String?
-  createdAt DateTime  @default(now())
+  createdAt DateTime        @default(now())
   products  Product[]
+  stocks    MaterialStock[]
+  orders    Order[]
 }
 
 // "Проект" в терминах заказчика: готовый шаблон изделия с техкартой (operations).
@@ -231,6 +255,8 @@ model Product {
   createdAt  DateTime           @default(now())
   operations ProductOperation[]
   platforms  Platform[]
+  stocks     MaterialStock[]
+  orders     Order[]
 }
 
 model ProductOperation {
@@ -248,6 +274,34 @@ model ProductOperation {
 
   secondarySite   Site?   @relation("ProductOpSecondarySite", fields: [secondarySiteId], references: [id])
   secondarySiteId String?
+
+  materials OperationMaterial[]
+}
+
+// Расход материала на 1 изделие для операции техкарты.
+model OperationMaterial {
+  id              String @id @default(uuid())
+  quantityPerUnit Float
+
+  productOperation   ProductOperation @relation(fields: [productOperationId], references: [id], onDelete: Cascade)
+  productOperationId String
+
+  material   Material @relation(fields: [materialId], references: [id])
+  materialId String
+
+  @@unique([productOperationId, materialId])
+}
+
+// Копия расхода на конкретную операцию заказа (снимок техкарты на момент создания заказа).
+model OperationMaterialReq {
+  id              String @id @default(uuid())
+  quantityPerUnit Float
+
+  operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  operationId String
+
+  material   Material @relation(fields: [materialId], references: [id])
+  materialId String
 }
 
 model Competency {
@@ -272,6 +326,13 @@ model Order {
   status     OrderStatus @default(CREATED)
   createdAt  DateTime    @default(now())
   operations Operation[]
+
+  // Заказ привязан к проекту и площадке — чтобы знать, с какого остатка списывать.
+  project   Product? @relation(fields: [projectId], references: [id])
+  projectId String?
+
+  platform   Platform? @relation(fields: [platformId], references: [id])
+  platformId String?
 }
 
 model Operation {
@@ -290,7 +351,8 @@ model Operation {
   skill   Skill  @relation(fields: [skillId], references: [id])
   skillId String
 
-  assignments Assignment[]
+  assignments  Assignment[]
+  materialReqs OperationMaterialReq[]
 }
 
 model Assignment {

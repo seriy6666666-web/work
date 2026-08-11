@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type Platform, type Product, type Site, type Skill } from '../../api/client';
+import { api, ApiError, type Material, type Platform, type Product, type Site, type Skill } from '../../api/client';
 import { PlannerLayout } from './PlannerLayout';
 import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
@@ -30,27 +30,31 @@ export function ProductsPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [opForms, setOpForms] = useState<Record<string, OpForm>>({});
+  const [opMatForms, setOpMatForms] = useState<Record<string, { materialId: string; qty: string }>>({});
 
   async function refresh() {
     if (!token) return;
     setLoading(true);
     try {
-      const [productsData, skillsData, sitesData, platformsData] = await Promise.all([
+      const [productsData, skillsData, sitesData, platformsData, materialsData] = await Promise.all([
         api.listProducts(token, showArchived),
         api.listSkills(token),
         api.listSites(token),
         api.listPlatforms(token),
+        api.listMaterials(token),
       ]);
       setProducts(productsData);
       setSkills(skillsData);
       setSites(sitesData);
       setPlatforms(platformsData);
+      setMaterials(materialsData);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось загрузить проекты');
     } finally {
@@ -152,6 +156,33 @@ export function ProductsPage() {
     }
   }
 
+  async function handleAddOpMaterial(opId: string) {
+    if (!token) return;
+    const f = opMatForms[opId];
+    if (!f?.materialId || !f.qty || Number(f.qty) <= 0) {
+      toast.error('Выберите материал и укажите расход');
+      return;
+    }
+    try {
+      await api.setOperationMaterial(token, opId, f.materialId, Number(f.qty));
+      setOpMatForms((prev) => ({ ...prev, [opId]: { materialId: '', qty: '' } }));
+      toast.success('Расход материала задан');
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось задать расход');
+    }
+  }
+
+  async function handleRemoveOpMaterial(id: string) {
+    if (!token) return;
+    try {
+      await api.removeOperationMaterial(token, id);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось удалить расход');
+    }
+  }
+
   return (
     <PlannerLayout title="Проекты" breadcrumb="Планирование">
       <p style={styles.hint}>
@@ -241,22 +272,66 @@ export function ProductsPage() {
                 <p style={styles.muted}>Операции ещё не заданы.</p>
               ) : (
                 <ol style={styles.opList}>
-                  {p.operations.map((op) => (
-                    <li key={op.id} style={styles.opItem}>
-                      <span>
-                        {op.skill.name} · {op.site.name}
-                        {op.secondarySite && (
-                          <>
-                            {' '}
-                            <Badge variant="shared">+ {op.secondarySite.name}</Badge>
-                          </>
-                        )}
-                      </span>
-                      <button style={styles.linkDanger} onClick={() => handleDeleteOp(op.id)}>
-                        Удалить
-                      </button>
-                    </li>
-                  ))}
+                  {p.operations.map((op) => {
+                    const mf = opMatForms[op.id] ?? { materialId: '', qty: '' };
+                    return (
+                      <li key={op.id} style={styles.opBlock}>
+                        <div style={styles.opItem}>
+                          <span>
+                            {op.skill.name} · {op.site.name}
+                            {op.secondarySite && (
+                              <>
+                                {' '}
+                                <Badge variant="shared">+ {op.secondarySite.name}</Badge>
+                              </>
+                            )}
+                          </span>
+                          <button style={styles.linkDanger} onClick={() => handleDeleteOp(op.id)}>
+                            Удалить
+                          </button>
+                        </div>
+                        {/* Расход материалов на 1 изделие */}
+                        <div style={styles.matRow}>
+                          <span style={styles.matLabel}>Материалы/шт:</span>
+                          {op.materials.length === 0 && <span style={styles.muted}>не заданы</span>}
+                          {op.materials.map((m) => (
+                            <span key={m.id} style={styles.matChip}>
+                              {m.material.name} — {m.quantityPerUnit} {m.material.unit}
+                              <button style={styles.chipX} onClick={() => handleRemoveOpMaterial(m.id)} title="Убрать">
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                        <div style={styles.matForm}>
+                          <select
+                            style={styles.matInput}
+                            value={mf.materialId}
+                            onChange={(e) => setOpMatForms((prev) => ({ ...prev, [op.id]: { ...mf, materialId: e.target.value } }))}
+                          >
+                            <option value="">Материал</option>
+                            {materials.map((mat) => (
+                              <option key={mat.id} value={mat.id}>
+                                {mat.name} ({mat.unit})
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            style={{ ...styles.matInput, maxWidth: '110px' }}
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder="на 1 шт"
+                            value={mf.qty}
+                            onChange={(e) => setOpMatForms((prev) => ({ ...prev, [op.id]: { ...mf, qty: e.target.value } }))}
+                          />
+                          <button style={styles.smallBtn} onClick={() => handleAddOpMaterial(op.id)}>
+                            + расход
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ol>
               )}
 
@@ -390,12 +465,52 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: '6px',
   },
+  opBlock: {
+    listStyle: 'none',
+    padding: '10px 12px',
+    borderRadius: RADIUS.sm,
+    background: COLORS.lightGrayBg,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
   opItem: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: '10px',
     fontSize: '14px',
+  },
+  matRow: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  matLabel: { fontSize: '12px', fontWeight: 600, color: COLORS.mutedText },
+  matChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '13px',
+    padding: '3px 8px',
+    borderRadius: RADIUS.pill,
+    background: COLORS.white,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+  },
+  chipX: { border: 'none', background: 'none', color: COLORS.error, cursor: 'pointer', fontSize: '15px', lineHeight: 1 },
+  matForm: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
+  matInput: {
+    padding: '7px 10px',
+    borderRadius: RADIUS.sm,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    background: COLORS.white,
+    fontSize: '13px',
+  },
+  smallBtn: {
+    padding: '7px 12px',
+    borderRadius: RADIUS.sm,
+    border: 'none',
+    background: COLORS.accentDark,
+    color: COLORS.white,
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
   },
   opForm: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' },
   link: {

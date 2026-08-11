@@ -36,7 +36,7 @@ export function OrdersPage() {
   const [form, setForm] = useState<OrderFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
 
-  const [fromProduct, setFromProduct] = useState({ productId: '', quantity: '', dueDate: '' });
+  const [fromProduct, setFromProduct] = useState({ productId: '', platformId: '', quantity: '', dueDate: '' });
   const [creatingFromProduct, setCreatingFromProduct] = useState(false);
 
   async function refresh() {
@@ -55,15 +55,16 @@ export function OrdersPage() {
 
   async function handleCreateFromProduct(e: FormEvent) {
     e.preventDefault();
-    if (!token || !fromProduct.productId || !fromProduct.quantity || !fromProduct.dueDate) return;
+    if (!token || !fromProduct.productId || !fromProduct.platformId || !fromProduct.quantity || !fromProduct.dueDate) return;
     setCreatingFromProduct(true);
     try {
       await api.createOrderFromProduct(token, {
         productId: fromProduct.productId,
+        platformId: fromProduct.platformId,
         quantity: Number(fromProduct.quantity),
         dueDate: fromProduct.dueDate,
       });
-      setFromProduct({ productId: '', quantity: '', dueDate: '' });
+      setFromProduct({ productId: '', platformId: '', quantity: '', dueDate: '' });
       toast.success('Заказ создан из проекта — операции подставлены');
       await refresh();
     } catch (err) {
@@ -163,6 +164,19 @@ export function OrdersPage() {
             {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.operations.length} оп.)
+              </option>
+            ))}
+          </select>
+          <select
+            style={styles.input}
+            value={fromProduct.platformId}
+            onChange={(e) => setFromProduct({ ...fromProduct, platformId: e.target.value })}
+            required
+          >
+            <option value="">Площадка...</option>
+            {(products.find((p) => p.id === fromProduct.productId)?.platforms ?? []).map((pl) => (
+              <option key={pl.id} value={pl.id}>
+                {pl.name}
               </option>
             ))}
           </select>

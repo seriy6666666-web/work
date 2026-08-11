@@ -12,6 +12,7 @@ const includeOps = {
       skill: { select: { id: true, name: true } },
       site: { select: { id: true, name: true } },
       secondarySite: { select: { id: true, name: true } },
+      materials: { include: { material: { select: { id: true, name: true, unit: true } } } },
     },
     orderBy: { sequence: 'asc' },
   },
@@ -105,6 +106,32 @@ export class ProductsService {
     } catch (err) {
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
         throw new NotFoundException('Операция шаблона не найдена');
+      }
+      throw err;
+    }
+  }
+
+  /** Задать/обновить расход материала на 1 изделие для операции техкарты. */
+  async setOperationMaterial(productOperationId: string, materialId: string, quantityPerUnit: number) {
+    const op = await this.prisma.productOperation.findUnique({ where: { id: productOperationId } });
+    if (!op) throw new NotFoundException('Операция техкарты не найдена');
+    await this.prisma.operationMaterial.upsert({
+      where: { productOperationId_materialId: { productOperationId, materialId } },
+      create: { productOperationId, materialId, quantityPerUnit },
+      update: { quantityPerUnit },
+    });
+    return this.prisma.product.findFirstOrThrow({
+      where: { operations: { some: { id: productOperationId } } },
+      include: includeOps,
+    });
+  }
+
+  async removeOperationMaterial(id: string) {
+    try {
+      await this.prisma.operationMaterial.delete({ where: { id } });
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new NotFoundException('Расход материала не найден');
       }
       throw err;
     }

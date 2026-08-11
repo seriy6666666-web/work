@@ -184,6 +184,14 @@ export const api = {
     ),
   deleteProductOperation: (token: string, id: string) =>
     request<void>(`/product-operations/${id}`, { method: 'DELETE' }, token),
+  setOperationMaterial: (token: string, productOperationId: string, materialId: string, quantityPerUnit: number) =>
+    request<Product>(
+      `/product-operations/${productOperationId}/materials`,
+      { method: 'POST', body: JSON.stringify({ materialId, quantityPerUnit }) },
+      token,
+    ),
+  removeOperationMaterial: (token: string, id: string) =>
+    request<void>(`/operation-materials/${id}`, { method: 'DELETE' }, token),
   createOrderFromProduct: (token: string, payload: CreateOrderFromProductPayload) =>
     request<Order>('/orders/from-product', { method: 'POST', body: JSON.stringify(payload) }, token),
 
@@ -199,10 +207,16 @@ export const api = {
     request<Material>('/materials', { method: 'POST', body: JSON.stringify(payload) }, token),
   updateMaterial: (token: string, id: string, payload: UpdateMaterialPayload) =>
     request<Material>(`/materials/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
-  adjustMaterial: (token: string, id: string, delta: number) =>
-    request<Material>(`/materials/${id}/adjust`, { method: 'POST', body: JSON.stringify({ delta }) }, token),
   deleteMaterial: (token: string, id: string) =>
     request<void>(`/materials/${id}`, { method: 'DELETE' }, token),
+
+  listMaterialStocks: (token: string) => request<MaterialStock[]>('/material-stocks', {}, token),
+  upsertMaterialStock: (token: string, payload: UpsertStockPayload) =>
+    request<MaterialStock>('/material-stocks', { method: 'POST', body: JSON.stringify(payload) }, token),
+  adjustMaterialStock: (token: string, id: string, delta: number) =>
+    request<MaterialStock>(`/material-stocks/${id}/adjust`, { method: 'POST', body: JSON.stringify({ delta }) }, token),
+  deleteMaterialStock: (token: string, id: string) =>
+    request<void>(`/material-stocks/${id}`, { method: 'DELETE' }, token),
 
   listEquipment: (token: string) => request<Equipment[]>('/equipment', {}, token),
   listAllEquipment: (token: string) => request<Equipment[]>('/equipment/all', {}, token),
@@ -354,6 +368,12 @@ export interface Skill {
   createdAt: string;
 }
 
+export interface OperationMaterial {
+  id: string;
+  quantityPerUnit: number;
+  material: { id: string; name: string; unit: string };
+}
+
 export interface ProductOperation {
   id: string;
   sequence: number;
@@ -363,6 +383,7 @@ export interface ProductOperation {
   skill: { id: string; name: string };
   site: { id: string; name: string };
   secondarySite: { id: string; name: string } | null;
+  materials: OperationMaterial[];
 }
 
 export type ProjectStatus = 'ACTIVE' | 'ARCHIVED';
@@ -392,19 +413,37 @@ export interface CreateProductOperationPayload {
 
 export interface CreateOrderFromProductPayload {
   productId: string;
+  platformId: string;
   name?: string;
   quantity: number;
   dueDate: string;
   priority?: number;
 }
 
+// Каталог материала (без остатка — остаток в MaterialStock).
 export interface Material {
   id: string;
   name: string;
   unit: string;
+  createdAt: string;
+}
+
+// Остаток материала в разрезе (площадка × проект).
+export interface MaterialStock {
+  id: string;
   quantity: number;
   lowStockThreshold: number;
-  createdAt: string;
+  material: { id: string; name: string; unit: string };
+  platform: { id: string; name: string };
+  project: { id: string; name: string };
+}
+
+export interface UpsertStockPayload {
+  materialId: string;
+  platformId: string;
+  projectId: string;
+  quantity?: number;
+  lowStockThreshold?: number;
 }
 
 export type ShiftType = 'DAY' | 'NIGHT';
@@ -432,14 +471,11 @@ export interface SetPlannedShiftPayload {
 export interface CreateMaterialPayload {
   name: string;
   unit: string;
-  quantity?: number;
-  lowStockThreshold?: number;
 }
 
 export interface UpdateMaterialPayload {
   name?: string;
   unit?: string;
-  lowStockThreshold?: number;
 }
 
 export type EquipmentStatus = 'OPERATIONAL' | 'MAINTENANCE' | 'BROKEN';

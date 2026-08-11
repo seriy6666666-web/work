@@ -6,6 +6,7 @@ import { Role } from '../generated/prisma/enums';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductOperationDto } from './dto/create-product-operation.dto';
 import { SetPlatformsDto } from './dto/set-platforms.dto';
+import { SetOperationMaterialDto } from './dto/set-operation-material.dto';
 import { ProductsService } from './products.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -47,5 +48,15 @@ export class ProductsController {
   @Delete('product-operations/:id')
   removeOperation(@Param('id') id: string) {
     return this.products.removeOperation(id);
+  }
+
+  @Post('product-operations/:id/materials')
+  setOperationMaterial(@Param('id') id: string, @Body() dto: SetOperationMaterialDto) {
+    return this.products.setOperationMaterial(id, dto.materialId, dto.quantityPerUnit);
+  }
+
+  @Delete('operation-materials/:id')
+  removeOperationMaterial(@Param('id') id: string) {
+    return this.products.removeOperationMaterial(id);
   }
 }

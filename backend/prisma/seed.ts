@@ -144,8 +144,9 @@ async function main() {
     },
   });
   const routing = ['Сборка АКБ', 'Пайка', 'Тестирование'];
+  const prodOpBySkill = new Map<string, string>();
   for (let i = 0; i < routing.length; i++) {
-    await prisma.productOperation.create({
+    const po = await prisma.productOperation.create({
       data: {
         productId: product.id,
         sequence: i,
@@ -153,6 +154,7 @@ async function main() {
         siteId: assembly,
       },
     });
+    prodOpBySkill.set(routing[i], po.id);
   }
 
   // --- Orders + operations ---
@@ -257,14 +259,38 @@ async function main() {
     ],
   });
 
-  // --- Materials (one below threshold for the low-stock alert) ---
-  await prisma.material.createMany({
+  // --- Материалы: каталог + расход по техкарте + остатки в разрезе ---
+  const matDefs: [string, string][] = [
+    ['Литиевые ячейки', 'шт'],
+    ['Корпус АКБ', 'шт'],
+    ['Припой', 'кг'],
+    ['Электролит', 'л'],
+    ['Клеммы', 'шт'],
+  ];
+  const matByName = new Map<string, string>();
+  for (const [name, unit] of matDefs) {
+    const m = await prisma.material.create({ data: { name, unit } });
+    matByName.set(name, m.id);
+  }
+
+  // Расход материалов на 1 изделие (техкарта проекта АКБ-48В)
+  await prisma.operationMaterial.createMany({
     data: [
-      { name: 'Литиевые ячейки', unit: 'шт', quantity: 1500, lowStockThreshold: 500 },
-      { name: 'Корпус АКБ', unit: 'шт', quantity: 80, lowStockThreshold: 100 }, // low
-      { name: 'Припой', unit: 'кг', quantity: 12, lowStockThreshold: 5 },
-      { name: 'Электролит', unit: 'л', quantity: 40, lowStockThreshold: 20 },
-      { name: 'Клеммы', unit: 'шт', quantity: 300, lowStockThreshold: 200 },
+      { productOperationId: prodOpBySkill.get('Сборка АКБ')!, materialId: matByName.get('Корпус АКБ')!, quantityPerUnit: 1 },
+      { productOperationId: prodOpBySkill.get('Сборка АКБ')!, materialId: matByName.get('Литиевые ячейки')!, quantityPerUnit: 6 },
+      { productOperationId: prodOpBySkill.get('Сборка АКБ')!, materialId: matByName.get('Клеммы')!, quantityPerUnit: 2 },
+      { productOperationId: prodOpBySkill.get('Пайка')!, materialId: matByName.get('Припой')!, quantityPerUnit: 0.05 },
+    ],
+  });
+
+  // Остатки на площадке Минск под проект АКБ-48В (Корпус — ниже порога)
+  const minsk = platformByName.get('Площадка Минск')!;
+  await prisma.materialStock.createMany({
+    data: [
+      { materialId: matByName.get('Литиевые ячейки')!, platformId: minsk, projectId: product.id, quantity: 1500, lowStockThreshold: 500 },
+      { materialId: matByName.get('Корпус АКБ')!, platformId: minsk, projectId: product.id, quantity: 80, lowStockThreshold: 100 },
+      { materialId: matByName.get('Припой')!, platformId: minsk, projectId: product.id, quantity: 12, lowStockThreshold: 5 },
+      { materialId: matByName.get('Клеммы')!, platformId: minsk, projectId: product.id, quantity: 300, lowStockThreshold: 200 },
     ],
   });
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type Material } from '../../api/client';
+import { api, ApiError, type Material, type MaterialStock, type Platform, type Product } from '../../api/client';
 import { PlannerLayout } from './PlannerLayout';
 import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
@@ -9,11 +9,10 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
-function isLow(m: Material): boolean {
-  return m.quantity <= m.lowStockThreshold;
+function isLow(s: MaterialStock): boolean {
+  return s.quantity <= s.lowStockThreshold;
 }
 
-/** Trim trailing zeros so 5.0 renders as "5". */
 function fmt(n: number): string {
   return Number(n.toFixed(3)).toString();
 }
@@ -23,21 +22,33 @@ export function MaterialsPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [stocks, setStocks] = useState<MaterialStock[]>([]);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [projects, setProjects] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [name, setName] = useState('');
-  const [unit, setUnit] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [threshold, setThreshold] = useState('');
-  const [creating, setCreating] = useState(false);
+  // catalog form
+  const [matName, setMatName] = useState('');
+  const [matUnit, setMatUnit] = useState('');
 
+  // stock form
+  const [stockForm, setStockForm] = useState({ materialId: '', platformId: '', projectId: '', quantity: '', threshold: '' });
   const [adjustInputs, setAdjustInputs] = useState<Record<string, string>>({});
 
   async function refresh() {
     if (!token) return;
     setLoading(true);
     try {
-      setMaterials(await api.listMaterials(token));
+      const [mats, sts, plats, projs] = await Promise.all([
+        api.listMaterials(token),
+        api.listMaterialStocks(token),
+        api.listPlatforms(token),
+        api.listProducts(token),
+      ]);
+      setMaterials(mats);
+      setStocks(sts);
+      setPlatforms(plats);
+      setProjects(projs);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось загрузить материалы');
     } finally {
@@ -50,70 +61,25 @@ export function MaterialsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  async function handleCreate(e: FormEvent) {
+  async function handleCreateMaterial(e: FormEvent) {
     e.preventDefault();
-    if (!token || !name.trim() || !unit.trim()) return;
-    setCreating(true);
+    if (!token || !matName.trim() || !matUnit.trim()) return;
     try {
-      await api.createMaterial(token, {
-        name: name.trim(),
-        unit: unit.trim(),
-        quantity: quantity ? Number(quantity) : 0,
-        lowStockThreshold: threshold ? Number(threshold) : 0,
-      });
-      setName('');
-      setUnit('');
-      setQuantity('');
-      setThreshold('');
-      toast.success('Материал добавлен');
+      await api.createMaterial(token, { name: matName.trim(), unit: matUnit.trim() });
+      setMatName('');
+      setMatUnit('');
+      toast.success('Материал добавлен в каталог');
       await refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось добавить материал');
-    } finally {
-      setCreating(false);
     }
   }
 
-  async function handleAdjust(m: Material, sign: 1 | -1) {
-    if (!token) return;
-    const raw = adjustInputs[m.id];
-    const amount = raw ? Number(raw) : NaN;
-    if (!amount || amount <= 0) {
-      toast.error('Укажите количество для изменения');
-      return;
-    }
-    try {
-      const updated = await api.adjustMaterial(token, m.id, sign * amount);
-      setAdjustInputs((prev) => ({ ...prev, [m.id]: '' }));
-      setMaterials((prev) => prev.map((it) => (it.id === m.id ? updated : it)));
-      if (isLow(updated)) {
-        toast.toast(`Низкий остаток: ${fmt(updated.quantity)} ${updated.unit}`, 'info');
-      } else {
-        toast.success('Остаток обновлён');
-      }
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Не удалось изменить остаток');
-    }
-  }
-
-  async function handleThreshold(m: Material, value: string) {
-    if (!token) return;
-    const parsed = Number(value);
-    if (Number.isNaN(parsed) || parsed < 0) return;
-    setMaterials((prev) => prev.map((it) => (it.id === m.id ? { ...it, lowStockThreshold: parsed } : it)));
-    try {
-      await api.updateMaterial(token, m.id, { lowStockThreshold: parsed });
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Не удалось сохранить порог');
-      await refresh();
-    }
-  }
-
-  async function handleDelete(m: Material) {
+  async function handleDeleteMaterial(m: Material) {
     if (!token) return;
     const ok = await confirm({
       title: 'Удаление материала',
-      message: `Удалить материал «${m.name}» со склада?`,
+      message: `Удалить «${m.name}» из каталога вместе со всеми остатками?`,
       confirmLabel: 'Удалить',
       danger: true,
     });
@@ -127,114 +93,162 @@ export function MaterialsPage() {
     }
   }
 
-  const lowCount = materials.filter(isLow).length;
+  async function handleUpsertStock(e: FormEvent) {
+    e.preventDefault();
+    if (!token || !stockForm.materialId || !stockForm.platformId || !stockForm.projectId) return;
+    try {
+      await api.upsertMaterialStock(token, {
+        materialId: stockForm.materialId,
+        platformId: stockForm.platformId,
+        projectId: stockForm.projectId,
+        quantity: stockForm.quantity ? Number(stockForm.quantity) : 0,
+        lowStockThreshold: stockForm.threshold ? Number(stockForm.threshold) : 0,
+      });
+      setStockForm({ materialId: '', platformId: '', projectId: '', quantity: '', threshold: '' });
+      toast.success('Остаток задан');
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось задать остаток');
+    }
+  }
+
+  async function handleAdjust(s: MaterialStock, sign: 1 | -1) {
+    if (!token) return;
+    const raw = adjustInputs[s.id];
+    const amount = raw ? Number(raw) : NaN;
+    if (!amount || amount <= 0) {
+      toast.error('Укажите количество');
+      return;
+    }
+    try {
+      const updated = await api.adjustMaterialStock(token, s.id, sign * amount);
+      setAdjustInputs((prev) => ({ ...prev, [s.id]: '' }));
+      setStocks((prev) => prev.map((it) => (it.id === s.id ? updated : it)));
+      if (isLow(updated)) toast.toast(`Низкий остаток: ${fmt(updated.quantity)} ${updated.material.unit}`, 'info');
+      else toast.success('Остаток обновлён');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось изменить остаток');
+    }
+  }
+
+  async function handleDeleteStock(s: MaterialStock) {
+    if (!token) return;
+    try {
+      await api.deleteMaterialStock(token, s.id);
+      toast.success('Остаток удалён');
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось удалить остаток');
+    }
+  }
+
+  const lowCount = stocks.filter(isLow).length;
 
   return (
     <PlannerLayout title="Материалы (склад)" breadcrumb="Планирование">
       <p style={styles.hint}>
-        Ведите остатки материалов и порог низкого запаса. При падении остатка до/ниже порога вы
-        получите уведомление.
+        Остатки хранятся в разрезе <b>площадка × проект</b> — видно, где и под какой проект чего не
+        хватает. При выполнении операций материалы списываются автоматически по техкарте.
       </p>
 
-      {!loading && lowCount > 0 && (
-        <div style={styles.lowBanner}>
-          <Badge variant="danger">Ниже порога: {lowCount}</Badge>
-        </div>
-      )}
+      {/* Каталог */}
+      <div style={styles.card}>
+        <p style={styles.blockTitle}>Каталог материалов</p>
+        <form onSubmit={handleCreateMaterial} style={styles.row}>
+          <input style={styles.input} placeholder="Название (например «Припой»)" value={matName} onChange={(e) => setMatName(e.target.value)} />
+          <input style={{ ...styles.input, maxWidth: '120px' }} placeholder="Ед. (кг)" value={matUnit} onChange={(e) => setMatUnit(e.target.value)} />
+          <button style={styles.button} type="submit" disabled={!matName.trim() || !matUnit.trim()}>Добавить</button>
+        </form>
+        {materials.length > 0 && (
+          <div style={styles.chips}>
+            {materials.map((m) => (
+              <span key={m.id} style={styles.chip}>
+                {m.name} <span style={styles.muted}>({m.unit})</span>
+                <button style={styles.chipX} onClick={() => handleDeleteMaterial(m)} title="Удалить">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <input
-          style={styles.input}
-          placeholder="Материал (например «Литиевые ячейки»)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          style={{ ...styles.input, width: '90px' }}
-          placeholder="Ед. (шт/кг)"
-          value={unit}
-          onChange={(e) => setUnit(e.target.value)}
-        />
-        <input
-          style={{ ...styles.input, width: '120px' }}
-          type="number"
-          step="any"
-          placeholder="Остаток"
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-        />
-        <input
-          style={{ ...styles.input, width: '120px' }}
-          type="number"
-          step="any"
-          placeholder="Порог"
-          value={threshold}
-          onChange={(e) => setThreshold(e.target.value)}
-        />
-        <button style={styles.button} type="submit" disabled={creating || !name.trim() || !unit.trim()}>
-          Добавить
-        </button>
+      {/* Остатки по разрезам */}
+      <div style={styles.stockHeader}>
+        <p style={styles.blockTitle}>Остатки по площадкам и проектам</p>
+        {lowCount > 0 && <Badge variant="danger">Ниже порога: {lowCount}</Badge>}
+      </div>
+
+      <form onSubmit={handleUpsertStock} style={styles.row}>
+        <select style={styles.input} value={stockForm.materialId} onChange={(e) => setStockForm({ ...stockForm, materialId: e.target.value })} required>
+          <option value="">Материал</option>
+          {materials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+        <select style={styles.input} value={stockForm.platformId} onChange={(e) => setStockForm({ ...stockForm, platformId: e.target.value })} required>
+          <option value="">Площадка</option>
+          {platforms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <select style={styles.input} value={stockForm.projectId} onChange={(e) => setStockForm({ ...stockForm, projectId: e.target.value })} required>
+          <option value="">Проект</option>
+          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <input style={{ ...styles.input, maxWidth: '110px' }} type="number" step="any" placeholder="Остаток" value={stockForm.quantity} onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })} />
+        <input style={{ ...styles.input, maxWidth: '100px' }} type="number" step="any" placeholder="Порог" value={stockForm.threshold} onChange={(e) => setStockForm({ ...stockForm, threshold: e.target.value })} />
+        <button style={styles.button} type="submit">Задать</button>
       </form>
 
       {loading ? (
         <SkeletonCards count={3} />
-      ) : materials.length === 0 ? (
-        <EmptyState
-          icon="layers"
-          title="Материалов пока нет"
-          hint="Добавьте первый материал в форме выше."
-        />
+      ) : stocks.length === 0 ? (
+        <EmptyState icon="layers" title="Остатков пока нет" hint="Задайте остаток материала на площадке под проект в форме выше." />
       ) : (
-        <div style={styles.list}>
-          {materials.map((m) => {
-            const low = isLow(m);
-            return (
-              <div key={m.id} style={{ ...styles.card, ...(low ? styles.cardLow : null) }}>
-                <div style={styles.cardMain}>
-                  <div style={styles.nameRow}>
-                    <strong>{m.name}</strong>
-                    {low && <Badge variant="danger">Низкий остаток</Badge>}
-                  </div>
-                  <div style={styles.metaRow}>
-                    <span style={styles.qty}>
-                      {fmt(m.quantity)} <span style={styles.unit}>{m.unit}</span>
-                    </span>
-                    <label style={styles.thresholdLabel}>
-                      Порог:
-                      <input
-                        style={styles.thresholdInput}
-                        type="number"
-                        step="any"
-                        defaultValue={fmt(m.lowStockThreshold)}
-                        onBlur={(e) => handleThreshold(m, e.target.value)}
-                      />
-                      <span style={styles.unit}>{m.unit}</span>
-                    </label>
-                  </div>
-                </div>
-                <div style={styles.actions}>
-                  <input
-                    style={styles.adjustInput}
-                    type="number"
-                    step="any"
-                    min="0"
-                    placeholder="Кол-во"
-                    value={adjustInputs[m.id] ?? ''}
-                    onChange={(e) => setAdjustInputs((prev) => ({ ...prev, [m.id]: e.target.value }))}
-                  />
-                  <button style={styles.plus} onClick={() => handleAdjust(m, 1)} title="Приход">
-                    + приход
-                  </button>
-                  <button style={styles.minus} onClick={() => handleAdjust(m, -1)} title="Расход">
-                    − расход
-                  </button>
-                  <button style={styles.linkDanger} onClick={() => handleDelete(m)}>
-                    Удалить
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        <div style={styles.tableWrap}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Материал</th>
+                <th style={styles.th}>Площадка</th>
+                <th style={styles.th}>Проект</th>
+                <th style={{ ...styles.th, textAlign: 'right' }}>Остаток</th>
+                <th style={{ ...styles.th, textAlign: 'right' }}>Порог</th>
+                <th style={styles.th}>Приход / расход</th>
+                <th style={styles.th}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {stocks.map((s) => {
+                const low = isLow(s);
+                return (
+                  <tr key={s.id} style={low ? styles.rowLow : undefined}>
+                    <td style={styles.td}>{s.material.name}</td>
+                    <td style={styles.td}>{s.platform.name}</td>
+                    <td style={styles.td}>{s.project.name}</td>
+                    <td style={{ ...styles.td, textAlign: 'right', fontWeight: 700, ...(low ? { color: COLORS.error } : {}) }}>
+                      {fmt(s.quantity)} {s.material.unit}
+                      {low && <> <Badge variant="danger">мало</Badge></>}
+                    </td>
+                    <td style={{ ...styles.td, textAlign: 'right', color: COLORS.mutedText }}>{fmt(s.lowStockThreshold)}</td>
+                    <td style={styles.td}>
+                      <div style={styles.adjustCell}>
+                        <input
+                          style={styles.adjustInput}
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="кол-во"
+                          value={adjustInputs[s.id] ?? ''}
+                          onChange={(e) => setAdjustInputs((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                        />
+                        <button style={styles.plus} onClick={() => handleAdjust(s, 1)}>+</button>
+                        <button style={styles.minus} onClick={() => handleAdjust(s, -1)}>−</button>
+                      </div>
+                    </td>
+                    <td style={{ ...styles.td, textAlign: 'right' }}>
+                      <button style={styles.linkDanger} onClick={() => handleDeleteStock(s)}>Удалить</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </PlannerLayout>
@@ -243,9 +257,20 @@ export function MaterialsPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   hint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0 },
-  lowBanner: { marginBottom: '14px' },
-  createForm: { display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' },
+  card: {
+    background: COLORS.white,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    borderRadius: RADIUS.md,
+    boxShadow: SHADOW.card,
+    padding: '16px',
+    marginBottom: '20px',
+  },
+  blockTitle: { margin: '0 0 12px', fontSize: '15px', fontWeight: 700, color: COLORS.darkText },
+  stockHeader: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' },
+  row: { display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' },
   input: {
+    flex: 1,
+    minWidth: '140px',
     padding: '10px 12px',
     borderRadius: RADIUS.sm,
     border: `1px solid ${COLORS.lightGreenBg}`,
@@ -262,62 +287,40 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     cursor: 'pointer',
   },
-  list: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  card: {
-    display: 'flex',
-    justifyContent: 'space-between',
+  chips: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
+  chip: {
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: '16px',
-    padding: '16px',
+    gap: '6px',
+    fontSize: '14px',
+    padding: '4px 10px',
+    borderRadius: RADIUS.pill,
+    background: COLORS.lightGrayBg,
+  },
+  chipX: { border: 'none', background: 'none', color: COLORS.error, cursor: 'pointer', fontSize: '16px', lineHeight: 1 },
+  muted: { color: COLORS.mutedText },
+  tableWrap: {
     background: COLORS.white,
     border: `1px solid ${COLORS.lightGreenBg}`,
     borderRadius: RADIUS.md,
     boxShadow: SHADOW.card,
-    flexWrap: 'wrap',
+    padding: '8px 12px',
+    overflowX: 'auto',
   },
-  cardLow: { borderColor: COLORS.error, background: COLORS.errorBg },
-  cardMain: { display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px', flex: 1 },
-  nameRow: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
-  metaRow: { display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' },
-  qty: { fontSize: '18px', fontWeight: 700, color: COLORS.darkText },
-  unit: { fontSize: '13px', fontWeight: 400, color: COLORS.mutedText },
-  thresholdLabel: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: COLORS.mutedText },
-  thresholdInput: {
-    width: '70px',
-    padding: '4px 8px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.white,
-    fontSize: '13px',
-  },
-  actions: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
+  th: { textAlign: 'left', padding: '10px 8px', color: COLORS.mutedText, fontWeight: 600, fontSize: '13px', borderBottom: `1px solid ${COLORS.lightGreenBg}`, whiteSpace: 'nowrap' },
+  td: { padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' },
+  rowLow: { background: COLORS.errorBg },
+  adjustCell: { display: 'flex', gap: '6px', alignItems: 'center' },
   adjustInput: {
-    width: '90px',
-    padding: '8px 10px',
+    width: '80px',
+    padding: '6px 8px',
     borderRadius: RADIUS.sm,
     border: `1px solid ${COLORS.lightGreenBg}`,
     background: COLORS.lightGrayBg,
-    fontSize: '14px',
-  },
-  plus: {
-    padding: '8px 12px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
     fontSize: '13px',
-    fontWeight: 600,
-    cursor: 'pointer',
   },
-  minus: {
-    padding: '8px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.white,
-    color: COLORS.darkText,
-    fontSize: '13px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
+  plus: { padding: '6px 12px', borderRadius: RADIUS.sm, border: 'none', background: COLORS.accent, color: COLORS.white, fontWeight: 700, cursor: 'pointer' },
+  minus: { padding: '6px 12px', borderRadius: RADIUS.sm, border: `1px solid ${COLORS.lightGreenBg}`, background: COLORS.white, color: COLORS.darkText, fontWeight: 700, cursor: 'pointer' },
   linkDanger: { border: 'none', background: 'none', color: COLORS.error, cursor: 'pointer', fontSize: '13px' },
 };

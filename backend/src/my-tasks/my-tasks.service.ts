@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
+import { MaterialsService } from '../materials/materials.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
 
 const MAX_CORRECTIONS = 2;
@@ -30,6 +31,7 @@ export class MyTasksService {
   constructor(
     private prisma: PrismaService,
     private ordersService: OrdersService,
+    private materials: MaterialsService,
   ) {}
 
   async list(userId: string) {
@@ -57,6 +59,7 @@ export class MyTasksService {
     }
 
     const existing = assignment.completionRecords[0];
+    const previousDone = existing?.doneQuantity ?? 0;
     if (!existing) {
       await this.prisma.completionRecord.create({
         data: {
@@ -85,6 +88,13 @@ export class MyTasksService {
       });
     }
 
+    // Автосписание материалов по факту: списываем изменение произведённого
+    // количества (при исправлении — разницу, при уменьшении — возврат).
+    const delta = (dto.doneQuantity ?? 0) - previousDone;
+    if (delta !== 0) {
+      await this.consumeMaterials(assignment.operationId, delta);
+    }
+
     await this.ordersService.recomputeStatus(assignment.operation.order.id);
 
     const updated = await this.prisma.assignment.findUniqueOrThrow({
@@ -92,5 +102,30 @@ export class MyTasksService {
       include: includeTaskDetails,
     });
     return toTask(updated);
+  }
+
+  /**
+   * Списать материалы по техкарте операции с остатка нужной площадки/проекта.
+   * `deltaQuantity` — изменение произведённого количества (может быть < 0 = возврат).
+   * Расход считается по годным изделиям (doneQuantity).
+   */
+  private async consumeMaterials(operationId: string, deltaQuantity: number) {
+    const op = await this.prisma.operation.findUnique({
+      where: { id: operationId },
+      include: {
+        order: { select: { projectId: true, platformId: true } },
+        materialReqs: true,
+      },
+    });
+    if (!op?.order.projectId || !op.order.platformId || op.materialReqs.length === 0) return;
+
+    for (const req of op.materialReqs) {
+      await this.materials.consume(
+        op.order.projectId,
+        op.order.platformId,
+        req.materialId,
+        req.quantityPerUnit * deltaQuantity,
+      );
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpdateMaterialDto {
   @IsOptional()
@@ -10,9 +10,4 @@ export class UpdateMaterialDto {
   @IsString()
   @MinLength(1)
   unit?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  lowStockThreshold?: number;
 }
