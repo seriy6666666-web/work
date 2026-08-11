@@ -8,8 +8,9 @@ import { SubmitCompletionDto } from './dto/submit-completion.dto';
 import { MyTasksService } from './my-tasks.service';
 import { EventsGateway } from '../events/events.gateway';
 
+// Руководители тоже работают руками и закрывают операции наравне с рабочими.
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.WORKER)
+@Roles(Role.WORKER, Role.SITE_LEAD, Role.PRODUCTION_HEAD)
 @Controller('my-tasks')
 export class MyTasksController {
   constructor(

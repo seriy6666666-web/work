@@ -102,6 +102,24 @@ export function DistributionPage() {
     }
   }
 
+  /** Начальник участка тоже встаёт на операции — ставим его без поиска в списке. */
+  async function handleAssignSelf(operationId: string) {
+    if (!token || !user?.id) return;
+    const form = assignForms[operationId];
+    try {
+      await api.createAssignment(token, {
+        operationId,
+        userId: user.id,
+        assignedQuantity: form?.quantity ? Number(form.quantity) : undefined,
+      });
+      setAssignForms((prev) => ({ ...prev, [operationId]: { userId: '', quantity: '' } }));
+      toast.success('Операция назначена вам');
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось назначить операцию');
+    }
+  }
+
   async function handleRemoveAssignment(assignmentId: string) {
     if (!token) return;
     const ok = await confirm({
@@ -327,6 +345,14 @@ export function DistributionPage() {
                   <button style={styles.button} type="submit">
                     Назначить
                   </button>
+                  <button
+                    style={styles.buttonSelf}
+                    type="button"
+                    onClick={() => handleAssignSelf(op.id)}
+                    title="Встать на эту операцию самому"
+                  >
+                    Себе
+                  </button>
                 </form>
               </div>
             );
@@ -502,6 +528,16 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     background: COLORS.accent,
     color: COLORS.white,
+    fontSize: '14px',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  buttonSelf: {
+    padding: '8px 14px',
+    borderRadius: RADIUS.sm,
+    border: `1px solid ${COLORS.accent}`,
+    background: COLORS.white,
+    color: COLORS.accentDark,
     fontSize: '14px',
     fontWeight: 600,
     cursor: 'pointer',

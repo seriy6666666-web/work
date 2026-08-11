@@ -82,7 +82,8 @@ export class AttendanceService {
     const shifts = await this.prisma.shift.findMany({
       where: {
         checkInAt: { gte: start, lt: end },
-        user: { siteId, role: Role.WORKER },
+        // Начальник участка тоже работает руками — его смены попадают в журнал.
+        user: { siteId, role: { in: [Role.WORKER, Role.SITE_LEAD, Role.PRODUCTION_HEAD] } },
       },
       include: { user: { select: { id: true, fullName: true } } },
       orderBy: [{ checkInAt: 'desc' }],

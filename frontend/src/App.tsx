@@ -31,6 +31,8 @@ import { TrendsPage } from './pages/production-head/TrendsPage';
 import { SiteDetailPage } from './pages/production-head/SiteDetailPage';
 import { WarningsPage } from './pages/production-head/WarningsPage';
 import { TasksPage } from './pages/worker/TasksPage';
+import { TasksPage as ManagerTasksPage } from './pages/shared/TasksPage';
+import { MyWorkPage } from './pages/shared/MyWorkPage';
 
 function App() {
   return (
@@ -246,6 +248,22 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['WORKER']}>
                   <TasksPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-work"
+              element={
+                <ProtectedRoute allowedRoles={['SITE_LEAD', 'PRODUCTION_HEAD']}>
+                  <MyWorkPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute allowedRoles={['SITE_LEAD', 'PRODUCTION_HEAD']}>
+                  <ManagerTasksPage />
                 </ProtectedRoute>
               }
             />

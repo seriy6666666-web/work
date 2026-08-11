@@ -10,6 +10,8 @@ const TABS: SidebarTab[] = [
   { path: '/site-lead/journal', label: 'Журнал смен', icon: 'list' },
   { path: '/site-lead/equipment', label: 'Оборудование', icon: 'wrench' },
   { path: '/site-lead/stats', label: 'Статистика', icon: 'bar-chart' },
+  { path: '/my-work', label: 'Моя работа', icon: 'check' },
+  { path: '/tasks', label: 'Задачи', icon: 'checklist' },
 ];
 
 export function SiteLeadLayout({

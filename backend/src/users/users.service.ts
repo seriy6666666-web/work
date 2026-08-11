@@ -6,7 +6,10 @@ import { Role } from '../generated/prisma/enums';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+/** Ролям обязательно нужен участок. */
 const SITE_BOUND_ROLES: Role[] = [Role.SITE_LEAD, Role.WORKER];
+/** Начальник производства может быть привязан к участку, если сам встаёт на операции. */
+const SITE_OPTIONAL_ROLES: Role[] = [Role.PRODUCTION_HEAD];
 
 function toSafeUser<T extends { passwordHash: string; site: { id: string; name: string } | null }>(
   user: T,
@@ -101,6 +104,9 @@ export class UsersService {
   }
 
   private resolveSiteId(role: Role, siteId: string | undefined): string | null {
+    if (SITE_OPTIONAL_ROLES.includes(role)) {
+      return siteId ?? null;
+    }
     if (!SITE_BOUND_ROLES.includes(role)) {
       return null;
     }

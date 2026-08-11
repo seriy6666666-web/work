@@ -92,6 +92,8 @@ model User {
   competencies  Competency[]
   shifts        Shift[]
   plannedShifts PlannedShift[]
+  tasks         Task[]         @relation("TaskAssignee")
+  createdTasks  Task[]         @relation("TaskCreatedBy")
 
   absences           Absence[]  @relation("AbsenceUser")
   createdAbsences    Absence[]  @relation("AbsenceCreatedBy")
@@ -108,6 +110,31 @@ enum NotificationType {
   ORDER_DONE
   ORDER_AT_RISK
   MATERIAL_LOW
+  TASK_ASSIGNED
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+}
+
+/// Личная задача руководителя: себе или подчинённому (начальнику участка/смены).
+model Task {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      TaskStatus @default(OPEN)
+  createdAt   DateTime   @default(now())
+  completedAt DateTime?
+
+  assignee   User   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assigneeId String
+
+  createdBy   User   @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  createdById String
+
+  @@index([assigneeId, status])
 }
 
 // Каталог материалов. Остатки хранятся в разрезе площадка × проект (MaterialStock).

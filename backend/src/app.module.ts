@@ -28,6 +28,7 @@ import { MaterialsModule } from './materials/materials.module';
 import { PlannedShiftsModule } from './planned-shifts/planned-shifts.module';
 import { PlatformsModule } from './platforms/platforms.module';
 import { ImportModule } from './import/import.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ImportModule } from './import/import.module';
     PlannedShiftsModule,
     PlatformsModule,
     ImportModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_INTERCEPTOR, useClass: AuditInterceptor }],

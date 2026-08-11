@@ -218,6 +218,16 @@ export const api = {
       token,
     ),
 
+  listTasks: (token: string) => request<Task[]>('/tasks', {}, token),
+  listAssignableForTasks: (token: string) =>
+    request<{ id: string; fullName: string; role: CurrentUser['role'] }[]>('/tasks/assignable', {}, token),
+  createTask: (token: string, payload: CreateTaskPayload) =>
+    request<Task>('/tasks', { method: 'POST', body: JSON.stringify(payload) }, token),
+  setTaskStatus: (token: string, id: string, done: boolean) =>
+    request<Task>(`/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ done }) }, token),
+  deleteTask: (token: string, id: string) =>
+    request<void>(`/tasks/${id}`, { method: 'DELETE' }, token),
+
   listPlatforms: (token: string) => request<Platform[]>('/platforms', {}, token),
   createPlatform: (token: string, payload: { name: string; address?: string }) =>
     request<Platform>('/platforms', { method: 'POST', body: JSON.stringify(payload) }, token),
@@ -433,6 +443,28 @@ export interface ProductOperation {
   site: { id: string; name: string };
   secondarySite: { id: string; name: string } | null;
   materials: OperationMaterial[];
+}
+
+export type TaskStatus = 'OPEN' | 'DONE';
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  status: TaskStatus;
+  createdAt: string;
+  completedAt: string | null;
+  assignee: { id: string; fullName: string; role: CurrentUser['role'] };
+  createdBy: { id: string; fullName: string };
+}
+
+export interface CreateTaskPayload {
+  title: string;
+  description?: string;
+  dueDate?: string;
+  /** Не указан — задача себе. */
+  assigneeId?: string;
 }
 
 export interface ImportIssue {

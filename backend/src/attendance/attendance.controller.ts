@@ -19,19 +19,20 @@ function requireSiteId(req: AuthenticatedRequest): string {
 export class AttendanceController {
   constructor(private attendanceService: AttendanceService) {}
 
-  @Roles(Role.WORKER)
+  // Руководители работают наравне, поэтому тоже отмечают приход и уход.
+  @Roles(Role.WORKER, Role.SITE_LEAD, Role.PRODUCTION_HEAD)
   @Get('today')
   getToday(@Req() req: AuthenticatedRequest) {
     return this.attendanceService.getToday(req.user.sub);
   }
 
-  @Roles(Role.WORKER)
+  @Roles(Role.WORKER, Role.SITE_LEAD, Role.PRODUCTION_HEAD)
   @Post('check-in')
   checkIn(@Req() req: AuthenticatedRequest) {
     return this.attendanceService.checkIn(req.user.sub);
   }
 
-  @Roles(Role.WORKER)
+  @Roles(Role.WORKER, Role.SITE_LEAD, Role.PRODUCTION_HEAD)
   @Post('check-out')
   checkOut(@Req() req: AuthenticatedRequest) {
     return this.attendanceService.checkOut(req.user.sub);
