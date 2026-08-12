@@ -242,6 +242,10 @@ export const api = {
   deleteProduct: (token: string, id: string) =>
     request<void>(`/products/${id}`, { method: 'DELETE' }, token),
 
+  /** Администратор: заводит сотрудников из матрицы и получает пароли для раздачи. */
+  importEmployees: (token: string, file: File, dryRun: boolean) =>
+    upload<ImportReport>(`/import/employees?dryRun=${dryRun}`, file, token),
+  /** Планировщик: только навыки и компетенции, учётные записи не создаются. */
   importCompetency: (token: string, file: File, dryRun: boolean) =>
     upload<ImportReport>(`/import/competency?dryRun=${dryRun}`, file, token),
   importNorms: (token: string, file: File, dryRun: boolean, defaultSite?: string) =>

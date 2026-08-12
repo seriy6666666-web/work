@@ -61,8 +61,10 @@ async function dropTestUsers(request: APIRequestContext) {
 test('импорт показывает пароли для раздачи и отдаёт CSV', async ({ page, request }) => {
   // Импорт создаёт пароли только новым людям — начинаем с чистого листа.
   await dropTestUsers(request);
-  await login(page, 'planner');
-  await page.getByRole('link', { name: 'Импорт' }).click();
+  // Сотрудников заводит администратор: по ТЗ учётные записи его зона, и пароли
+  // должен видеть он. Раньше этот сценарий шёл под планировщиком.
+  await login(page, 'admin');
+  await page.getByRole('link', { name: 'Импорт сотрудников' }).click();
 
   await page.locator('input[type="file"]').first().setInputFiles('e2e/fixtures/test-competency.xlsx');
   await page.getByRole('button', { name: /Проверить|Загрузить/ }).first().click();
@@ -87,4 +89,37 @@ test('импорт показывает пароли для раздачи и о
 
   // Уборка: тестовые сотрудники не должны остаться в базе.
   await dropTestUsers(request);
+});
+
+/**
+ * Планировщик грузит ту же матрицу компетенций, но учётных записей не создаёт и
+ * паролей не получает. Раньше он заводил людей десятками и видел их пароли на
+ * экране, хотя ему закрыт даже список сотрудников (GET /users → 403).
+ */
+test('планировщик импортирует компетенции без создания людей и без паролей', async ({
+  page,
+  request,
+}) => {
+  await dropTestUsers(request);
+  const adminToken = await tokenFor(request, 'admin');
+  const countUsers = async () =>
+    (
+      await (await request.get(`${API}/users`, { headers: { Authorization: `Bearer ${adminToken}` } })).json()
+    ).length;
+
+  const before = await countUsers();
+
+  await login(page, 'planner');
+  await page.getByRole('link', { name: 'Импорт из Excel' }).click();
+  await page.locator('input[type="file"]').first().setInputFiles('e2e/fixtures/test-competency.xlsx');
+  await page.getByRole('button', { name: 'Проверить файл' }).first().click();
+  await page.getByRole('button', { name: 'Импортировать' }).click();
+  await expect(page.getByText('Загружено')).toBeVisible();
+
+  // Паролей нет, вместо них — кого администратору надо завести.
+  await expect(page.getByText('Пароли для раздачи')).toHaveCount(0);
+  // .first(): подпись показателя матчится и сама, и вместе с обёрткой-значением.
+  await expect(page.getByText('Нет в системе').first()).toBeVisible();
+
+  expect(await countUsers()).toBe(before);
 });

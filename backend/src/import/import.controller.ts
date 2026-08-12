@@ -36,20 +36,41 @@ function requireFile(file?: Express.Multer.File): Express.Multer.File {
   return file;
 }
 
+const upload = () => UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE } }));
+
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.PLANNER)
 @Controller('import')
 export class ImportController {
   constructor(private importService: ImportService) {}
 
+  /**
+   * Заведение сотрудников из матрицы компетенций — вместе с паролями для раздачи.
+   * Только администратор: по ТЗ учётные записи и роли — его зона, а планировщику
+   * закрыт даже список сотрудников. Раньше этот же файл грузил планировщик и
+   * получал на экран пароли всех заведённых людей.
+   */
+  @Post('employees')
+  @Roles(Role.ADMIN)
+  @upload()
+  employees(@UploadedFile() file: Express.Multer.File, @Query('dryRun') dryRun?: string) {
+    return this.importService.importCompetency(requireFile(file).buffer, isDryRun(dryRun), true);
+  }
+
+  /**
+   * Навыки и компетенции по тому же файлу, но без создания учётных записей:
+   * незнакомые ФИО возвращаются списком в замечаниях. Планировщику этого достаточно —
+   * матрица компетенций его рабочий документ.
+   */
   @Post('competency')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE } }))
+  @Roles(Role.PLANNER, Role.ADMIN)
+  @upload()
   competency(@UploadedFile() file: Express.Multer.File, @Query('dryRun') dryRun?: string) {
-    return this.importService.importCompetency(requireFile(file).buffer, isDryRun(dryRun));
+    return this.importService.importCompetency(requireFile(file).buffer, isDryRun(dryRun), false);
   }
 
   @Post('norms')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE } }))
+  @Roles(Role.PLANNER, Role.ADMIN)
+  @upload()
   norms(
     @UploadedFile() file: Express.Multer.File,
     @Query('dryRun') dryRun?: string,

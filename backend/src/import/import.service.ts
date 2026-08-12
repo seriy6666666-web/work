@@ -145,7 +145,24 @@ export class ImportService {
     return { skills: [...skills], people, issues, usedSheets };
   }
 
-  async importCompetency(buffer: Buffer, dryRun: boolean): Promise<ImportReport> {
+  /**
+   * Один и тот же файл матрицы читают две роли, но делают разное:
+   *
+   * - администратор (`createMissing: true`) заводит недостающих сотрудников и
+   *   получает их пароли для раздачи;
+   * - планировщик (`createMissing: false`) обновляет только навыки и компетенции
+   *   уже существующих людей, а незнакомые ФИО получает списком в замечаниях.
+   *
+   * Разделение не косметическое: по ТЗ учётные записи создаёт администратор, а
+   * планировщику даже закрыт список сотрудников (GET /users → 403). Раньше импорт
+   * обходил это с другой стороны — планировщик заводил людей десятками и получал
+   * на экран их пароли.
+   */
+  async importCompetency(
+    buffer: Buffer,
+    dryRun: boolean,
+    createMissing: boolean,
+  ): Promise<ImportReport> {
     const sheets = await readWorkbook(buffer);
     const parsed = this.parseCompetency(sheets);
 
@@ -241,6 +258,7 @@ export class ImportService {
 
     let createdUsers = 0;
     let skipped = 0;
+    let notFound = 0;
     const newCompetencies: { userId: string; skillId: string }[] = [];
 
     for (const [fullName, info] of parsed.people) {
@@ -279,6 +297,15 @@ export class ImportService {
         if (siteId && !existing.siteId) {
           await this.prisma.user.update({ where: { id: userId }, data: { siteId } });
         }
+      } else if (!createMissing) {
+        // Роль без права заводить сотрудников: незнакомое ФИО не создаём, а называем.
+        issues.push({
+          sheet: info.site ?? 'свод',
+          row: 0,
+          message: `«${fullName}» — в системе такого сотрудника нет, навыки не записаны. Попросите администратора завести его (раздел «Импорт сотрудников»).`,
+        });
+        notFound++;
+        continue;
       } else {
         const base = makeUsername(fullName);
         let username = base;
@@ -314,12 +341,16 @@ export class ImportService {
       await this.prisma.competency.createMany({ data: newCompetencies });
     }
 
-    summary.push(
-      { label: 'Создано сотрудников', value: createdUsers },
-      { label: 'Создано компетенций', value: newCompetencies.length },
-    );
+    if (createMissing) {
+      summary.push({ label: 'Создано сотрудников', value: createdUsers });
+    } else if (notFound > 0) {
+      summary.push({ label: 'Нет в системе', value: notFound });
+    }
+    summary.push({ label: 'Создано компетенций', value: newCompetencies.length });
     if (skipped > 0) summary.push({ label: 'Пропущено (неоднозначные)', value: skipped });
-    return { dryRun: false, summary, issues, credentials };
+
+    // Пароли отдаём только той роли, которая сотрудников и заводит.
+    return { dryRun: false, summary, issues, credentials: createMissing ? credentials : undefined };
   }
 
   // ==================================================================
@@ -409,6 +440,35 @@ export class ImportService {
     const operations = new Set(parsed.rows.map((r) => r.operation));
     const sites = new Set(parsed.rows.map((r) => r.site!).filter(Boolean));
 
+    /**
+     * Участки не создаём: имя из колонки «Участок» — это то, как его назвали в файле,
+     * а не решение о структуре предприятия. Тот же случай, что и в матрице компетенций,
+     * где лист «ЮП33 навыки» заводил участок из адреса площадки.
+     *
+     * Проверяем до предпросмотра, а не при записи: иначе проверка проходит, а падение
+     * случается уже после нажатия «Импортировать».
+     */
+    const existingSites = await this.prisma.site.findMany({ select: { id: true, name: true } });
+    const byName = new Map(existingSites.map((s) => [s.name.trim().toLowerCase(), s.id]));
+    const siteIds = new Map<string, string>();
+    const unknownSites: string[] = [];
+    for (const name of sites) {
+      const id = byName.get(name.trim().toLowerCase());
+      if (id) siteIds.set(name, id);
+      else unknownSites.push(name);
+    }
+
+    const issues = [...parsed.issues];
+    for (const name of unknownSites) {
+      issues.push({
+        sheet: parsed.sheetName,
+        row: 0,
+        message:
+          `Участка «${name}» нет в системе — строки техкарты с ним записать некуда. ` +
+          'Создайте участок в разделе «Участки» и повторите импорт.',
+      });
+    }
+
     const summary: ImportReport['summary'] = [
       { label: 'Лист', value: parsed.sheetName },
       { label: 'Изделий (проектов)', value: products.size },
@@ -416,16 +476,19 @@ export class ImportService {
       { label: 'Участков', value: sites.size },
       { label: 'Строк техкарты', value: parsed.rows.length },
     ];
+    if (unknownSites.length > 0) {
+      summary.push({ label: 'Участков нет в системе', value: unknownSites.length });
+    }
 
     if (dryRun) {
-      return { dryRun: true, summary, issues: parsed.issues };
+      return { dryRun: true, summary, issues };
     }
 
     // --- Применение ---
-    const siteIds = new Map<string, string>();
-    for (const name of sites) {
-      const site = await this.prisma.site.upsert({ where: { name }, update: {}, create: { name } });
-      siteIds.set(name, site.id);
+    if (unknownSites.length > 0) {
+      throw new BadRequestException(
+        `Участков нет в системе: ${unknownSites.join(', ')}. Создайте их в разделе «Участки» и повторите импорт.`,
+      );
     }
 
     // Норма выработки: минуты на штуку → штук за 8-часовую смену.
@@ -437,7 +500,7 @@ export class ImportService {
       if (!skillMinutes.has(row.operation)) {
         skillMinutes.set(row.operation, row.minutes);
       } else if (skillMinutes.get(row.operation) !== row.minutes) {
-        parsed.issues.push({
+        issues.push({
           sheet: parsed.sheetName,
           row: 0,
           message: `«${row.operation}» — разное время в разных изделиях (${skillMinutes.get(row.operation)} и ${row.minutes} мин), взято первое`,
@@ -486,6 +549,6 @@ export class ImportService {
       { label: 'Создано проектов', value: createdProducts },
       { label: 'Создано шагов техкарты', value: createdOps },
     );
-    return { dryRun: false, summary, issues: parsed.issues };
+    return { dryRun: false, summary, issues };
   }
 }

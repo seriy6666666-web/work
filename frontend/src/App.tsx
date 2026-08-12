@@ -17,6 +17,7 @@ import { SkillsPage } from './pages/planner/SkillsPage';
 import { ProductsPage } from './pages/planner/ProductsPage';
 import { MaterialsPage } from './pages/planner/MaterialsPage';
 import { ImportPage } from './pages/planner/ImportPage';
+import { ImportUsersPage } from './pages/admin/ImportUsersPage';
 import { CompetencyMatrixPage } from './pages/site-lead/CompetencyMatrixPage';
 import { DistributionPage } from './pages/site-lead/DistributionPage';
 import { AbsencesPage } from './pages/site-lead/AbsencesPage';
@@ -76,6 +77,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <UsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/import"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <ImportUsersPage />
                 </ProtectedRoute>
               }
             />
