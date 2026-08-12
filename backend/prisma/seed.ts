@@ -72,7 +72,58 @@ function mondayOffset(): number {
   return (new Date().getDay() + 6) % 7;
 }
 
+/**
+ * Продакшен-инициализация: ни демо-участков, ни демо-сотрудников с общеизвестным
+ * паролем. Заводим единственного администратора из переменных окружения, дальше
+ * структуру предприятия создаёт он сам через админку.
+ *
+ * Повторный запуск ничего не перезаписывает: если администратор уже есть, пароль
+ * из переменных НЕ применяется — иначе смена пароля в интерфейсе откатывалась бы
+ * при каждом рестарте контейнера.
+ */
+async function bootstrapProduction() {
+  const username = process.env.ADMIN_USERNAME?.trim();
+  const password = process.env.ADMIN_PASSWORD;
+
+  const existingAdmins = await prisma.user.count({ where: { role: Role.ADMIN } });
+  if (existingAdmins > 0) {
+    console.log(`Seed skipped (SEED_DEMO_DATA != true). Администраторов в базе: ${existingAdmins}.`);
+    return;
+  }
+
+  if (!username || !password) {
+    console.warn(
+      'Seed skipped (SEED_DEMO_DATA != true), администраторов в базе нет.\n' +
+        'Войти будет НЕКЕМ. Задайте ADMIN_USERNAME и ADMIN_PASSWORD и перезапустите бэкенд.',
+    );
+    return;
+  }
+
+  if (password.length < 8) {
+    throw new Error('ADMIN_PASSWORD короче 8 символов — задайте пароль подлиннее.');
+  }
+
+  await prisma.user.create({
+    data: {
+      username,
+      passwordHash: await bcrypt.hash(password, 10),
+      fullName: process.env.ADMIN_FULL_NAME?.trim() || 'Администратор',
+      role: Role.ADMIN,
+    },
+  });
+  console.log(`Создан первый администратор «${username}». Смените пароль после первого входа.`);
+}
+
 async function main() {
+  // Демо-контент (участки, сотрудники с паролем password123, заказы, история) нужен
+  // только для разработки и показа. По умолчанию НЕ создаётся: если переменную забыли
+  // выставить на проде, безопаснее остаться без демо-учёток, чем завести admin с
+  // общеизвестным паролем. Локальный docker-compose.yml выставляет её сам.
+  if (process.env.SEED_DEMO_DATA !== 'true') {
+    await bootstrapProduction();
+    return;
+  }
+
   // --- Sites (idempotent) ---
   const siteByName = new Map<string, string>();
   for (const name of SITES) {
