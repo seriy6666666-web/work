@@ -600,7 +600,13 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#3d9970',
     cursor: 'pointer',
     fontSize: '14px',
-    padding: 0,
+    // Выглядит как ссылка, но нажимают её пальцем в перчатке на терминале в цеху.
+    // При padding: 0 высота была равна одной строке — 17px, попасть трудно.
+    // Вид не меняется, увеличивается только область нажатия.
+    display: 'inline-flex',
+    alignItems: 'center',
+    minHeight: '44px',
+    padding: '0 2px',
   },
   reasonForm: {
     display: 'flex',

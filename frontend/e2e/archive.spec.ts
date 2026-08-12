@@ -27,6 +27,16 @@ async function restoreWorker(request: APIRequestContext) {
   }
 }
 
+/**
+ * Тест архивирует демо-сотрудника `worker` и возвращает его через интерфейс. Если он
+ * падал на середине, `worker` оставался в архиве — а архивным вход закрыт, поэтому
+ * следом падали вообще все тесты, включая простой логин. Наступали на это.
+ * Возврат в afterEach срабатывает независимо от результата.
+ */
+test.afterEach(async ({ request }) => {
+  await restoreWorker(request);
+});
+
 test('админ отправляет сотрудника в архив и возвращает обратно', async ({ page, request }) => {
   await restoreWorker(request);
 

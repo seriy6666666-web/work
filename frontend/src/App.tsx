@@ -18,6 +18,7 @@ import { ProductsPage } from './pages/planner/ProductsPage';
 import { MaterialsPage } from './pages/planner/MaterialsPage';
 import { ImportPage } from './pages/planner/ImportPage';
 import { ImportUsersPage } from './pages/admin/ImportUsersPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { CompetencyMatrixPage } from './pages/site-lead/CompetencyMatrixPage';
 import { DistributionPage } from './pages/site-lead/DistributionPage';
 import { AbsencesPage } from './pages/site-lead/AbsencesPage';
@@ -313,6 +314,8 @@ function App() {
               }
             />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Без этого любая опечатка в адресе давала пустой белый экран. */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </IntroSplash>
         </ConfirmProvider>

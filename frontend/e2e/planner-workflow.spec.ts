@@ -1,5 +1,39 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import { login, rowAction, chooseOption } from './helpers';
+
+const API = 'http://localhost:3000';
+
+/**
+ * Тест убирает за собой через интерфейс в самом конце. Если он падал раньше, в базе
+ * оставались навык и заказ с префиксом E2E — их потом находили руками в демо-данных.
+ * Здесь та же уборка, но через API и независимо от результата.
+ *
+ * Порядок важен: операции ссылаются и на заказ, и на навык, поэтому удаляются первыми.
+ */
+async function dropE2eData(request: APIRequestContext) {
+  const token = (
+    await (await request.post(`${API}/auth/login`, { data: { username: 'planner', password: 'password123' } })).json()
+  ).accessToken;
+  const auth = { Authorization: `Bearer ${token}` };
+
+  const orders = await (await request.get(`${API}/orders`, { headers: auth })).json();
+  for (const o of orders.filter((x: { name: string }) => x.name.startsWith('E2E-'))) {
+    const detail = await (await request.get(`${API}/orders/${o.id}`, { headers: auth })).json();
+    for (const op of detail.operations ?? []) {
+      await request.delete(`${API}/operations/${op.id}`, { headers: auth });
+    }
+    await request.delete(`${API}/orders/${o.id}`, { headers: auth });
+  }
+
+  const skills = await (await request.get(`${API}/skills`, { headers: auth })).json();
+  for (const s of skills.filter((x: { name: string }) => x.name.startsWith('E2E-'))) {
+    await request.delete(`${API}/skills/${s.id}`, { headers: auth });
+  }
+}
+
+test.afterEach(async ({ request }) => {
+  await dropE2eData(request);
+});
 
 /**
  * Deep planner workflow: create a skill, create an order, add an operation to
