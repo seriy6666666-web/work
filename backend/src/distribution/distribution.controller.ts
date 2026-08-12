@@ -39,18 +39,19 @@ export class DistributionController {
 
   @Get('distribution/operations')
   listOperations(@Req() req: AuthenticatedRequest) {
-    return this.distributionService.listOperations(requireSiteId(req));
+    // req.user.sub — чтобы ограничить выборку адресом начальника участка, если он указан.
+    return this.distributionService.listOperations(requireSiteId(req), req.user.sub);
   }
 
   @Get('distribution/summary')
   getSummary(@Req() req: AuthenticatedRequest) {
-    return this.distributionService.getSummary(requireSiteId(req));
+    return this.distributionService.getSummary(requireSiteId(req), req.user.sub);
   }
 
   @Post('assignments')
   async createAssignment(@Req() req: AuthenticatedRequest, @Body() dto: CreateAssignmentDto) {
     const siteId = requireSiteId(req);
-    const result = await this.distributionService.createAssignment(siteId, dto);
+    const result = await this.distributionService.createAssignment(siteId, req.user.sub, dto);
     this.events.emitDistributionChanged(siteId);
     return result;
   }

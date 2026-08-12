@@ -12,8 +12,8 @@ export class CompetencyService {
     private absencesService: AbsencesService,
   ) {}
 
-  async getMatrix(siteId: string) {
-    const userIds = await this.transfersService.getEffectiveSiteUserIds(siteId);
+  async getMatrix(siteId: string, viewerId: string) {
+    const userIds = await this.transfersService.getEffectiveSiteUserIds(siteId, viewerId);
 
     const [skills, users, competencies] = await Promise.all([
       this.prisma.skill.findMany({ orderBy: { name: 'asc' } }),
@@ -38,8 +38,8 @@ export class CompetencyService {
     return { skills, users: usersWithAbsence, competencies };
   }
 
-  async setCompetency(siteId: string, dto: SetCompetencyDto) {
-    const eligibleUserIds = await this.transfersService.getEffectiveSiteUserIds(siteId);
+  async setCompetency(siteId: string, viewerId: string, dto: SetCompetencyDto) {
+    const eligibleUserIds = await this.transfersService.getEffectiveSiteUserIds(siteId, viewerId);
     if (!eligibleUserIds.includes(dto.userId)) {
       throw new ForbiddenException('Сотрудник не относится к вашему участку');
     }

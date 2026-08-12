@@ -22,11 +22,13 @@ export class CompetencyController {
 
   @Get('competency-matrix')
   getMatrix(@Req() req: AuthenticatedRequest) {
-    return this.competencyService.getMatrix(requireSiteId(req));
+    // req.user.sub нужен, чтобы ограничить выборку адресом начальника участка,
+    // если он у него указан.
+    return this.competencyService.getMatrix(requireSiteId(req), req.user.sub);
   }
 
   @Put('competency')
   setCompetency(@Req() req: AuthenticatedRequest, @Body() dto: SetCompetencyDto) {
-    return this.competencyService.setCompetency(requireSiteId(req), dto);
+    return this.competencyService.setCompetency(requireSiteId(req), req.user.sub, dto);
   }
 }

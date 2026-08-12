@@ -28,7 +28,7 @@ export class DistributionService {
     private notifications: NotificationsService,
   ) {}
 
-  async listOperations(siteId: string) {
+  async listOperations(siteId: string, viewerId: string) {
     const [operations, competencies] = await Promise.all([
       this.prisma.operation.findMany({
         where: { OR: [{ siteId }, { secondarySiteId: siteId }] },
@@ -46,7 +46,7 @@ export class DistributionService {
         orderBy: [{ order: { priority: 'desc' } }, { order: { dueDate: 'asc' } }],
       }),
       this.prisma.competency.findMany({
-        where: { userId: { in: await this.transfersService.getEffectiveSiteUserIds(siteId) } },
+        where: { userId: { in: await this.transfersService.getEffectiveSiteUserIds(siteId, viewerId) } },
         select: { skillId: true },
       }),
     ]);
@@ -66,12 +66,12 @@ export class DistributionService {
     });
   }
 
-  async getSummary(siteId: string) {
+  async getSummary(siteId: string, viewerId: string) {
     const [ranking, operations, atRiskCount, effectiveUserIds, incomingTransfers] = await Promise.all([
       this.statsService.computeSiteRanking(siteId, 'shift'),
-      this.listOperations(siteId),
+      this.listOperations(siteId, viewerId),
       this.statsService.countAtRiskOrdersForSite(siteId),
-      this.transfersService.getEffectiveSiteUserIds(siteId),
+      this.transfersService.getEffectiveSiteUserIds(siteId, viewerId),
       this.transfersService.getActiveIncomingTransfers(siteId),
     ]);
 
@@ -107,7 +107,7 @@ export class DistributionService {
     };
   }
 
-  async createAssignment(siteId: string, dto: CreateAssignmentDto) {
+  async createAssignment(siteId: string, viewerId: string, dto: CreateAssignmentDto) {
     const operation = await this.prisma.operation.findUnique({ where: { id: dto.operationId } });
     if (!operation) {
       throw new NotFoundException('Операция не найдена');
@@ -116,8 +116,27 @@ export class DistributionService {
       throw new ForbiddenException('Операция относится к другому участку');
     }
 
-    const eligibleUserIds = await this.transfersService.getEffectiveSiteUserIds(siteId);
+    const eligibleUserIds = await this.transfersService.getEffectiveSiteUserIds(siteId, viewerId);
     if (!eligibleUserIds.includes(dto.userId)) {
+      /**
+       * Различаем два случая. Раньше на оба отвечали «не относится к вашему участку»,
+       * и начальник участка с адресом видел это про своего же человека с другого
+       * адреса — по его мнению, ровно про своего.
+       */
+      const [candidate, viewerPlatformId] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: dto.userId },
+          select: { fullName: true, siteId: true, platform: { select: { name: true } } },
+        }),
+        this.transfersService.platformOf(viewerId),
+      ]);
+      if (candidate && candidate.siteId === siteId && viewerPlatformId) {
+        throw new BadRequestException(
+          `«${candidate.fullName}» работает на другом адресе (${candidate.platform?.name ?? 'адрес не указан'}) — ` +
+            'назначать его нельзя. Если человек перешёл, смените адрес у него в разделе «Пользователи», ' +
+            'или запросите его как перевод.',
+        );
+      }
       throw new BadRequestException('Сотрудник не относится к вашему участку');
     }
     if (await this.absencesService.isAbsentToday(dto.userId)) {

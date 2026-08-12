@@ -159,11 +159,29 @@ export class TransfersService {
     });
   }
 
-  async getEffectiveSiteUserIds(siteId: string): Promise<string[]> {
+  /**
+   * Сотрудники, которых участок фактически видит: свои плюс временно переведённые.
+   *
+   * `viewerId` — тот, кто смотрит. Если у него указан адрес (площадка), он видит по
+   * этому участку только своих по своему адресу. Так участок призмы, работающий на
+   * ЮП26 и ЮП33, делится на двух начальников, каждый со своими людьми. Если адрес не
+   * указан, видно весь участок — цилиндры и заготовки живут на одном адресе, и для
+   * них ничего не меняется.
+   *
+   * Переведённых по адресу НЕ фильтруем: их этот начальник запросил сам и сам
+   * подтверждал перевод, значит скрывать их от него неправильно, даже если их
+   * домашний адрес другой.
+   */
+  async getEffectiveSiteUserIds(siteId: string, viewerId?: string): Promise<string[]> {
     const now = new Date();
+    const viewerPlatformId = viewerId ? await this.platformOf(viewerId) : null;
+
     const [homeUsers, transferredUsers] = await Promise.all([
       // Архивных (уволенных) в работе не показываем — их история остаётся в отчётах.
-      this.prisma.user.findMany({ where: { siteId, archivedAt: null }, select: { id: true } }),
+      this.prisma.user.findMany({
+        where: { siteId, archivedAt: null, ...(viewerPlatformId ? { platformId: viewerPlatformId } : {}) },
+        select: { id: true },
+      }),
       this.prisma.transfer.findMany({
         where: {
           toSiteId: siteId,
@@ -175,5 +193,19 @@ export class TransfersService {
       }),
     ]);
     return Array.from(new Set([...homeUsers.map((u) => u.id), ...transferredUsers.map((t) => t.userId)]));
+  }
+
+  /**
+   * Адрес сотрудника читаем из базы, а не из токена. В токене он был бы удобнее, но
+   * тогда проставленный администратором адрес начинал действовать только после
+   * повторного входа — до 12 часов человек продолжал бы видеть чужие площадки.
+   * Это запрос по первичному ключу, на фоне остальной работы страницы он незаметен.
+   */
+  async platformOf(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { platformId: true },
+    });
+    return user?.platformId ?? null;
   }
 }
