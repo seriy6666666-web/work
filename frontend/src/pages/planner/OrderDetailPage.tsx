@@ -8,6 +8,7 @@ import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { Skeleton } from '../../components/Skeleton';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
 
 function toDateInputValue(iso: string) {
@@ -113,6 +114,13 @@ export function OrderDetailPage() {
   async function handleAddOperation(e: FormEvent) {
     e.preventDefault();
     if (!token || !id) return;
+    // Проверок здесь не было вовсе: за обязательность полей отвечали нативные required
+    // у <select>. У своего компонента их нет, поэтому проверяем сами, иначе уйдёт
+    // запрос с пустыми полями и вернётся невнятная ошибка валидации с сервера.
+    if (!opForm.skillId || !opForm.siteId || !opForm.quantity) {
+      toast.error('Выберите навык, участок и укажите количество');
+      return;
+    }
     setAddingOp(true);
     try {
       await api.createOperation(token, id, {
@@ -213,17 +221,12 @@ export function OrderDetailPage() {
         </label>
         <label style={styles.label}>
           Статус
-          <select
-            style={styles.input}
+          <Select
+            ariaLabel="Статус заказа"
             value={orderForm.status}
-            onChange={(e) => setOrderForm({ ...orderForm, status: e.target.value as OrderStatus })}
-          >
-            {ORDER_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {ORDER_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
+            onChange={(status) => setOrderForm({ ...orderForm, status: status as OrderStatus })}
+            options={ORDER_STATUSES.map((s) => ({ value: s, label: ORDER_STATUS_LABELS[s] }))}
+          />
         </label>
         <div style={styles.orderFormActions}>
           <button style={styles.button} type="submit" disabled={saving}>
@@ -244,19 +247,14 @@ export function OrderDetailPage() {
       )}
 
       <form onSubmit={handleAddOperation} style={styles.createForm}>
-        <select
-          style={styles.input}
+        <Select
+          width="200px"
+          ariaLabel="Навык"
+          placeholder="Выберите навык"
           value={opForm.skillId}
-          onChange={(e) => setOpForm({ ...opForm, skillId: e.target.value })}
-          required
-        >
-          <option value="">Выберите навык</option>
-          {skills.map((skill) => (
-            <option key={skill.id} value={skill.id}>
-              {skill.name}
-            </option>
-          ))}
-        </select>
+          onChange={(skillId) => setOpForm({ ...opForm, skillId })}
+          options={skills.map((skill) => ({ value: skill.id, label: skill.name }))}
+        />
         <input
           style={styles.input}
           placeholder="Количество"
@@ -266,33 +264,29 @@ export function OrderDetailPage() {
           onChange={(e) => setOpForm({ ...opForm, quantity: e.target.value })}
           required
         />
-        <select
-          style={styles.input}
+        <Select
+          width="180px"
+          ariaLabel="Участок"
+          placeholder="Выберите участок"
           value={opForm.siteId}
-          onChange={(e) => setOpForm({ ...opForm, siteId: e.target.value })}
-          required
-        >
-          <option value="">Выберите участок</option>
-          {sites.map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.name}
-            </option>
-          ))}
-        </select>
-        <select
-          style={styles.input}
+          onChange={(siteId) => setOpForm({ ...opForm, siteId })}
+          options={sites.map((site) => ({ value: site.id, label: site.name }))}
+        />
+        <Select
+          width="260px"
+          ariaLabel="Второй участок"
+          placeholder="Второй участок (если операция разделяется)"
           value={opForm.secondarySiteId}
-          onChange={(e) => setOpForm({ ...opForm, secondarySiteId: e.target.value })}
-        >
-          <option value="">Второй участок (если операция разделяется)</option>
-          {sites
-            .filter((site) => site.id !== opForm.siteId)
-            .map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name}
-              </option>
-            ))}
-        </select>
+          onChange={(secondarySiteId) => setOpForm({ ...opForm, secondarySiteId })}
+          // Разделяемая операция — случай необязательный, поэтому пустой вариант нужен
+          // как выбор: раз выставленный второй участок должен сниматься.
+          options={[
+            { value: '', label: 'Без второго участка' },
+            ...sites
+              .filter((site) => site.id !== opForm.siteId)
+              .map((site) => ({ value: site.id, label: site.name })),
+          ]}
+        />
         <button style={styles.button} type="submit" disabled={addingOp}>
           Добавить
         </button>

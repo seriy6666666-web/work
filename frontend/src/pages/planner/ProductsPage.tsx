@@ -8,6 +8,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 interface OpForm {
@@ -130,7 +131,12 @@ export function ProductsPage() {
     e.preventDefault();
     if (!token) return;
     const form = opForms[productId] ?? EMPTY_OP;
-    if (!form.skillId || !form.siteId) return;
+    // Раньше на пустые поля ругался нативный required у <select>; у своего компонента
+    // его нет, поэтому говорим прямо, а не выходим молча.
+    if (!form.skillId || !form.siteId) {
+      toast.error('Выберите навык и участок');
+      return;
+    }
     try {
       await api.addProductOperation(token, productId, {
         skillId: form.skillId,
@@ -304,18 +310,20 @@ export function ProductsPage() {
                           ))}
                         </div>
                         <div style={styles.matForm}>
-                          <select
-                            style={styles.matInput}
+                          <Select
+                            width="200px"
+                            ariaLabel="Материал"
+                            placeholder="Материал"
                             value={mf.materialId}
-                            onChange={(e) => setOpMatForms((prev) => ({ ...prev, [op.id]: { ...mf, materialId: e.target.value } }))}
-                          >
-                            <option value="">Материал</option>
-                            {materials.map((mat) => (
-                              <option key={mat.id} value={mat.id}>
-                                {mat.name} ({mat.unit})
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(materialId) =>
+                              setOpMatForms((prev) => ({ ...prev, [op.id]: { ...mf, materialId } }))
+                            }
+                            options={materials.map((mat) => ({
+                              value: mat.id,
+                              label: mat.name,
+                              hint: mat.unit,
+                            }))}
+                          />
                           <input
                             style={{ ...styles.matInput, maxWidth: '110px' }}
                             type="number"
@@ -336,48 +344,39 @@ export function ProductsPage() {
               )}
 
               <form onSubmit={(e) => handleAddOp(e, p.id)} style={styles.opForm}>
-                <select
-                  style={styles.input}
+                <Select
+                  width="190px"
+                  ariaLabel="Навык"
+                  placeholder="Навык"
                   value={form.skillId}
-                  onChange={(e) => setOpForms((prev) => ({ ...prev, [p.id]: { ...form, skillId: e.target.value } }))}
-                  required
-                >
-                  <option value="">Навык</option>
-                  {skills.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  style={styles.input}
+                  onChange={(skillId) => setOpForms((prev) => ({ ...prev, [p.id]: { ...form, skillId } }))}
+                  options={skills.map((s) => ({ value: s.id, label: s.name }))}
+                />
+                <Select
+                  width="170px"
+                  ariaLabel="Участок"
+                  placeholder="Участок"
                   value={form.siteId}
-                  onChange={(e) => setOpForms((prev) => ({ ...prev, [p.id]: { ...form, siteId: e.target.value } }))}
-                  required
-                >
-                  <option value="">Участок</option>
-                  {sites.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  style={styles.input}
+                  onChange={(siteId) => setOpForms((prev) => ({ ...prev, [p.id]: { ...form, siteId } }))}
+                  options={sites.map((s) => ({ value: s.id, label: s.name }))}
+                />
+                <Select
+                  width="200px"
+                  ariaLabel="Второй участок"
+                  placeholder="Второй участок (опц.)"
                   value={form.secondarySiteId}
-                  onChange={(e) =>
-                    setOpForms((prev) => ({ ...prev, [p.id]: { ...form, secondarySiteId: e.target.value } }))
+                  onChange={(secondarySiteId) =>
+                    setOpForms((prev) => ({ ...prev, [p.id]: { ...form, secondarySiteId } }))
                   }
-                >
-                  <option value="">Второй участок (опц.)</option>
-                  {sites
-                    .filter((s) => s.id !== form.siteId)
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
+                  // Второй участок необязателен, поэтому пустой вариант нужен как выбор:
+                  // раз выставленный, он должен сниматься.
+                  options={[
+                    { value: '', label: 'Без второго участка' },
+                    ...sites
+                      .filter((s) => s.id !== form.siteId)
+                      .map((s) => ({ value: s.id, label: s.name })),
+                  ]}
+                />
                 <button style={styles.button} type="submit">
                   + Операция
                 </button>

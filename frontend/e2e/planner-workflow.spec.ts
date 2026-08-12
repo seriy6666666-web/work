@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, rowAction } from './helpers';
+import { login, rowAction, chooseOption } from './helpers';
 
 /**
  * Deep planner workflow: create a skill, create an order, add an operation to
@@ -34,10 +34,13 @@ test('planner: skill → order → operation → cleanup', async ({ page }) => {
   await page.getByRole('row', { name: new RegExp(orderName) }).getByRole('link', { name: /Открыть/ }).click();
   await expect(page.getByRole('heading', { name: orderName })).toBeVisible();
 
-  // Comboboxes on this page: [0] order status, [1] operation skill, [2] site, [3] second site.
-  await page.getByRole('combobox').nth(1).selectOption({ label: skillName });
+  // Поля выбора — компонент Select: selectOption работает только с нативным <select>,
+  // поэтому открываем список и щёлкаем по строке. Ищем по подписи, а не по номеру:
+  // позиционные индексы ломались от любой правки вёрстки.
+  await chooseOption(page.getByRole('combobox', { name: 'Навык' }), skillName);
   await page.getByPlaceholder('Количество').fill('100');
-  await page.getByRole('combobox').nth(2).selectOption({ index: 1 });
+  // exact: true — иначе «Участок» матчится и во «Второй участок» рядом.
+  await chooseOption(page.getByRole('combobox', { name: 'Участок', exact: true }), 'Сборка');
   await page.getByRole('button', { name: 'Добавить' }).click();
   await expect(page.getByText('Операция добавлена')).toBeVisible();
   await expect(page.getByRole('cell', { name: skillName })).toBeVisible();
