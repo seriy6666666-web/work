@@ -60,7 +60,7 @@ export class EquipmentService {
     // Alert production heads when equipment newly breaks down.
     if (dto.status === EquipmentStatus.BROKEN && current.status !== EquipmentStatus.BROKEN) {
       const site = await this.prisma.site.findUnique({ where: { id: siteId } });
-      const heads = await this.prisma.user.findMany({ where: { role: Role.PRODUCTION_HEAD } });
+      const heads = await this.prisma.user.findMany({ where: { role: Role.PRODUCTION_HEAD, archivedAt: null } });
       await this.notifications.createMany(
         heads.map((h) => h.id),
         {

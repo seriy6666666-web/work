@@ -79,9 +79,13 @@ test('рабочий-старший смены передаёт дела со с
   await login(page, 'worker');
   await expect(page.getByText(/Пересменка — вы старший смены/)).toBeVisible();
   await page.getByText(/Пересменка — вы старший смены/).click();
-  await page.getByPlaceholder(/Что передать следующей смене/).fill('Тест: линия 1 без клея');
+  // Текст уникальный: журнал пересменки не чистится, записи копятся между прогонами.
+  const message = `Тест ${Date.now()}: линия 1 без клея`;
+  const textarea = page.getByPlaceholder(/Что передать следующей смене/);
+  await textarea.fill(message);
   await page.getByRole('button', { name: 'Передать дела' }).click();
-  await expect(page.getByText(/Тест: линия 1 без клея/)).toBeVisible();
+  await expect(page.locator('li').filter({ hasText: message })).toHaveCount(1);
+  await expect(textarea).toHaveValue('');
 
   const lead = await (
     await request.get(`http://localhost:3000/shift-leads?from=${today}&to=${today}`, {

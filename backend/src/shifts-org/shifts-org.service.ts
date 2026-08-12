@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Role, ShiftType } from '../generated/prisma/enums';
@@ -41,6 +41,15 @@ export class ShiftsOrgService {
     });
   }
 
+  /** Кого можно поставить старшим смены на участке: обычно это рабочий. */
+  candidates(siteId: string) {
+    return this.prisma.user.findMany({
+      where: { siteId, archivedAt: null, role: { in: [Role.WORKER, Role.SITE_LEAD] } },
+      select: { id: true, fullName: true, role: true },
+      orderBy: { fullName: 'asc' },
+    });
+  }
+
   /** Свои назначения — чтобы работник понимал, что сегодня он старший смены. */
   myLeads(userId: string) {
     const start = dayUtc(new Date().toISOString());
@@ -58,6 +67,9 @@ export class ShiftsOrgService {
     if (!user) throw new NotFoundException('Сотрудник не найден');
     if (user.siteId !== dto.siteId) {
       throw new ForbiddenException('Сотрудник не относится к этому участку');
+    }
+    if (user.archivedAt) {
+      throw new BadRequestException('Сотрудник в архиве — его нельзя назначить старшим смены');
     }
 
     const date = dayUtc(dto.date);

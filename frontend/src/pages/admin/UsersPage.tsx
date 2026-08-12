@@ -43,6 +43,7 @@ export function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withArchived, setWithArchived] = useState(false);
 
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
@@ -71,7 +72,10 @@ export function UsersPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const [usersData, sitesData] = await Promise.all([api.listUsers(token), api.listSites(token)]);
+      const [usersData, sitesData] = await Promise.all([
+        api.listUsers(token, withArchived),
+        api.listSites(token),
+      ]);
       setUsers(usersData);
       setSites(sitesData);
     } catch (err) {
@@ -84,7 +88,7 @@ export function UsersPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, withArchived]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -158,6 +162,34 @@ export function UsersPage() {
     }
   }
 
+  async function handleArchive(u: AdminUser) {
+    if (!token) return;
+    const ok = await confirm({
+      title: 'В архив',
+      message: `Отправить «${u.fullName}» в архив? Вход закроется, из распределения и смен человек пропадёт, но вся его история останется в отчётах.`,
+      confirmLabel: 'В архив',
+    });
+    if (!ok) return;
+    try {
+      await api.archiveUser(token, u.id);
+      toast.success(`${u.fullName} — в архиве`);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось отправить в архив');
+    }
+  }
+
+  async function handleRestore(u: AdminUser) {
+    if (!token) return;
+    try {
+      await api.restoreUser(token, u.id);
+      toast.success(`${u.fullName} снова в работе`);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось вернуть из архива');
+    }
+  }
+
   async function handleDelete(u: AdminUser) {
     if (!token) return;
     const ok = await confirm({
@@ -178,7 +210,7 @@ export function UsersPage() {
 
   // Руководителем может быть только начальник участка или начальник производства.
   const managerOptions = users.filter(
-    (u) => u.role === 'SITE_LEAD' || u.role === 'PRODUCTION_HEAD',
+    (u) => (u.role === 'SITE_LEAD' || u.role === 'PRODUCTION_HEAD') && !u.archivedAt,
   );
 
   const controls = useTableControls(users, {
@@ -284,6 +316,14 @@ export function UsersPage() {
       {!loading && users.length > 0 && (
         <div style={styles.toolbar}>
           <SearchInput value={controls.query} onChange={controls.setQuery} placeholder="Поиск по логину, ФИО, роли..." />
+          <label style={styles.archiveToggle}>
+            <input
+              type="checkbox"
+              checked={withArchived}
+              onChange={(e) => setWithArchived(e.target.checked)}
+            />
+            Показывать архив
+          </label>
         </div>
       )}
 
@@ -385,17 +425,31 @@ export function UsersPage() {
                       </div>
                     </td>
                     <td style={styles.td}>
-                      <Badge variant="accent">{ROLE_LABELS[u.role]}</Badge>
+                      <Badge variant={u.archivedAt ? 'muted' : 'accent'}>{ROLE_LABELS[u.role]}</Badge>
+                      {u.archivedAt && (
+                        <span style={styles.archivedMark}>в архиве</span>
+                      )}
                     </td>
                     <td style={styles.td}>{u.siteName ?? '—'}</td>
                     <td style={styles.td}>{u.managerName ?? '—'}</td>
                     <td style={{ ...styles.td, textAlign: 'right' }}>
-                      <button style={styles.linkButton} onClick={() => startEdit(u)}>
-                        Редактировать
-                      </button>
-                      <button style={styles.linkButton} onClick={() => startPassword(u)}>
-                        Пароль
-                      </button>
+                      {u.archivedAt ? (
+                        <button style={styles.linkButton} onClick={() => handleRestore(u)}>
+                          Вернуть в работу
+                        </button>
+                      ) : (
+                        <>
+                          <button style={styles.linkButton} onClick={() => startEdit(u)}>
+                            Редактировать
+                          </button>
+                          <button style={styles.linkButton} onClick={() => startPassword(u)}>
+                            Пароль
+                          </button>
+                          <button style={styles.linkButton} onClick={() => handleArchive(u)}>
+                            В архив
+                          </button>
+                        </>
+                      )}
                       <button style={styles.linkButtonDanger} onClick={() => handleDelete(u)}>
                         Удалить
                       </button>
@@ -457,7 +511,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   toolbar: {
     marginBottom: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    flexWrap: 'wrap',
   },
+  archiveToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '14px',
+    color: COLORS.mutedText,
+    cursor: 'pointer',
+  },
+  archivedMark: { marginLeft: '8px', fontSize: '12px', color: COLORS.mutedText },
   issuedBox: {
     display: 'flex',
     justifyContent: 'space-between',

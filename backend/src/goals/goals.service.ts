@@ -29,7 +29,7 @@ export class GoalsService {
 
     const [workers, goals] = await Promise.all([
       this.prisma.user.findMany({
-        where: { siteId, role: { in: [Role.WORKER, Role.SITE_LEAD] } },
+        where: { siteId, role: { in: [Role.WORKER, Role.SITE_LEAD] }, archivedAt: null },
         select: { id: true, fullName: true },
         orderBy: { fullName: 'asc' },
       }),

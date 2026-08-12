@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type AdminUser, type ShiftLead, type Site } from '../../api/client';
+import { api, ApiError, type Role, type ShiftLead, type Site } from '../../api/client';
 import { ProductionHeadLayout } from './ProductionHeadLayout';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -27,7 +27,7 @@ export function ShiftLeadsPage() {
   });
   const [leads, setLeads] = useState<ShiftLead[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [people, setPeople] = useState<AdminUser[]>([]);
+  const [people, setPeople] = useState<{ id: string; fullName: string; role: Role }[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ siteId: '', userId: '', date: ymd(new Date()), type: 'NIGHT' });
 
@@ -53,14 +53,17 @@ export function ShiftLeadsPage() {
     load();
   }, [load]);
 
-  // Список людей участка нужен, чтобы выбрать старшего.
+  // Список людей участка нужен, чтобы выбрать старшего: обычно это рабочий.
   useEffect(() => {
-    if (!token) return;
+    if (!token || !form.siteId) {
+      setPeople([]);
+      return;
+    }
     api
-      .listUsers(token)
+      .listShiftLeadCandidates(token, form.siteId)
       .then(setPeople)
       .catch(() => setPeople([]));
-  }, [token]);
+  }, [token, form.siteId]);
 
   async function handleSet(e: FormEvent) {
     e.preventDefault();
@@ -90,7 +93,7 @@ export function ShiftLeadsPage() {
     }
   }
 
-  const candidates = people.filter((p) => p.siteId === form.siteId);
+  const candidates = people;
 
   return (
     <ProductionHeadLayout title="Старшие смен" breadcrumb="Производство">

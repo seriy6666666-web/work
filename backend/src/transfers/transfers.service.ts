@@ -48,6 +48,7 @@ export class TransfersService {
       where: {
         role: Role.WORKER,
         siteId: { not: null },
+        archivedAt: null,
         NOT: { siteId: requesterSiteId },
       },
       select: { id: true, fullName: true, site: { select: { id: true, name: true } } },
@@ -161,7 +162,8 @@ export class TransfersService {
   async getEffectiveSiteUserIds(siteId: string): Promise<string[]> {
     const now = new Date();
     const [homeUsers, transferredUsers] = await Promise.all([
-      this.prisma.user.findMany({ where: { siteId }, select: { id: true } }),
+      // Архивных (уволенных) в работе не показываем — их история остаётся в отчётах.
+      this.prisma.user.findMany({ where: { siteId, archivedAt: null }, select: { id: true } }),
       this.prisma.transfer.findMany({
         where: {
           toSiteId: siteId,

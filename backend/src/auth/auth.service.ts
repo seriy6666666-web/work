@@ -16,6 +16,9 @@ export class AuthService {
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedException('Неверный логин или пароль');
     }
+    if (user.archivedAt) {
+      throw new UnauthorizedException('Учётная запись в архиве — обратитесь к администратору');
+    }
 
     const payload: JwtPayload = {
       sub: user.id,

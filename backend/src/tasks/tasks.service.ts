@@ -31,7 +31,7 @@ export class TasksService {
   /** Кому можно назначить задачу (руководители + я сам). */
   assignableUsers() {
     return this.prisma.user.findMany({
-      where: { role: { in: ASSIGNABLE_ROLES } },
+      where: { role: { in: ASSIGNABLE_ROLES }, archivedAt: null },
       select: { id: true, fullName: true, role: true },
       orderBy: { fullName: 'asc' },
     });

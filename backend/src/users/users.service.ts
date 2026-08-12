@@ -31,12 +31,42 @@ const includeSite = {
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async list() {
+  async list(withArchived = false) {
     const users = await this.prisma.user.findMany({
+      where: withArchived ? {} : { archivedAt: null },
       include: includeSite,
       orderBy: { username: 'asc' },
     });
     return users.map(toSafeUser);
+  }
+
+  /**
+   * Увольнение: сотрудника нельзя удалить (за ним история производства), поэтому
+   * убираем его из работы — вход закрыт, из списков участка пропадает.
+   */
+  async archive(id: string, actorId: string) {
+    if (id === actorId) {
+      throw new BadRequestException('Нельзя отправить в архив самого себя');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    if (user.archivedAt) return toSafeUser(await this.withRelations(id));
+
+    await this.prisma.user.update({ where: { id }, data: { archivedAt: new Date() } });
+    return toSafeUser(await this.withRelations(id));
+  }
+
+  async restore(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    await this.prisma.user.update({ where: { id }, data: { archivedAt: null } });
+    return toSafeUser(await this.withRelations(id));
+  }
+
+  private async withRelations(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id }, include: includeSite });
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    return user;
   }
 
   async create(dto: CreateUserDto) {
@@ -120,7 +150,7 @@ export class UsersService {
       }
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2003') {
         throw new BadRequestException(
-          'Сотрудник уже участвовал в работе (задания, смены, отсутствия) — удалить его нельзя, иначе потеряется история производства.',
+          'Сотрудник уже участвовал в работе (задания, смены, отсутствия) — удалить его нельзя, иначе потеряется история производства. Отправьте его в архив.',
         );
       }
       throw err;

@@ -61,7 +61,7 @@ export class OrdersService {
     await this.prisma.order.update({ where: { id: orderId }, data: { status: next } });
 
     if (next === OrderStatus.DONE) {
-      const planners = await this.prisma.user.findMany({ where: { role: Role.PLANNER } });
+      const planners = await this.prisma.user.findMany({ where: { role: Role.PLANNER, archivedAt: null } });
       await this.notifications.createMany(
         planners.map((p) => p.id),
         {

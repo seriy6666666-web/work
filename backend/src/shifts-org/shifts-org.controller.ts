@@ -31,6 +31,12 @@ export class ShiftsOrgController {
     return this.service.listLeads(from, to, siteId);
   }
 
+  @Roles(Role.PRODUCTION_HEAD)
+  @Get('shift-leads/candidates')
+  candidates(@Query('siteId') siteId: string) {
+    return this.service.candidates(siteId);
+  }
+
   // Свои назначения видит любой сотрудник: старшим смены часто ставят рабочего.
   @Get('shift-leads/me')
   myLeads(@Req() req: AuthenticatedRequest) {

@@ -90,6 +90,12 @@ model User {
   siteId       String?
   createdAt    DateTime @default(now())
 
+  /**
+   * Уволенных не удаляем — за ними история производства. Архивный сотрудник не
+   * входит в систему и пропадает из распределения, смен и матрицы компетенций.
+   */
+  archivedAt DateTime?
+
   assignments   Assignment[]
   competencies  Competency[]
   shifts        Shift[]

@@ -67,7 +67,12 @@ export const api = {
   deleteSite: (token: string, id: string) =>
     request<void>(`/sites/${id}`, { method: 'DELETE' }, token),
 
-  listUsers: (token: string) => request<AdminUser[]>('/users', {}, token),
+  listUsers: (token: string, withArchived = false) =>
+    request<AdminUser[]>(`/users${withArchived ? '?withArchived=true' : ''}`, {}, token),
+  archiveUser: (token: string, id: string) =>
+    request<AdminUser>(`/users/${id}/archive`, { method: 'POST' }, token),
+  restoreUser: (token: string, id: string) =>
+    request<AdminUser>(`/users/${id}/restore`, { method: 'POST' }, token),
   createUser: (token: string, payload: CreateUserPayload) =>
     request<AdminUser>('/users', { method: 'POST', body: JSON.stringify(payload) }, token),
   updateUser: (token: string, id: string, payload: UpdateUserPayload) =>
@@ -236,6 +241,12 @@ export const api = {
     return request<ShiftLead[]>(`/shift-leads?${q.toString()}`, {}, token);
   },
   listMyShiftLeads: (token: string) => request<ShiftLead[]>('/shift-leads/me', {}, token),
+  listShiftLeadCandidates: (token: string, siteId: string) =>
+    request<{ id: string; fullName: string; role: Role }[]>(
+      `/shift-leads/candidates?siteId=${siteId}`,
+      {},
+      token,
+    ),
   setShiftLead: (token: string, payload: SetShiftLeadPayload) =>
     request<ShiftLead>('/shift-leads', { method: 'POST', body: JSON.stringify(payload) }, token),
   deleteShiftLead: (token: string, id: string) =>
@@ -372,6 +383,7 @@ export interface AdminUser {
   siteName: string | null;
   managerId: string | null;
   managerName: string | null;
+  archivedAt: string | null;
   createdAt: string;
 }
 

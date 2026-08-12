@@ -134,7 +134,7 @@ export class MaterialsService {
     const nowLow = stock.quantity <= stock.lowStockThreshold;
     if (!wasAbove || !nowLow) return;
 
-    const planners = await this.prisma.user.findMany({ where: { role: Role.PLANNER } });
+    const planners = await this.prisma.user.findMany({ where: { role: Role.PLANNER, archivedAt: null } });
     await this.notifications.createMany(
       planners.map((p) => p.id),
       {
