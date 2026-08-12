@@ -155,7 +155,14 @@ export function Select({
           ...(disabled ? styles.triggerDisabled : {}),
           ...(open ? styles.triggerOpen : {}),
         }}
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          // `<button>` — labelable-элемент, поэтому обёртка `<label>` пересылает ему
+          // активацию вторым кликом: список открывался и тут же закрывался. Отменяем
+          // действие по умолчанию — иначе компонент не работает в любой форме, где
+          // поле подписано через label, а так свёрстано большинство экранов.
+          e.preventDefault();
+          setOpen((v) => !v);
+        }}
         onKeyDown={onKeyDown}
       >
         <span style={selected ? styles.value : styles.placeholder}>{label}</span>
@@ -190,7 +197,13 @@ export function Select({
                   }}
                   onMouseEnter={() => !o.disabled && setActive(i)}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => pick(i)}
+                  onClick={(e) => {
+                    // Тот же случай, что и на кнопке: клик по строке всплывает до
+                    // обёртки `<label>`, та пересылает активацию кнопке — и список,
+                    // только что закрытый выбором, открывается снова.
+                    e.preventDefault();
+                    pick(i);
+                  }}
                 >
                   <span style={styles.optionLabel}>{o.label}</span>
                   {o.hint && <span style={styles.hint}>{o.hint}</span>}

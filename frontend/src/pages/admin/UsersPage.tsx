@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
 import { RowActions } from '../../components/RowActions';
 import { SearchSelect } from '../../components/SearchSelect';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
 
 interface UserFormState {
@@ -96,6 +97,13 @@ export function UsersPage() {
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
+    // За участок раньше отвечал нативный required у <select>. У своего компонента его
+    // нет, поэтому проверяем сами — иначе уйдёт пустой siteId и придёт непонятная
+    // ошибка валидации с сервера.
+    if (SITE_BOUND_ROLES.includes(form.role) && !form.siteId) {
+      toast.error(`Для роли «${ROLE_LABELS[form.role]}» нужно выбрать участок`);
+      return;
+    }
     setCreating(true);
     try {
       await api.createUser(token, {
@@ -129,6 +137,10 @@ export function UsersPage() {
 
   async function saveEdit(id: string) {
     if (!token) return;
+    if (SITE_BOUND_ROLES.includes(editForm.role) && !editForm.siteId) {
+      toast.error(`Для роли «${ROLE_LABELS[editForm.role]}» нужно выбрать участок`);
+      return;
+    }
     try {
       await api.updateUser(token, id, {
         fullName: editForm.fullName.trim(),
@@ -280,34 +292,23 @@ export function UsersPage() {
             </label>
             <label style={styles.field}>
               <span style={styles.fieldLabel}>Роль</span>
-              <select
-                style={styles.input}
+              <Select
+                ariaLabel="Роль"
                 value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-              >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {ROLE_LABELS[role]}
-                  </option>
-                ))}
-              </select>
+                onChange={(role) => setForm({ ...form, role: role as Role })}
+                options={ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }))}
+              />
             </label>
             {SITE_BOUND_ROLES.includes(form.role) && (
               <label style={styles.field}>
                 <span style={styles.fieldLabel}>Участок</span>
-                <select
-                  style={styles.input}
+                <Select
+                  ariaLabel="Участок"
+                  placeholder="Выберите участок"
                   value={form.siteId}
-                  onChange={(e) => setForm({ ...form, siteId: e.target.value })}
-                  required
-                >
-                  <option value="">Выберите участок</option>
-                  {sites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(siteId) => setForm({ ...form, siteId })}
+                  options={sites.map((site) => ({ value: site.id, label: site.name }))}
+                />
               </label>
             )}
             <label style={styles.field}>
@@ -397,51 +398,44 @@ export function UsersPage() {
                       />
                     </td>
                     <td style={styles.td}>
-                      <select
-                        style={styles.input}
+                      <Select
+                        ariaLabel="Роль"
                         value={editForm.role}
-                        onChange={(e) => setEditForm({ ...editForm, role: e.target.value as Role })}
-                      >
-                        {ROLES.map((role) => (
-                          <option key={role} value={role}>
-                            {ROLE_LABELS[role]}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(role) => setEditForm({ ...editForm, role: role as Role })}
+                        options={ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }))}
+                      />
                     </td>
                     <td style={styles.td}>
                       {SITE_BOUND_ROLES.includes(editForm.role) ? (
-                        <select
-                          style={styles.input}
+                        <Select
+                          ariaLabel="Участок"
+                          placeholder="Выберите участок"
                           value={editForm.siteId}
-                          onChange={(e) => setEditForm({ ...editForm, siteId: e.target.value })}
-                        >
-                          <option value="">Выберите участок</option>
-                          {sites.map((site) => (
-                            <option key={site.id} value={site.id}>
-                              {site.name}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(siteId) => setEditForm({ ...editForm, siteId })}
+                          options={sites.map((site) => ({ value: site.id, label: site.name }))}
+                        />
                       ) : (
                         '—'
                       )}
                     </td>
                     <td style={styles.td}>
-                      <select
-                        style={styles.input}
+                      <Select
+                        ariaLabel="Руководитель"
                         value={editForm.managerId}
-                        onChange={(e) => setEditForm({ ...editForm, managerId: e.target.value })}
-                      >
-                        <option value="">Без руководителя</option>
-                        {managerOptions
-                          .filter((m) => m.id !== u.id)
-                          .map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.fullName} — {ROLE_LABELS[m.role]}
-                            </option>
-                          ))}
-                      </select>
+                        onChange={(managerId) => setEditForm({ ...editForm, managerId })}
+                        // Пустой вариант нужен именно как выбор: руководителя надо уметь снять,
+                        // а placeholder показывается, но выбрать его нельзя.
+                        options={[
+                          { value: '', label: 'Без руководителя' },
+                          ...managerOptions
+                            .filter((m) => m.id !== u.id)
+                            .map((m) => ({
+                              value: m.id,
+                              label: m.fullName,
+                              hint: ROLE_LABELS[m.role],
+                            })),
+                        ]}
+                      />
                     </td>
                     <td style={{ ...styles.td, textAlign: 'right' }}>
                       <button style={styles.linkButton} onClick={() => saveEdit(u.id)}>

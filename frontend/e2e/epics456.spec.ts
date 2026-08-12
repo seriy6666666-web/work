@@ -45,7 +45,24 @@ test('админ видит и меняет руководителя сотру�
   await page.getByRole('link', { name: 'Пользователи' }).click();
   await expect(page.getByRole('columnheader', { name: /Руководитель/ })).toBeVisible();
   await page.getByRole('button', { name: 'Редактировать' }).first().click();
-  await expect(page.getByRole('option', { name: 'Без руководителя' }).first()).toBeAttached();
+
+  // Список руководителей — компонент Select: строки появляются только когда он
+  // раскрыт, в отличие от нативного select, где <option> лежат в DOM всегда.
+  const manager = page.getByRole('combobox', { name: 'Руководитель' });
+  await manager.click();
+  // Руководителя надо уметь снять, поэтому пустой вариант присутствует как выбор.
+  await expect(page.getByRole('option', { name: 'Без руководителя' })).toBeVisible();
+
+  // Выбор реально подставляется в поле. Не сохраняем — тест не должен менять
+  // демо-данные, поэтому выходим по «Отмена».
+  const someManager = page.getByRole('option').nth(1);
+  // Первый span строки — это ФИО; вторым идёт приглушённая подсказка с ролью,
+  // и в textContent они склеиваются без разделителя.
+  const name = (await someManager.locator('span').first().textContent())!.trim();
+  await someManager.click();
+  await expect(manager).toContainText(name);
+
+  await page.getByRole('button', { name: 'Отмена' }).click();
 });
 
 test('в статистике участка есть колонка причин', async ({ page }) => {
