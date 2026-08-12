@@ -155,16 +155,59 @@ export class ImportService {
       );
     }
 
+    const issues: ImportIssue[] = [...parsed.issues];
+
+    /**
+     * Участки создаёт администратор — импорт только сопоставляет по имени.
+     * Раньше здесь стоял upsert, и участок появлялся из названия листа Excel: лист
+     * «ЮП33 навыки» заводил участок «ЮП33», хотя ЮП33 — это адрес площадки, а не
+     * участок. В системе оказывались участки, которых на производстве нет.
+     */
+    const existingSites = await this.prisma.site.findMany({ select: { id: true, name: true } });
+    const siteByName = new Map(existingSites.map((s) => [s.name.trim().toLowerCase(), s.id]));
+    const resolveSite = (name: string | null) =>
+      name ? (siteByName.get(name.trim().toLowerCase()) ?? null) : null;
+
+    const unknownSites = new Set<string>();
+    for (const p of parsed.people.values()) {
+      if (p.site && !resolveSite(p.site)) unknownSites.add(p.site);
+    }
+    for (const name of unknownSites) {
+      issues.push({
+        sheet: name,
+        row: 0,
+        message:
+          `Участка «${name}» нет в системе — сотрудники этого листа останутся без участка. ` +
+          'Создайте участок в разделе «Участки» и повторите импорт.',
+      });
+    }
+
+    // Сотрудник без участка не виден ни одному начальнику участка, без навыков —
+    // не назначается ни на одну операцию. И то и другое надо видеть до импорта.
+    let withoutSite = 0;
+    let withoutSkills = 0;
+    for (const [fullName, p] of parsed.people) {
+      if (!resolveSite(p.site)) {
+        withoutSite++;
+        if (!p.site) {
+          issues.push({ sheet: 'свод', row: 0, message: `«${fullName}» — участок не указан ни на одном листе` });
+        }
+      }
+      if (p.skills.size === 0) withoutSkills++;
+    }
+
     const marksTotal = [...parsed.people.values()].reduce((s, p) => s + p.skills.size, 0);
     const summary: ImportReport['summary'] = [
       { label: 'Листов обработано', value: parsed.usedSheets.length },
       { label: 'Навыков', value: parsed.skills.length },
       { label: 'Сотрудников', value: parsed.people.size },
       { label: 'Отметок «владеет навыком»', value: marksTotal },
+      { label: 'Без участка', value: withoutSite },
+      { label: 'Без навыков', value: withoutSkills },
     ];
 
     if (dryRun) {
-      return { dryRun: true, summary, issues: parsed.issues };
+      return { dryRun: true, summary, issues };
     }
 
     // --- Применение ---
@@ -176,64 +219,107 @@ export class ImportService {
       skillIds.set(name, skill.id);
     }
 
-    const siteIds = new Map<string, string>();
-    for (const p of parsed.people.values()) {
-      if (p.site && !siteIds.has(p.site)) {
-        const site = await this.prisma.site.upsert({
-          where: { name: p.site },
-          update: {},
-          create: { name: p.site },
-        });
-        siteIds.set(p.site, site.id);
-      }
+    // Всех сотрудников и все компетенции читаем разом: раньше на каждого человека
+    // шёл отдельный запрос, а на каждый навык — ещё два. На 70 людях это сотни
+    // последовательных обращений к базе.
+    const allUsers = await this.prisma.user.findMany({
+      select: { id: true, fullName: true, siteId: true, username: true },
+    });
+    const byFullName = new Map<string, typeof allUsers>();
+    for (const u of allUsers) {
+      const key = u.fullName.trim().toLowerCase();
+      const list = byFullName.get(key);
+      if (list) list.push(u);
+      else byFullName.set(key, [u]);
     }
+    const takenUsernames = new Set(allUsers.map((u) => u.username));
+    const existingPairs = new Set(
+      (await this.prisma.competency.findMany({ select: { userId: true, skillId: true } })).map(
+        (c) => `${c.userId}:${c.skillId}`,
+      ),
+    );
 
     let createdUsers = 0;
-    let createdCompetencies = 0;
+    let skipped = 0;
+    const newCompetencies: { userId: string; skillId: string }[] = [];
+
     for (const [fullName, info] of parsed.people) {
-      let user = await this.prisma.user.findFirst({ where: { fullName } });
-      if (!user) {
-        // Логин может совпасть у тёзок — добавляем суффикс.
+      const siteId = resolveSite(info.site);
+      const namesakes = byFullName.get(fullName.trim().toLowerCase()) ?? [];
+
+      /**
+       * Сопоставление по одному ФИО сливало двух разных людей в одного: второй не
+       * получал учётку, а его навыки приписывались первому. Молча угадывать нельзя —
+       * неоднозначные случаи выносим в замечания, пусть решает человек.
+       */
+      if (namesakes.length > 1) {
+        issues.push({
+          sheet: info.site ?? 'свод',
+          row: 0,
+          message: `«${fullName}» — в системе несколько сотрудников с таким ФИО, пропущен. Переименуйте однозначно или заведите вручную.`,
+        });
+        skipped++;
+        continue;
+      }
+
+      const existing = namesakes[0];
+      if (existing && siteId && existing.siteId && existing.siteId !== siteId) {
+        issues.push({
+          sheet: info.site ?? 'свод',
+          row: 0,
+          message: `«${fullName}» уже есть в системе на другом участке, пропущен. Если человек перешёл, смените участок в разделе «Пользователи».`,
+        });
+        skipped++;
+        continue;
+      }
+
+      let userId: string;
+      if (existing) {
+        userId = existing.id;
+        if (siteId && !existing.siteId) {
+          await this.prisma.user.update({ where: { id: userId }, data: { siteId } });
+        }
+      } else {
         const base = makeUsername(fullName);
         let username = base;
-        for (let i = 2; await this.prisma.user.findUnique({ where: { username } }); i++) {
-          username = `${base}${i}`;
-        }
+        for (let i = 2; takenUsernames.has(username); i++) username = `${base}${i}`;
+        takenUsernames.add(username);
         // У каждого свой пароль: общий на всех означает, что все знают пароли друг друга.
         const password = makePassword();
-        user = await this.prisma.user.create({
+        const created = await this.prisma.user.create({
           data: {
             username,
             passwordHash: await bcrypt.hash(password, 10),
             fullName,
             role: Role.WORKER,
-            siteId: info.site ? siteIds.get(info.site) : null,
+            siteId,
           },
         });
+        userId = created.id;
         credentials.push({ fullName, username, password });
         createdUsers++;
-      } else if (info.site && !user.siteId) {
-        await this.prisma.user.update({ where: { id: user.id }, data: { siteId: siteIds.get(info.site) } });
       }
 
       for (const skillName of info.skills) {
         const skillId = skillIds.get(skillName);
         if (!skillId) continue;
-        const exists = await this.prisma.competency.findUnique({
-          where: { userId_skillId: { userId: user.id, skillId } },
-        });
-        if (!exists) {
-          await this.prisma.competency.create({ data: { userId: user.id, skillId } });
-          createdCompetencies++;
-        }
+        const pair = `${userId}:${skillId}`;
+        if (existingPairs.has(pair)) continue;
+        existingPairs.add(pair);
+        newCompetencies.push({ userId, skillId });
       }
+    }
+
+    if (newCompetencies.length > 0) {
+      await this.prisma.competency.createMany({ data: newCompetencies });
     }
 
     summary.push(
       { label: 'Создано сотрудников', value: createdUsers },
-      { label: 'Создано компетенций', value: createdCompetencies },
+      { label: 'Создано компетенций', value: newCompetencies.length },
     );
-    return { dryRun: false, summary, issues: parsed.issues, credentials };
+    if (skipped > 0) summary.push({ label: 'Пропущено (неоднозначные)', value: skipped });
+    return { dryRun: false, summary, issues, credentials };
   }
 
   // ==================================================================

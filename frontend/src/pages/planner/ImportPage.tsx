@@ -84,7 +84,7 @@ export function ImportPage() {
           <input
             style={styles.file}
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx"
             onChange={(e) => patch(kind, { file: e.target.files?.[0] ?? null, report: null })}
           />
           <button
@@ -138,7 +138,7 @@ export function ImportPage() {
               <div style={styles.confirmRow}>
                 <span style={styles.confirmText}>Проверка пройдена. Загрузить эти данные в систему?</span>
                 <button style={styles.applyButton} disabled={s.busy} onClick={() => run(kind, false)}>
-                  Импортировать
+                  {s.busy ? 'Загружаю...' : 'Импортировать'}
                 </button>
               </div>
             ) : (
@@ -205,7 +205,7 @@ export function ImportPage() {
       {renderBlock(
         'competency',
         'Матрица компетенций',
-        'Листы вида «<Участок> навыки»: шапка с навыками и отметки 0/1 по сотрудникам. Создаёт навыки, участки, сотрудников и их компетенции. Листы «желания» не учитываются.',
+        'Листы вида «<Участок> навыки»: шапка с навыками и отметки 0/1 по сотрудникам. Создаёт навыки, сотрудников и их компетенции. Участки берутся из уже существующих — если участка в системе нет, об этом будет сказано в проверке, создайте его заранее. Листы «желания» не учитываются.',
       )}
 
       {renderBlock(

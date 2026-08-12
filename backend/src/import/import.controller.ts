@@ -23,7 +23,14 @@ function isDryRun(value?: string): boolean {
 
 function requireFile(file?: Express.Multer.File): Express.Multer.File {
   if (!file) throw new BadRequestException('Файл не приложен');
-  if (!/\.xlsx?$/i.test(file.originalname)) {
+  // Старый бинарный .xls парсер (exceljs) не читает. Раньше он проходил проверку
+  // имени и падал потом на разборе с невнятным «не удалось разобрать файл».
+  if (/\.xls$/i.test(file.originalname)) {
+    throw new BadRequestException(
+      'Формат .xls не поддерживается. Откройте файл в Excel и сохраните как .xlsx («Книга Excel»).',
+    );
+  }
+  if (!/\.xlsx$/i.test(file.originalname)) {
     throw new BadRequestException('Ожидается файл Excel (.xlsx)');
   }
   return file;
