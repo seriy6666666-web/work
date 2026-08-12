@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { api, ApiError, type AdminUser, type Role, type Site } from '../../api/client';
 import { ROLES, ROLE_LABELS, SITE_BOUND_ROLES } from '../../constants/roles';
@@ -21,6 +21,12 @@ interface UserFormState {
   managerId: string;
 }
 
+/** «belmy-7413»: пароль диктуют вслух и набирают на терминале в цеху. */
+function makePassword(): string {
+  const n = (crypto.getRandomValues(new Uint32Array(1))[0] % 9000) + 1000;
+  return `belmy-${n}`;
+}
+
 const EMPTY_FORM: UserFormState = {
   username: '',
   password: '',
@@ -41,18 +47,23 @@ export function UsersPage() {
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
 
+  // Смена пароля живёт отдельно от общего редактирования: сбросить пароль нужно
+  // часто и быстро, не трогая роль и участок.
+  const [pwdForId, setPwdForId] = useState<string | null>(null);
+  const [pwdValue, setPwdValue] = useState('');
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [issued, setIssued] = useState<{ fullName: string; password: string } | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
     fullName: string;
     role: Role;
     siteId: string;
-    password: string;
     managerId: string;
   }>({
     fullName: '',
     role: 'WORKER',
     siteId: '',
-    password: '',
     managerId: '',
   });
 
@@ -104,7 +115,6 @@ export function UsersPage() {
       fullName: u.fullName,
       role: u.role,
       siteId: u.siteId ?? '',
-      password: '',
       managerId: u.managerId ?? '',
     });
   }
@@ -116,7 +126,6 @@ export function UsersPage() {
         fullName: editForm.fullName.trim(),
         role: editForm.role,
         siteId: SITE_BOUND_ROLES.includes(editForm.role) ? editForm.siteId : undefined,
-        password: editForm.password ? editForm.password : undefined,
         managerId: editForm.managerId || null,
       });
       setEditingId(null);
@@ -124,6 +133,28 @@ export function UsersPage() {
       await refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось сохранить изменения');
+    }
+  }
+
+  function startPassword(u: AdminUser) {
+    setPwdForId(u.id);
+    setPwdValue(makePassword());
+    setEditingId(null);
+  }
+
+  async function savePassword(u: AdminUser) {
+    if (!token || pwdValue.length < 6) return;
+    setPwdSaving(true);
+    try {
+      await api.updateUser(token, u.id, { password: pwdValue });
+      setIssued({ fullName: u.fullName, password: pwdValue });
+      setPwdForId(null);
+      setPwdValue('');
+      toast.success(`Пароль изменён: ${u.fullName}`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось изменить пароль');
+    } finally {
+      setPwdSaving(false);
     }
   }
 
@@ -176,11 +207,17 @@ export function UsersPage() {
         <input
           style={styles.input}
           placeholder="Пароль"
-          type="password"
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
           required
         />
+        <button
+          type="button"
+          style={styles.ghostButton}
+          onClick={() => setForm({ ...form, password: makePassword() })}
+        >
+          Сгенерировать
+        </button>
         <input
           style={styles.input}
           placeholder="ФИО"
@@ -231,6 +268,19 @@ export function UsersPage() {
         </button>
       </form>
 
+      {issued && (
+        <div style={styles.issuedBox}>
+          <span>
+            Новый пароль для <b>{issued.fullName}</b>:{' '}
+            <code style={styles.issuedCode}>{issued.password}</code> — запишите или продиктуйте, второй
+            раз его не показать.
+          </span>
+          <button style={styles.linkButton} onClick={() => setIssued(null)}>
+            Скрыть
+          </button>
+        </div>
+      )}
+
       {!loading && users.length > 0 && (
         <div style={styles.toolbar}>
           <SearchInput value={controls.query} onChange={controls.setQuery} placeholder="Поиск по логину, ФИО, роли..." />
@@ -257,7 +307,8 @@ export function UsersPage() {
           </thead>
           <tbody>
             {controls.result.map((u) => (
-              <tr key={u.id}>
+              <Fragment key={u.id}>
+              <tr>
                 {editingId === u.id ? (
                   <>
                     <td style={styles.td}>{u.username}</td>
@@ -342,6 +393,9 @@ export function UsersPage() {
                       <button style={styles.linkButton} onClick={() => startEdit(u)}>
                         Редактировать
                       </button>
+                      <button style={styles.linkButton} onClick={() => startPassword(u)}>
+                        Пароль
+                      </button>
                       <button style={styles.linkButtonDanger} onClick={() => handleDelete(u)}>
                         Удалить
                       </button>
@@ -349,6 +403,42 @@ export function UsersPage() {
                   </>
                 )}
               </tr>
+              {pwdForId === u.id && (
+                <tr>
+                  <td style={styles.pwdCell} colSpan={6}>
+                    <div style={styles.pwdRow}>
+                      <span style={styles.pwdLabel}>Новый пароль для {u.fullName}:</span>
+                      <input
+                        style={{ ...styles.input, fontFamily: 'monospace', minWidth: '160px' }}
+                        value={pwdValue}
+                        onChange={(e) => setPwdValue(e.target.value)}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        style={styles.ghostButton}
+                        onClick={() => setPwdValue(makePassword())}
+                      >
+                        Сгенерировать
+                      </button>
+                      <button
+                        style={styles.button}
+                        onClick={() => savePassword(u)}
+                        disabled={pwdSaving || pwdValue.length < 6}
+                      >
+                        Сохранить
+                      </button>
+                      <button style={styles.linkButton} onClick={() => setPwdForId(null)}>
+                        Отмена
+                      </button>
+                      {pwdValue.length < 6 && (
+                        <span style={styles.pwdWarn}>минимум 6 символов</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -367,6 +457,32 @@ const styles: Record<string, React.CSSProperties> = {
   },
   toolbar: {
     marginBottom: '16px',
+  },
+  issuedBox: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '12px 16px',
+    marginBottom: '16px',
+    borderRadius: RADIUS.sm,
+    background: COLORS.lightGreenBg,
+    fontSize: '14px',
+    color: COLORS.darkText,
+  },
+  issuedCode: { fontFamily: 'monospace', fontSize: '15px' },
+  pwdCell: { padding: '0 8px 12px', background: COLORS.lightGrayBg },
+  pwdRow: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 0' },
+  pwdLabel: { fontSize: '14px', color: COLORS.mutedText },
+  pwdWarn: { fontSize: '13px', color: COLORS.error },
+  ghostButton: {
+    padding: '10px 14px',
+    borderRadius: RADIUS.sm,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    background: COLORS.white,
+    color: COLORS.darkText,
+    fontSize: '14px',
+    cursor: 'pointer',
   },
   input: {
     padding: '10px 12px',

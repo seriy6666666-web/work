@@ -107,10 +107,21 @@ export class UsersService {
 
   async remove(id: string) {
     try {
-      await this.prisma.user.delete({ where: { id } });
+      await this.prisma.$transaction([
+        // Компетенции и уведомления — не история производства, а текущее состояние
+        // человека: уходят вместе с ним. Задания, смены и задачи трогать нельзя.
+        this.prisma.competency.deleteMany({ where: { userId: id } }),
+        this.prisma.notification.deleteMany({ where: { userId: id } }),
+        this.prisma.user.delete({ where: { id } }),
+      ]);
     } catch (err) {
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
         throw new NotFoundException('Пользователь не найден');
+      }
+      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2003') {
+        throw new BadRequestException(
+          'Сотрудник уже участвовал в работе (задания, смены, отсутствия) — удалить его нельзя, иначе потеряется история производства.',
+        );
       }
       throw err;
     }

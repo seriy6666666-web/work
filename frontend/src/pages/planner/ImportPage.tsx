@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type ImportReport } from '../../api/client';
+import { api, ApiError, type ImportCredential, type ImportReport } from '../../api/client';
 import { PlannerLayout } from './PlannerLayout';
 import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
@@ -24,6 +24,28 @@ export function ImportPage() {
     norms: { ...EMPTY },
   });
   const [defaultSite, setDefaultSite] = useState('');
+
+  /**
+   * Пароли видно только здесь и только сейчас: в базе лежит хэш, восстановить их
+   * потом нельзя — админ сможет лишь задать новый.
+   */
+  function downloadCredentials(credentials: ImportCredential[]) {
+    const rows = [
+      'ФИО,Логин,Пароль',
+      ...credentials.map((c) => `"${c.fullName}","${c.username}","${c.password}"`),
+    ];
+    // BOM — иначе Excel открывает кириллицу кракозябрами.
+    const blob = new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `logins_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success('Список выгружен — сохраните его, второй раз пароли не показать');
+  }
 
   function patch(kind: ImportKind, next: Partial<KindState>) {
     setState((prev) => ({ ...prev, [kind]: { ...prev[kind], ...next } }));
@@ -120,14 +142,51 @@ export function ImportPage() {
                 </button>
               </div>
             ) : (
-              <div style={styles.doneRow}>
-                <Badge variant="accent">Загружено</Badge>
-                {report.defaultPassword && (
-                  <span style={styles.confirmText}>
-                    Пароль созданных сотрудников: <b>{report.defaultPassword}</b>
-                  </span>
+              <>
+                <div style={styles.doneRow}>
+                  <Badge variant="accent">Загружено</Badge>
+                </div>
+
+                {report.credentials && report.credentials.length > 0 && (
+                  <div style={styles.credsBox}>
+                    <div style={styles.credsHead}>
+                      <div>
+                        <strong style={styles.credsTitle}>Пароли для раздачи</strong>
+                        <p style={styles.credsHint}>
+                          Показываются один раз. Дальше пароль восстановить нельзя — только задать
+                          новый в разделе «Пользователи». Сохраните список.
+                        </p>
+                      </div>
+                      <button
+                        style={styles.applyButton}
+                        onClick={() => downloadCredentials(report.credentials ?? [])}
+                      >
+                        Скачать CSV
+                      </button>
+                    </div>
+                    <div style={styles.credsTableWrap}>
+                      <table style={styles.credsTable}>
+                        <thead>
+                          <tr>
+                            <th style={styles.credsTh}>ФИО</th>
+                            <th style={styles.credsTh}>Логин</th>
+                            <th style={styles.credsTh}>Пароль</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {report.credentials.map((c) => (
+                            <tr key={c.username}>
+                              <td style={styles.credsTd}>{c.fullName}</td>
+                              <td style={styles.credsTd}>{c.username}</td>
+                              <td style={{ ...styles.credsTd, fontFamily: 'monospace' }}>{c.password}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         )}
@@ -167,6 +226,36 @@ export function ImportPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  credsBox: {
+    marginTop: '14px',
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    borderRadius: RADIUS.md,
+    background: COLORS.lightGrayBg,
+    padding: '14px 16px',
+  },
+  credsHead: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
+  credsTitle: { fontSize: '15px', color: COLORS.darkText },
+  credsHint: { margin: '4px 0 0', fontSize: '13px', color: COLORS.mutedText, maxWidth: '560px' },
+  credsTableWrap: { marginTop: '12px', maxHeight: '320px', overflow: 'auto', background: COLORS.white, borderRadius: RADIUS.sm },
+  credsTable: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
+  credsTh: {
+    position: 'sticky',
+    top: 0,
+    background: COLORS.white,
+    textAlign: 'left',
+    padding: '10px 12px',
+    color: COLORS.mutedText,
+    fontWeight: 600,
+    fontSize: '13px',
+    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
+  },
+  credsTd: { padding: '8px 12px', borderBottom: `1px solid ${COLORS.lightGrayBg}` },
   pageHint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0, marginBottom: '20px' },
   card: {
     background: COLORS.white,

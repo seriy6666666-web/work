@@ -551,11 +551,18 @@ export interface ImportIssue {
   message: string;
 }
 
+export interface ImportCredential {
+  fullName: string;
+  username: string;
+  password: string;
+}
+
 export interface ImportReport {
   dryRun: boolean;
   summary: { label: string; value: string | number }[];
   issues: ImportIssue[];
-  defaultPassword?: string;
+  /** Логины и пароли созданных сотрудников — приходят один раз, сразу после импорта. */
+  credentials?: ImportCredential[];
 }
 
 export type ProjectStatus = 'ACTIVE' | 'ARCHIVED';

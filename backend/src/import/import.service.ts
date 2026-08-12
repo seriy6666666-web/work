@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '../generated/prisma/enums';
@@ -13,12 +14,21 @@ export interface ImportIssue {
   message: string;
 }
 
+export interface ImportCredential {
+  fullName: string;
+  username: string;
+  password: string;
+}
+
 export interface ImportReport {
   dryRun: boolean;
   summary: { label: string; value: string | number }[];
   issues: ImportIssue[];
-  /** Пароль по умолчанию для созданных сотрудников (только при реальном импорте). */
-  defaultPassword?: string;
+  /**
+   * Логины и пароли созданных сотрудников — отдаются администратору один раз,
+   * сразу после импорта: в базе лежит только хэш, восстановить пароль нельзя.
+   */
+  credentials?: ImportCredential[];
 }
 
 const RU_MAP: Record<string, string> = {
@@ -27,6 +37,14 @@ const RU_MAP: Record<string, string> = {
   у: 'u', ф: 'f', х: 'h', ц: 'c', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '',
   э: 'e', ю: 'yu', я: 'ya',
 };
+
+/**
+ * Пароль вида «belmy-7413»: его диктуют вслух и набирают на терминале в цеху,
+ * поэтому важнее читаемость, чем экзотические символы. Меняется админом в любой момент.
+ */
+export function makePassword(): string {
+  return `belmy-${randomInt(1000, 10000)}`;
+}
 
 /** «Головизин Сергей» → «golovizin.sergey» — логин для созданного сотрудника. */
 function makeUsername(fullName: string): string {
@@ -150,8 +168,7 @@ export class ImportService {
     }
 
     // --- Применение ---
-    const defaultPassword = process.env.IMPORT_DEFAULT_PASSWORD || 'belmy123';
-    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+    const credentials: ImportCredential[] = [];
 
     const skillIds = new Map<string, string>();
     for (const name of parsed.skills) {
@@ -182,15 +199,18 @@ export class ImportService {
         for (let i = 2; await this.prisma.user.findUnique({ where: { username } }); i++) {
           username = `${base}${i}`;
         }
+        // У каждого свой пароль: общий на всех означает, что все знают пароли друг друга.
+        const password = makePassword();
         user = await this.prisma.user.create({
           data: {
             username,
-            passwordHash,
+            passwordHash: await bcrypt.hash(password, 10),
             fullName,
             role: Role.WORKER,
             siteId: info.site ? siteIds.get(info.site) : null,
           },
         });
+        credentials.push({ fullName, username, password });
         createdUsers++;
       } else if (info.site && !user.siteId) {
         await this.prisma.user.update({ where: { id: user.id }, data: { siteId: siteIds.get(info.site) } });
@@ -213,7 +233,7 @@ export class ImportService {
       { label: 'Создано сотрудников', value: createdUsers },
       { label: 'Создано компетенций', value: createdCompetencies },
     );
-    return { dryRun: false, summary, issues: parsed.issues, defaultPassword };
+    return { dryRun: false, summary, issues: parsed.issues, credentials };
   }
 
   // ==================================================================
