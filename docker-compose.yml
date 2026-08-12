@@ -60,7 +60,12 @@ services:
       - '5173:80'
 
   backup:
-    image: prodrigestivill/postgres-backup-local
+    # Версия обязана совпадать с postgres выше. Без тега образ тянул pg_dump 18 к
+    # серверу 16: дамп получался с директивами новых версий, и восстановление падало
+    # с «unrecognized configuration parameter transaction_timeout». Данные при этом
+    # доезжали, но ошибка в выводе приучает не смотреть в него — и настоящий сбой
+    # восстановления пройдёт незамеченным.
+    image: prodrigestivill/postgres-backup-local:16
     restart: unless-stopped
     depends_on:
       postgres:

@@ -72,7 +72,61 @@ docker compose up --build -d      # пересобрать после измен
 ```
 
 База данных сохраняется в Docker-томе `postgres_data` между перезапусками.
-Резервные копии складываются в папку `./backups` (ежедневно, хранятся 7 дней).
+
+---
+
+## Резервные копии и восстановление
+
+Копии складываются в `./backups` — ежедневно, хранятся 7 дней, плюс папки `weekly`
+и `monthly`. Снять копию прямо сейчас:
+```bash
+docker compose exec backup /backup.sh
+```
+Свежая всегда лежит в `backups/last/belmy-latest.sql.gz`.
+
+> Версия образа `backup` обязана совпадать с версией `postgres`. При несовпадении
+> дамп получается с директивами более новых версий, и восстановление ругается на
+> незнакомые параметры.
+
+### Проверить копию, не трогая рабочую базу
+
+Так проверяют, что копия действительно разворачивается. Делать это стоит хотя бы раз
+перед запуском и потом изредка — иначе о негодности копий узнают в тот день, когда они
+понадобятся.
+
+```bash
+# 1. Чистая база рядом с рабочей
+docker compose exec -T postgres psql -U belmy -d postgres -c 'CREATE DATABASE belmy_check;'
+
+# 2. Развернуть в неё копию (ошибок в выводе быть не должно)
+gzip -dc backups/last/belmy-latest.sql.gz | docker compose exec -T postgres psql -U belmy -d belmy_check
+
+# 3. Поднять приложение на этой базе на порту 3001
+docker compose run --rm -d -p 3001:3000 --name belmy-check --entrypoint node \
+  -e DATABASE_URL="postgresql://belmy:ПАРОЛЬ@postgres:5432/belmy_check?schema=public" \
+  -e SEED_DEMO_DATA=true backend dist/main.js
+
+# 4. Проверить, что вход работает и данные на месте
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3001/auth/login \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"ПАРОЛЬ"}'
+
+# 5. Убрать за собой
+docker rm -f belmy-check
+docker compose exec -T postgres psql -U belmy -d postgres -c 'DROP DATABASE belmy_check;'
+```
+
+`--entrypoint node` здесь важен: он обходит миграции и сид, поэтому проверяемая копия
+остаётся ровно такой, какой была в файле.
+
+### Восстановление после потери данных
+
+```bash
+docker compose stop backend
+gzip -dc backups/last/belmy-latest.sql.gz | docker compose exec -T postgres psql -U belmy -d belmy
+docker compose start backend
+```
+Если база повреждена целиком — сначала пересоздать её:
+`docker compose down -v && docker compose up -d postgres`, затем развернуть копию.
 
 ---
 
