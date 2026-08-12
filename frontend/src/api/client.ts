@@ -51,6 +51,19 @@ async function upload<T>(path: string, file: File, token: string): Promise<T> {
   return body as T;
 }
 
+/** Пустые фильтры в query не отправляем — иначе бэкенд получит `type=` и споткнётся. */
+function clean(filters: Record<string, string | undefined>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(filters).filter((entry): entry is [string, string] => Boolean(entry[1])),
+  );
+}
+
+async function downloadCsv(path: string, token: string): Promise<Blob> {
+  const res = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new ApiError(res.status, 'Не удалось скачать файл');
+  return res.blob();
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ accessToken: string }>('/auth/login', {
@@ -69,6 +82,21 @@ export const api = {
 
   listUsers: (token: string, withArchived = false) =>
     request<AdminUser[]>(`/users${withArchived ? '?withArchived=true' : ''}`, {}, token),
+  createFeedback: (token: string, payload: CreateFeedbackPayload) =>
+    request<Feedback>('/feedback', { method: 'POST', body: JSON.stringify(payload) }, token),
+  listMyFeedback: (token: string) => request<Feedback[]>('/feedback/mine', {}, token),
+  listFeedback: (token: string, filters: FeedbackFilters = {}) =>
+    request<Feedback[]>(`/feedback?${new URLSearchParams(clean(filters)).toString()}`, {}, token),
+  feedbackSummary: (token: string, filters: FeedbackFilters = {}) =>
+    request<FeedbackSummary>(
+      `/feedback/summary?${new URLSearchParams(clean(filters)).toString()}`,
+      {},
+      token,
+    ),
+  updateFeedback: (token: string, id: string, payload: { status?: FeedbackStatus; reply?: string }) =>
+    request<Feedback>(`/feedback/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  exportFeedback: (token: string, filters: FeedbackFilters = {}) =>
+    downloadCsv(`/feedback/export?${new URLSearchParams(clean(filters)).toString()}`, token),
   archiveUser: (token: string, id: string) =>
     request<AdminUser>(`/users/${id}/archive`, { method: 'POST' }, token),
   restoreUser: (token: string, id: string) =>
@@ -372,6 +400,52 @@ export interface CreateSitePayload {
 
 export interface UpdateSitePayload {
   name?: string;
+}
+
+export type FeedbackType = 'PROBLEM' | 'IDEA' | 'COMPLAINT' | 'SHIFT';
+export type FeedbackMood = 'GOOD' | 'SO_SO' | 'BAD';
+export type FeedbackStatus = 'NEW' | 'IN_PROGRESS' | 'DONE' | 'REJECTED';
+
+export interface Feedback {
+  id: string;
+  type: FeedbackType;
+  mood: FeedbackMood | null;
+  message: string | null;
+  screen: string | null;
+  status: FeedbackStatus;
+  reply: string | null;
+  repliedAt: string | null;
+  anonymous: boolean;
+  authorId: string | null;
+  authorRole: Role;
+  createdAt: string;
+  author?: { id: string; fullName: string } | null;
+  site?: { id: string; name: string } | null;
+  repliedBy?: { id: string; fullName: string } | null;
+}
+
+export interface CreateFeedbackPayload {
+  type: FeedbackType;
+  mood?: FeedbackMood;
+  message?: string;
+  screen?: string;
+  anonymous?: boolean;
+}
+
+export interface FeedbackFilters {
+  [key: string]: string | undefined;
+  type?: string;
+  status?: string;
+  siteId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface FeedbackSummary {
+  total: number;
+  newCount: number;
+  byType: Record<FeedbackType, number>;
+  moodByDay: { date: string; good: number; soSo: number; bad: number }[];
 }
 
 export interface AdminUser {

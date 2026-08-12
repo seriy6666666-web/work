@@ -5,6 +5,7 @@ const TABS: SidebarTab[] = [
   { path: '/admin/platforms', label: 'Площадки', icon: 'building' },
   { path: '/admin/sites', label: 'Участки', icon: 'grid' },
   { path: '/admin/users', label: 'Пользователи', icon: 'users' },
+  { path: '/admin/feedback', label: 'Обращения', icon: 'inbox' },
   { path: '/admin/audit-log', label: 'Журнал действий', icon: 'list' },
 ];
 

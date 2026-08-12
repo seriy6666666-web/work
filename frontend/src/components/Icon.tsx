@@ -14,6 +14,7 @@ export type IconName =
   | 'log-out'
   | 'refresh'
   | 'inbox'
+  | 'message'
   | 'search'
   | 'menu'
   | 'x'
@@ -125,6 +126,11 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M20 11A8 8 0 106.3 17.7" />
       <path d="M20 5v6h-6" />
+    </>
+  ),
+  message: (
+    <>
+      <path d="M21 12a8 8 0 01-8 8H7l-4 3v-5.5A8 8 0 1121 12z" />
     </>
   ),
   inbox: (

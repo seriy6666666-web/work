@@ -30,6 +30,7 @@ import { PlatformsModule } from './platforms/platforms.module';
 import { ImportModule } from './import/import.module';
 import { TasksModule } from './tasks/tasks.module';
 import { GoalsModule } from './goals/goals.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { ShiftsOrgModule } from './shifts-org/shifts-org.module';
 
 @Module({
@@ -61,6 +62,7 @@ import { ShiftsOrgModule } from './shifts-org/shifts-org.module';
     ImportModule,
     TasksModule,
     GoalsModule,
+    FeedbackModule,
     ShiftsOrgModule,
   ],
   controllers: [AppController],

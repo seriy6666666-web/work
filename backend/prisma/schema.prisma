@@ -61,6 +61,7 @@ model Site {
   plannedShifts              PlannedShift[]
   shiftLeads                 ShiftLeadAssignment[]
   handovers                  ShiftHandover[]
+  feedbacks                  Feedback[]
 }
 
 enum EquipmentStatus {
@@ -78,6 +79,57 @@ model Equipment {
 
   site   Site   @relation(fields: [siteId], references: [id])
   siteId String
+}
+
+enum FeedbackType {
+  PROBLEM
+  IDEA
+  COMPLAINT
+  SHIFT
+}
+
+enum FeedbackMood {
+  GOOD
+  SO_SO
+  BAD
+}
+
+enum FeedbackStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+  REJECTED
+}
+
+/**
+ * Обращения сотрудников на время пилота: проблемы, идеи, жалобы и отклик о смене.
+ * Читает только администратор — иначе про начальника участка никто не напишет.
+ */
+model Feedback {
+  id         String         @id @default(uuid())
+  type       FeedbackType
+  mood       FeedbackMood?
+  message    String?
+  /** С какого экрана написали — без этого «кнопка не работает» невозможно починить. */
+  screen     String?
+  status     FeedbackStatus @default(NEW)
+  reply      String?
+  repliedAt  DateTime?
+  createdAt  DateTime       @default(now())
+
+  /** Если анонимно — автора не сохраняем вовсе, остаются только роль и участок. */
+  anonymous  Boolean @default(false)
+  author     User?   @relation("FeedbackAuthor", fields: [authorId], references: [id])
+  authorId   String?
+  authorRole Role
+  site       Site?   @relation(fields: [siteId], references: [id])
+  siteId     String?
+
+  repliedBy   User?   @relation("FeedbackRepliedBy", fields: [repliedById], references: [id])
+  repliedById String?
+
+  @@index([status, createdAt])
+  @@index([siteId, createdAt])
 }
 
 model User {
@@ -111,6 +163,9 @@ model User {
   goals        Goal[] @relation("GoalUser")
   createdGoals Goal[] @relation("GoalCreatedBy")
 
+  feedbacks       Feedback[] @relation("FeedbackAuthor")
+  feedbackReplies Feedback[] @relation("FeedbackRepliedBy")
+
   shiftLeadOf   ShiftLeadAssignment[]
   handoversFrom ShiftHandover[]       @relation("HandoverFrom")
   handoversTo   ShiftHandover[]       @relation("HandoverTo")
@@ -131,6 +186,7 @@ enum NotificationType {
   ORDER_AT_RISK
   MATERIAL_LOW
   TASK_ASSIGNED
+  FEEDBACK_REPLY
   TRANSFER_INFO
   EMPLOYEE_ABSENCE
   SHIFT_HANDOVER

@@ -5,6 +5,7 @@ import { Logo } from './Logo';
 import { Avatar } from './Avatar';
 import { Icon, type IconName } from './Icon';
 import { NotificationBell } from './NotificationBell';
+import { FeedbackButton } from './FeedbackButton';
 import { useThemeMode } from '../theme-mode';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
@@ -132,6 +133,7 @@ export function SidebarLayout({
         </header>
         <main style={styles.content}>{children}</main>
       </div>
+      <FeedbackButton />
     </div>
   );
 }

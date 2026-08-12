@@ -6,6 +6,7 @@ import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 function timeOf(iso: string): string {
@@ -21,6 +22,7 @@ export function MyWorkPage() {
   const { token } = useAuth();
   const toast = useToast();
 
+  const [askAboutShift, setAskAboutShift] = useState(false);
   const [shift, setShift] = useState<Shift | null>(null);
   const [tasks, setTasks] = useState<MyTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,7 @@ export function MyWorkPage() {
     setBusy(true);
     try {
       setShift(kind === 'in' ? await api.checkIn(token) : await api.checkOut(token));
+      if (kind === 'out') setAskAboutShift(true);
       toast.success(kind === 'in' ? 'Приход отмечен' : 'Уход отмечен');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось отметить');
@@ -87,6 +90,8 @@ export function MyWorkPage() {
       <p style={styles.hint}>
         Ваши собственные задания на операциях и отметки прихода/ухода — наравне с рабочими.
       </p>
+
+      {askAboutShift && <ShiftFeedbackPrompt onClose={() => setAskAboutShift(false)} />}
 
       <div style={styles.attendance}>
         {!shift ? (

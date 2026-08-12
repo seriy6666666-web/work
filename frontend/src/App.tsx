@@ -10,6 +10,7 @@ import { SitesPage } from './pages/admin/SitesPage';
 import { PlatformsPage } from './pages/admin/PlatformsPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { AuditLogPage } from './pages/admin/AuditLogPage';
+import { FeedbackPage } from './pages/admin/FeedbackPage';
 import { OrdersPage } from './pages/planner/OrdersPage';
 import { OrderDetailPage } from './pages/planner/OrderDetailPage';
 import { SkillsPage } from './pages/planner/SkillsPage';
@@ -75,6 +76,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <UsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/feedback"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <FeedbackPage />
                 </ProtectedRoute>
               }
             />

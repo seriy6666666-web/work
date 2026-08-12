@@ -14,6 +14,8 @@ import {
 import { ABSENCE_TYPES, ABSENCE_TYPE_LABELS } from '../../constants/absenceTypes';
 import { DOWNTIME_REASON_CODES, DOWNTIME_REASON_LABELS } from '../../constants/downtimeReasons';
 import { NotificationBell } from '../../components/NotificationBell';
+import { FeedbackButton } from '../../components/FeedbackButton';
+import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
 
 export function TasksPage() {
   const { user, token, logout } = useAuth();
@@ -36,6 +38,7 @@ export function TasksPage() {
   const [handovers, setHandovers] = useState<Handover[]>([]);
   const [handoverText, setHandoverText] = useState('');
   const [sendingHandover, setSendingHandover] = useState(false);
+  const [askAboutShift, setAskAboutShift] = useState(false);
 
   const [absenceForm, setAbsenceForm] = useState({
     type: 'SICK_LEAVE' as AbsenceType,
@@ -129,6 +132,7 @@ export function TasksPage() {
     setError(null);
     try {
       setShift(await api.checkOut(token));
+      setAskAboutShift(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось отметить уход');
     } finally {
@@ -300,6 +304,8 @@ export function TasksPage() {
           </details>
         )}
 
+        {askAboutShift && <ShiftFeedbackPrompt onClose={() => setAskAboutShift(false)} />}
+
         {error && <p style={styles.error}>{error}</p>}
 
         {loading ? (
@@ -405,6 +411,7 @@ export function TasksPage() {
           })
         )}
       </main>
+      <FeedbackButton />
     </div>
   );
 }
