@@ -11,5 +11,9 @@ test-results/
 playwright-report/
 backups/
 
+# Дампы базы переносим руками, в репозиторий они не попадают
+*-dump.sql
+dump.sql
+
 # Office owner-lock temp files
 ~$*
