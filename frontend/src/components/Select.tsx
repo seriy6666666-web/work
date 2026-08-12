@@ -12,6 +12,9 @@ export interface SelectOption {
 /** Высота строки под палец: на терминале в цеху работают в перчатках. */
 const ROW_HEIGHT = 40;
 
+/** Как у полей ввода в формах — там по приложению принят именно этот размер. */
+const FONT_SIZE = '15px';
+
 /**
  * Замена нативного `<select>`: Windows рисует его своим синим, и на фоне остальных
  * полей он выглядит чужим. Здесь та же рамка, фон и скругление, что у input,
@@ -262,7 +265,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: RADIUS.sm,
     border: `1px solid ${COLORS.lightGreenBg}`,
     background: COLORS.lightGrayBg,
-    fontSize: '14px',
+    fontSize: FONT_SIZE,
     fontFamily: 'inherit',
     color: COLORS.darkText,
     textAlign: 'left',
@@ -299,7 +302,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '10px',
     minHeight: `${ROW_HEIGHT}px`,
     padding: '8px 10px',
-    fontSize: '14px',
+    fontSize: FONT_SIZE,
     color: COLORS.darkText,
     cursor: 'pointer',
     borderRadius: RADIUS.sm,
@@ -315,5 +318,5 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'flex-end',
     flexShrink: 0,
   },
-  empty: { padding: '10px 12px', fontSize: '14px', color: COLORS.mutedText },
+  empty: { padding: '10px 12px', fontSize: FONT_SIZE, color: COLORS.mutedText },
 };

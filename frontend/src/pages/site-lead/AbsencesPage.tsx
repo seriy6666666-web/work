@@ -9,6 +9,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
 
 const TYPE_BADGE: Record<AbsenceType, BadgeVariant> = {
@@ -52,7 +53,13 @@ export function AbsencesPage() {
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    if (!token || !form.userId || !form.startDate || !form.endDate) return;
+    if (!token) return;
+    // Раньше на пустые поля ругался нативный required у <select>. Своего компонента
+    // это не касается, поэтому говорим прямо, а не отменяем отправку молча.
+    if (!form.userId || !form.startDate || !form.endDate) {
+      toast.error('Выберите сотрудника и обе даты');
+      return;
+    }
     setCreating(true);
     try {
       await api.createAbsence(token, form);
@@ -88,30 +95,21 @@ export function AbsencesPage() {
     <SiteLeadLayout title="Отсутствия" breadcrumb="Начальник участка">
 
       <form onSubmit={handleCreate} style={styles.createForm}>
-        <select
-          style={styles.input}
+        <Select
+          width="220px"
+          ariaLabel="Сотрудник"
+          placeholder="Выберите сотрудника"
           value={form.userId}
-          onChange={(e) => setForm({ ...form, userId: e.target.value })}
-          required
-        >
-          <option value="">Выберите сотрудника</option>
-          {matrix?.users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.fullName}
-            </option>
-          ))}
-        </select>
-        <select
-          style={styles.input}
+          onChange={(userId) => setForm({ ...form, userId })}
+          options={(matrix?.users ?? []).map((u) => ({ value: u.id, label: u.fullName }))}
+        />
+        <Select
+          width="200px"
+          ariaLabel="Тип отсутствия"
           value={form.type}
-          onChange={(e) => setForm({ ...form, type: e.target.value as AbsenceType })}
-        >
-          {ABSENCE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {ABSENCE_TYPE_LABELS[t]}
-            </option>
-          ))}
-        </select>
+          onChange={(type) => setForm({ ...form, type: type as AbsenceType })}
+          options={ABSENCE_TYPES.map((t) => ({ value: t, label: ABSENCE_TYPE_LABELS[t] }))}
+        />
         <input
           style={styles.input}
           type="date"

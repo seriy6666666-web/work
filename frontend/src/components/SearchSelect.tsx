@@ -90,16 +90,22 @@ export function SearchSelect({
   );
 }
 
+// Держим единый вид с Select: поиск и обычный список не должны выглядеть по-разному.
+const ROW_HEIGHT = 40;
+const FONT_SIZE = '15px';
+
 const styles: Record<string, React.CSSProperties> = {
   wrap: { position: 'relative' },
   input: {
     width: '100%',
+    minHeight: `${ROW_HEIGHT}px`,
     padding: '9px 12px',
     borderRadius: RADIUS.sm,
     border: `1px solid ${COLORS.lightGreenBg}`,
     background: COLORS.lightGrayBg,
-    fontSize: '14px',
+    fontSize: FONT_SIZE,
     fontFamily: 'inherit',
+    color: COLORS.darkText,
   },
   disabled: { opacity: 0.6, cursor: 'not-allowed' },
   menu: {
@@ -108,7 +114,7 @@ const styles: Record<string, React.CSSProperties> = {
     right: 0,
     top: '100%',
     marginTop: '4px',
-    maxHeight: '260px',
+    maxHeight: `${ROW_HEIGHT * 7}px`,
     overflowY: 'auto',
     background: COLORS.white,
     border: `1px solid ${COLORS.lightGreenBg}`,
@@ -121,30 +127,34 @@ const styles: Record<string, React.CSSProperties> = {
   },
   option: {
     display: 'flex',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: '10px',
+    minHeight: `${ROW_HEIGHT}px`,
     border: 'none',
     background: 'none',
     textAlign: 'left',
-    padding: '9px 12px',
-    fontSize: '14px',
+    padding: '8px 10px',
+    fontSize: FONT_SIZE,
     color: COLORS.darkText,
     cursor: 'pointer',
     borderRadius: RADIUS.sm,
   },
   optionActive: {
     display: 'flex',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: '10px',
+    minHeight: `${ROW_HEIGHT}px`,
     border: 'none',
     background: COLORS.lightGreenBg,
     textAlign: 'left',
-    padding: '9px 12px',
-    fontSize: '14px',
+    padding: '8px 10px',
+    fontSize: FONT_SIZE,
     color: COLORS.darkText,
     cursor: 'pointer',
     borderRadius: RADIUS.sm,
   },
   hint: { color: COLORS.mutedText, fontSize: '13px' },
-  empty: { padding: '10px 12px', fontSize: '14px', color: COLORS.mutedText },
+  empty: { padding: '10px 12px', fontSize: FONT_SIZE, color: COLORS.mutedText },
 };
