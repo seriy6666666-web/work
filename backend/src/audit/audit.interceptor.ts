@@ -1,50 +1,29 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import type { Response } from 'express';
-import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/jwt.strategy';
+import { buildAuditData, shouldRecord } from './audit-record';
 
-const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
-const SENSITIVE_FIELDS = ['password', 'passwordHash'];
-
-function sanitizeBody(body: unknown): Prisma.InputJsonValue | undefined {
-  if (!body || typeof body !== 'object') {
-    return undefined;
-  }
-  const clone = { ...(body as Record<string, unknown>) };
-  for (const field of SENSITIVE_FIELDS) {
-    delete clone[field];
-  }
-  return clone as Prisma.InputJsonValue;
-}
-
+/**
+ * Пишет в журнал УСПЕШНЫЕ запросы. Отказы и ошибки сюда не попадают: guard'ы
+ * (в том числе RolesGuard) срабатывают раньше интерцепторов, поэтому при 403
+ * этот код не вызывается вовсе. Провалы пишет AuditExceptionFilter.
+ */
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
   constructor(private prisma: PrismaService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-
-    if (!MUTATING_METHODS.has(request.method)) {
-      return next.handle();
-    }
+    const response = context.switchToHttp().getResponse<Response>();
 
     return next.handle().pipe(
       tap(() => {
-        const response = context.switchToHttp().getResponse<Response>();
+        const statusCode = response.statusCode;
+        if (!shouldRecord(request.method, statusCode)) return;
         this.prisma.auditLog
-          .create({
-            data: {
-              userId: request.user?.sub ?? null,
-              username: request.user?.username ?? null,
-              role: request.user?.role ?? null,
-              method: request.method,
-              path: request.originalUrl ?? request.url,
-              statusCode: response.statusCode,
-              body: sanitizeBody(request.body),
-            },
-          })
+          .create({ data: buildAuditData(request, statusCode) })
           .catch(() => undefined);
       }),
     );

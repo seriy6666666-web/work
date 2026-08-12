@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
@@ -20,6 +20,7 @@ import { TransfersModule } from './transfers/transfers.module';
 import { StatsModule } from './stats/stats.module';
 import { AuditModule } from './audit/audit.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
+import { AuditExceptionFilter } from './audit/audit-exception.filter';
 import { EventsModule } from './events/events.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProductsModule } from './products/products.module';
@@ -66,6 +67,12 @@ import { ShiftsOrgModule } from './shifts-org/shifts-org.module';
     ShiftsOrgModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_INTERCEPTOR, useClass: AuditInterceptor }],
+  providers: [
+    AppService,
+    // Интерцептор пишет успехи, фильтр — отказы и ошибки: guard'ы отклоняют запрос
+    // раньше интерцепторов, поэтому одним интерцептором отказы не поймать.
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+    { provide: APP_FILTER, useClass: AuditExceptionFilter },
+  ],
 })
 export class AppModule {}
