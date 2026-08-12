@@ -8,6 +8,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 interface Assignable {
@@ -130,20 +131,17 @@ export function TasksPage() {
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
         />
-        <select
-          style={styles.input}
+        <Select
+          width="200px"
+          ariaLabel="Исполнитель"
           value={form.assigneeId}
-          onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}
-        >
-          <option value="">Себе</option>
-          {people
-            .filter((p) => p.id !== user?.id)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.fullName}
-              </option>
-            ))}
-        </select>
+          onChange={(assigneeId) => setForm({ ...form, assigneeId })}
+          // Пустое значение означает «себе» — это осмысленный выбор, а не отсутствие его.
+          options={[
+            { value: '', label: 'Себе' },
+            ...people.filter((p) => p.id !== user?.id).map((p) => ({ value: p.id, label: p.fullName })),
+          ]}
+        />
         <input
           style={{ ...styles.input, maxWidth: '170px' }}
           type="date"

@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { login, rowAction } from './helpers';
+import { login, rowAction, chooseOption } from './helpers';
 
 /** Архив сотрудника: увольнение без потери истории. */
 
@@ -67,11 +67,23 @@ test('начальник производства видит сотрудник�
   await login(page, 'production_head');
   await page.getByRole('link', { name: 'Старшие смен' }).click();
 
-  const siteSelect = page.locator('select').first();
-  const firstSite = siteSelect.locator('option').nth(1);
-  await siteSelect.selectOption(await firstSite.getAttribute('value'));
+  // До выбора участка список людей заблокирован и об этом сказано прямо.
+  const people = page.getByPlaceholder('Сначала выберите участок');
+  await expect(people).toBeDisabled();
 
-  // Раньше список людей приходил из админского эндпоинта и всегда был пустым.
-  const peopleSelect = page.locator('select').nth(1);
-  await expect(peopleSelect.locator('option')).not.toHaveCount(1);
+  // «Сборка» — единственный демо-участок с сотрудниками.
+  await chooseOption(page.getByRole('combobox', { name: 'Участок' }), 'Сборка');
+
+  /**
+   * Раньше список людей приходил из админского эндпоинта и всегда был пустым.
+   * Проверяем именно это — что кандидаты есть.
+   *
+   * Прошлая версия теста брала `locator('select').nth(1)` и попадала в выпадающий
+   * список типа смены, а не людей: там всегда две опции, поэтому проверка
+   * «опций не ровно одна» проходила независимо от того, работает ли выбор людей.
+   */
+  const search = page.getByPlaceholder('Найти сотрудника');
+  await expect(search).toBeEnabled();
+  await search.click();
+  await expect(page.getByRole('button', { name: /Тестовый|Иванов|Петров|Сидоров/ }).first()).toBeVisible();
 });

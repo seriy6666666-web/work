@@ -16,6 +16,7 @@ import { DOWNTIME_REASON_CODES, DOWNTIME_REASON_LABELS } from '../../constants/d
 import { NotificationBell } from '../../components/NotificationBell';
 import { FeedbackButton } from '../../components/FeedbackButton';
 import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
+import { Select } from '../../components/Select';
 
 export function TasksPage() {
   const { user, token, logout } = useAuth();
@@ -234,17 +235,13 @@ export function TasksPage() {
         <details style={styles.absenceCard}>
           <summary style={styles.absenceSummary}>Отметить отсутствие</summary>
           <form onSubmit={handleSubmitAbsence} style={styles.absenceForm}>
-            <select
-              style={styles.smallInput}
+            <Select
+              width="190px"
+              ariaLabel="Тип отсутствия"
               value={absenceForm.type}
-              onChange={(e) => setAbsenceForm({ ...absenceForm, type: e.target.value as AbsenceType })}
-            >
-              {ABSENCE_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {ABSENCE_TYPE_LABELS[t]}
-                </option>
-              ))}
-            </select>
+              onChange={(type) => setAbsenceForm({ ...absenceForm, type: type as AbsenceType })}
+              options={ABSENCE_TYPES.map((t) => ({ value: t, label: ABSENCE_TYPE_LABELS[t] }))}
+            />
             <input
               style={styles.smallInput}
               type="date"
@@ -375,22 +372,21 @@ export function TasksPage() {
                     </button>
                     {reasonOpen[task.id] && (
                       <div style={styles.reasonForm}>
-                        <select
-                          style={styles.smallInput}
+                        <Select
+                          width="220px"
+                          ariaLabel="Причина простоя"
                           value={reason.code}
-                          onChange={(e) =>
+                          onChange={(code) =>
                             setReasonInputs((prev) => ({
                               ...prev,
-                              [task.id]: { ...reason, code: e.target.value as DowntimeReasonCode },
+                              [task.id]: { ...reason, code: code as DowntimeReasonCode },
                             }))
                           }
-                        >
-                          {DOWNTIME_REASON_CODES.map((code) => (
-                            <option key={code} value={code}>
-                              {DOWNTIME_REASON_LABELS[code]}
-                            </option>
-                          ))}
-                        </select>
+                          options={DOWNTIME_REASON_CODES.map((code) => ({
+                            value: code,
+                            label: DOWNTIME_REASON_LABELS[code],
+                          }))}
+                        />
                         <input
                           style={styles.smallInput}
                           placeholder="Комментарий (необязательно)"

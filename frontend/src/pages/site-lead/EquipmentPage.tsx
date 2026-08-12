@@ -12,6 +12,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 const STATUS_META: Record<EquipmentStatus, { label: string; variant: BadgeVariant }> = {
@@ -191,17 +192,13 @@ export function EquipmentPage() {
                   </div>
                 </div>
                 <div style={styles.actions}>
-                  <select
-                    style={styles.statusSelect}
+                  <Select
+                    width="170px"
+                    ariaLabel="Состояние оборудования"
                     value={item.status}
-                    onChange={(e) => handleStatus(item, e.target.value as EquipmentStatus)}
-                  >
-                    {STATUS_ORDER.map((s) => (
-                      <option key={s} value={s}>
-                        {STATUS_META[s].label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(status) => handleStatus(item, status as EquipmentStatus)}
+                    options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_META[s].label }))}
+                  />
                   <button style={styles.linkDanger} onClick={() => handleDelete(item)}>
                     Удалить
                   </button>

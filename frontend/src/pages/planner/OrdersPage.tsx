@@ -9,6 +9,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
 
 const STATUS_BADGE: Record<Order['status'], BadgeVariant> = {
@@ -55,7 +56,13 @@ export function OrdersPage() {
 
   async function handleCreateFromProduct(e: FormEvent) {
     e.preventDefault();
-    if (!token || !fromProduct.productId || !fromProduct.platformId || !fromProduct.quantity || !fromProduct.dueDate) return;
+    if (!token) return;
+    // Раньше обязательность держалась на нативных required у <select>; у своего
+    // компонента их нет, поэтому говорим прямо, а не выходим молча.
+    if (!fromProduct.productId || !fromProduct.platformId || !fromProduct.quantity || !fromProduct.dueDate) {
+      toast.error('Выберите проект, площадку, количество и срок');
+      return;
+    }
     setCreatingFromProduct(true);
     try {
       await api.createOrderFromProduct(token, {
@@ -154,32 +161,32 @@ export function OrdersPage() {
 
       {products.length > 0 && (
         <form onSubmit={handleCreateFromProduct} style={styles.createForm}>
-          <select
-            style={styles.input}
+          <Select
+            width="240px"
+            ariaLabel="Проект"
+            placeholder="Из проекта (шаблон)..."
             value={fromProduct.productId}
-            onChange={(e) => setFromProduct({ ...fromProduct, productId: e.target.value })}
-            required
-          >
-            <option value="">Из проекта (шаблон)...</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.operations.length} оп.)
-              </option>
-            ))}
-          </select>
-          <select
-            style={styles.input}
+            onChange={(productId) =>
+              // Площадки у каждого проекта свои, поэтому при смене проекта ранее
+              // выбранная площадка может к нему не относиться — сбрасываем.
+              setFromProduct({ ...fromProduct, productId, platformId: '' })
+            }
+            options={products.map((p) => ({
+              value: p.id,
+              label: p.name,
+              hint: `${p.operations.length} оп.`,
+            }))}
+          />
+          <Select
+            width="180px"
+            ariaLabel="Площадка"
+            placeholder="Площадка..."
             value={fromProduct.platformId}
-            onChange={(e) => setFromProduct({ ...fromProduct, platformId: e.target.value })}
-            required
-          >
-            <option value="">Площадка...</option>
-            {(products.find((p) => p.id === fromProduct.productId)?.platforms ?? []).map((pl) => (
-              <option key={pl.id} value={pl.id}>
-                {pl.name}
-              </option>
-            ))}
-          </select>
+            onChange={(platformId) => setFromProduct({ ...fromProduct, platformId })}
+            options={(products.find((p) => p.id === fromProduct.productId)?.platforms ?? []).map(
+              (pl) => ({ value: pl.id, label: pl.name }),
+            )}
+          />
           <input
             style={styles.input}
             placeholder="Количество"

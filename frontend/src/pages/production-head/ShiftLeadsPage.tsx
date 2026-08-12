@@ -8,6 +8,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { SearchSelect } from '../../components/SearchSelect';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 function ymd(d: Date): string {
@@ -68,7 +69,12 @@ export function ShiftLeadsPage() {
 
   async function handleSet(e: FormEvent) {
     e.preventDefault();
-    if (!token || !form.siteId || !form.userId) return;
+    if (!token) return;
+    // Раньше обязательность держалась на нативном required у <select>.
+    if (!form.siteId || !form.userId) {
+      toast.error('Выберите участок и сотрудника');
+      return;
+    }
     try {
       await api.setShiftLead(token, {
         siteId: form.siteId,
@@ -104,19 +110,16 @@ export function ShiftLeadsPage() {
       </p>
 
       <form onSubmit={handleSet} style={styles.form}>
-        <select
-          style={styles.input}
+        <Select
+          width="180px"
+          ariaLabel="Участок"
+          placeholder="Участок"
           value={form.siteId}
-          onChange={(e) => setForm({ ...form, siteId: e.target.value, userId: '' })}
-          required
-        >
-          <option value="">Участок</option>
-          {sites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+          // Сотрудник выбирается из выбранного участка, поэтому при смене участка
+          // ранее выбранный человек сбрасывается.
+          onChange={(siteId) => setForm({ ...form, siteId, userId: '' })}
+          options={sites.map((s) => ({ value: s.id, label: s.name }))}
+        />
         <SearchSelect
           width="240px"
           value={form.userId}
@@ -132,10 +135,16 @@ export function ShiftLeadsPage() {
           onChange={(e) => setForm({ ...form, date: e.target.value })}
           required
         />
-        <select style={styles.input} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-          <option value="NIGHT">Ночная</option>
-          <option value="DAY">Дневная</option>
-        </select>
+        <Select
+          width="140px"
+          ariaLabel="Тип смены"
+          value={form.type}
+          onChange={(type) => setForm({ ...form, type })}
+          options={[
+            { value: 'NIGHT', label: 'Ночная' },
+            { value: 'DAY', label: 'Дневная' },
+          ]}
+        />
         <button style={styles.button} type="submit">
           Назначить
         </button>

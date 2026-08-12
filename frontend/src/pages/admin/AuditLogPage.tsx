@@ -6,6 +6,7 @@ import { Badge, type BadgeVariant } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { Select } from '../../components/Select';
 import { COLORS } from '../../theme';
 
 const METHOD_BADGE: Record<string, BadgeVariant> = {
@@ -70,14 +71,17 @@ export function AuditLogPage() {
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
         />
-        <select style={styles.input} value={method} onChange={(e) => setMethod(e.target.value)}>
-          <option value="">Все методы</option>
-          {METHODS.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
+        <Select
+          width="160px"
+          ariaLabel="Метод запроса"
+          value={method}
+          onChange={setMethod}
+          // Пустой вариант — «не фильтровать», его надо уметь выбрать обратно.
+          options={[
+            { value: '', label: 'Все методы' },
+            ...METHODS.map((m) => ({ value: m, label: m })),
+          ]}
+        />
         <input style={styles.input} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         <input style={styles.input} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         <button style={styles.button} onClick={applyFilters}>

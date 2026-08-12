@@ -6,6 +6,7 @@ import { Avatar } from '../../components/Avatar';
 import { Badge, type BadgeVariant } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
 
 const STATUS_LABELS: Record<Transfer['status'], string> = {
@@ -57,7 +58,12 @@ export function TransfersPage() {
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    if (!token || !user?.siteId || !form.userId || !form.startDate || !form.endDate) return;
+    if (!token || !user?.siteId) return;
+    // Раньше обязательность держалась на нативном required у <select>.
+    if (!form.userId || !form.startDate || !form.endDate) {
+      toast.error('Выберите сотрудника и обе даты');
+      return;
+    }
     setCreating(true);
     try {
       await api.createTransfer(token, {
@@ -91,19 +97,18 @@ export function TransfersPage() {
     <SiteLeadLayout title="Переводы между участками" breadcrumb="Начальник участка">
 
       <form onSubmit={handleCreate} style={styles.createForm}>
-        <select
-          style={styles.input}
+        <Select
+          width="300px"
+          ariaLabel="Сотрудник"
+          placeholder="Выберите сотрудника с другого участка"
           value={form.userId}
-          onChange={(e) => setForm({ ...form, userId: e.target.value })}
-          required
-        >
-          <option value="">Выберите сотрудника с другого участка</option>
-          {eligibleUsers.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.fullName} ({u.site.name})
-            </option>
-          ))}
-        </select>
+          onChange={(userId) => setForm({ ...form, userId })}
+          options={eligibleUsers.map((u) => ({
+            value: u.id,
+            label: u.fullName,
+            hint: u.site.name,
+          }))}
+        />
         <input
           style={styles.input}
           type="date"

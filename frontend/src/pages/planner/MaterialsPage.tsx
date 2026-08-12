@@ -7,6 +7,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 function isLow(s: MaterialStock): boolean {
@@ -95,7 +96,13 @@ export function MaterialsPage() {
 
   async function handleUpsertStock(e: FormEvent) {
     e.preventDefault();
-    if (!token || !stockForm.materialId || !stockForm.platformId || !stockForm.projectId) return;
+    if (!token) return;
+    // Раньше обязательность держалась на нативных required у <select>; у своего
+    // компонента их нет, поэтому говорим прямо, а не выходим молча.
+    if (!stockForm.materialId || !stockForm.platformId || !stockForm.projectId) {
+      toast.error('Выберите материал, площадку и проект');
+      return;
+    }
     try {
       await api.upsertMaterialStock(token, {
         materialId: stockForm.materialId,
@@ -178,18 +185,30 @@ export function MaterialsPage() {
       </div>
 
       <form onSubmit={handleUpsertStock} style={styles.row}>
-        <select style={styles.input} value={stockForm.materialId} onChange={(e) => setStockForm({ ...stockForm, materialId: e.target.value })} required>
-          <option value="">Материал</option>
-          {materials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
-        <select style={styles.input} value={stockForm.platformId} onChange={(e) => setStockForm({ ...stockForm, platformId: e.target.value })} required>
-          <option value="">Площадка</option>
-          {platforms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <select style={styles.input} value={stockForm.projectId} onChange={(e) => setStockForm({ ...stockForm, projectId: e.target.value })} required>
-          <option value="">Проект</option>
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <Select
+          width="200px"
+          ariaLabel="Материал"
+          placeholder="Материал"
+          value={stockForm.materialId}
+          onChange={(materialId) => setStockForm({ ...stockForm, materialId })}
+          options={materials.map((m) => ({ value: m.id, label: m.name }))}
+        />
+        <Select
+          width="180px"
+          ariaLabel="Площадка"
+          placeholder="Площадка"
+          value={stockForm.platformId}
+          onChange={(platformId) => setStockForm({ ...stockForm, platformId })}
+          options={platforms.map((p) => ({ value: p.id, label: p.name }))}
+        />
+        <Select
+          width="180px"
+          ariaLabel="Проект"
+          placeholder="Проект"
+          value={stockForm.projectId}
+          onChange={(projectId) => setStockForm({ ...stockForm, projectId })}
+          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+        />
         <input style={{ ...styles.input, maxWidth: '110px' }} type="number" step="any" placeholder="Остаток" value={stockForm.quantity} onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })} />
         <input style={{ ...styles.input, maxWidth: '100px' }} type="number" step="any" placeholder="Порог" value={stockForm.threshold} onChange={(e) => setStockForm({ ...stockForm, threshold: e.target.value })} />
         <button style={styles.button} type="submit">Задать</button>

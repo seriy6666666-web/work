@@ -16,6 +16,7 @@ import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -185,28 +186,43 @@ export function FeedbackPage() {
       )}
 
       <div style={styles.filters}>
-        <select style={styles.input} value={filters.type ?? ''} onChange={(e) => patch({ type: e.target.value || undefined })}>
-          <option value="">Любой тип</option>
-          <option value="PROBLEM">Проблемы</option>
-          <option value="IDEA">Идеи</option>
-          <option value="COMPLAINT">Жалобы</option>
-          <option value="SHIFT">Отклики о смене</option>
-        </select>
-        <select style={styles.input} value={filters.status ?? ''} onChange={(e) => patch({ status: e.target.value || undefined })}>
-          <option value="">Любой статус</option>
-          <option value="NEW">Новое</option>
-          <option value="IN_PROGRESS">В работе</option>
-          <option value="DONE">Сделано</option>
-          <option value="REJECTED">Отклонено</option>
-        </select>
-        <select style={styles.input} value={filters.siteId ?? ''} onChange={(e) => patch({ siteId: e.target.value || undefined })}>
-          <option value="">Все участки</option>
-          {sites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+        {/* Фильтры: пустой вариант — это «не фильтровать», его надо уметь выбрать обратно. */}
+        <Select
+          width="170px"
+          ariaLabel="Тип обращения"
+          value={filters.type ?? ''}
+          onChange={(type) => patch({ type: type || undefined })}
+          options={[
+            { value: '', label: 'Любой тип' },
+            { value: 'PROBLEM', label: 'Проблемы' },
+            { value: 'IDEA', label: 'Идеи' },
+            { value: 'COMPLAINT', label: 'Жалобы' },
+            { value: 'SHIFT', label: 'Отклики о смене' },
+          ]}
+        />
+        <Select
+          width="170px"
+          ariaLabel="Статус обращения"
+          value={filters.status ?? ''}
+          onChange={(status) => patch({ status: status || undefined })}
+          options={[
+            { value: '', label: 'Любой статус' },
+            { value: 'NEW', label: 'Новое' },
+            { value: 'IN_PROGRESS', label: 'В работе' },
+            { value: 'DONE', label: 'Сделано' },
+            { value: 'REJECTED', label: 'Отклонено' },
+          ]}
+        />
+        <Select
+          width="170px"
+          ariaLabel="Участок"
+          value={filters.siteId ?? ''}
+          onChange={(siteId) => patch({ siteId: siteId || undefined })}
+          options={[
+            { value: '', label: 'Все участки' },
+            ...sites.map((s) => ({ value: s.id, label: s.name })),
+          ]}
+        />
         <input style={styles.input} type="date" value={filters.from ?? ''} onChange={(e) => patch({ from: e.target.value || undefined })} />
         <input style={styles.input} type="date" value={filters.to ?? ''} onChange={(e) => patch({ to: e.target.value || undefined })} />
       </div>
