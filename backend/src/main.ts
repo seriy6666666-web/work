@@ -59,12 +59,26 @@ function assertSecretsAreSafe() {
   );
 }
 
+/**
+ * Список разрешённых источников. Пустую строку считаем «не задано»: compose
+ * подставляет CORS_ORIGIN всегда, и без этой проверки ''.split(',') даёт [''] —
+ * список из одной пустой строки, который не совпадает ни с одним источником,
+ * и браузер получает отказ на каждый запрос.
+ */
+function corsOrigin(): string[] | true {
+  const allowed = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return allowed.length > 0 ? allowed : true;
+}
+
 async function bootstrap() {
   assertSecretsAreSafe();
 
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
-  app.enableCors({ origin: process.env.CORS_ORIGIN?.split(',') ?? true });
+  app.enableCors({ origin: corsOrigin() });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   await app.listen(process.env.PORT ?? 3000);
 }

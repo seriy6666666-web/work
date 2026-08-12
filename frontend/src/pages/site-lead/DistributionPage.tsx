@@ -20,6 +20,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { SearchSelect } from '../../components/SearchSelect';
+import { Select } from '../../components/Select';
 import { useDistributionUpdates } from '../../realtime';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
@@ -37,6 +38,8 @@ export function DistributionPage() {
     {},
   );
   const [reasonCorrections, setReasonCorrections] = useState<Record<string, DowntimeReasonCode>>({});
+  // По операциям, где начальник участка раскрыл сотрудников без нужного навыка.
+  const [showUnskilled, setShowUnskilled] = useState<Record<string, boolean>>({});
   const operationsRef = useRef<HTMLDivElement>(null);
 
   async function refresh(showLoader = true) {
@@ -68,20 +71,24 @@ export function DistributionPage() {
   // site lead's own actions back as redundant notifications).
   useDistributionUpdates(user?.siteId, () => refresh(false));
 
+  /**
+   * Кандидаты на операцию, разделённые по владению навыком. Раньше список был общий:
+   * владеющие шли с префиксом «✓», остальные с подписью «нет навыка» — одно и то же
+   * помечалось дважды, а выбрать неподходящего человека было так же легко, как нужного.
+   * Теперь по умолчанию видны только владеющие навыком, остальные — по ссылке.
+   */
   function candidatesFor(skillId: string) {
-    if (!matrix) return [];
+    if (!matrix) return { skilled: [], unskilled: [] };
     const competentIds = new Set(
       matrix.competencies.filter((c) => c.skillId === skillId).map((c) => c.userId),
     );
-    return matrix.users
+    const available = matrix.users
       .filter((u) => !u.isAbsentToday)
-      .sort((a, b) => {
-        const aCompetent = competentIds.has(a.id);
-        const bCompetent = competentIds.has(b.id);
-        if (aCompetent !== bCompetent) return aCompetent ? -1 : 1;
-        return a.fullName.localeCompare(b.fullName, 'ru');
-      })
-      .map((u) => ({ ...u, competent: competentIds.has(u.id) }));
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'ru'));
+    return {
+      skilled: available.filter((u) => competentIds.has(u.id)),
+      unskilled: available.filter((u) => !competentIds.has(u.id)),
+    };
   }
 
   async function handleAssign(e: FormEvent, operationId: string) {
@@ -275,22 +282,21 @@ export function DistributionPage() {
                                       <span style={{ color: COLORS.accentDark, fontWeight: 600 }}> · Подтверждено</span>
                                     ) : (
                                       <span style={styles.reasonForm}>
-                                        <select
-                                          style={styles.smallInput}
+                                        <Select
+                                          width="220px"
+                                          ariaLabel="Причина простоя"
                                           value={correctionValue ?? record.reasonCode}
-                                          onChange={(e) =>
+                                          onChange={(code) =>
                                             setReasonCorrections((prev) => ({
                                               ...prev,
-                                              [record.id]: e.target.value as DowntimeReasonCode,
+                                              [record.id]: code as DowntimeReasonCode,
                                             }))
                                           }
-                                        >
-                                          {DOWNTIME_REASON_CODES.map((code) => (
-                                            <option key={code} value={code}>
-                                              {DOWNTIME_REASON_LABELS[code]}
-                                            </option>
-                                          ))}
-                                        </select>
+                                          options={DOWNTIME_REASON_CODES.map((code) => ({
+                                            value: code,
+                                            label: DOWNTIME_REASON_LABELS[code],
+                                          }))}
+                                        />
                                         <button
                                           style={styles.linkButton}
                                           onClick={() =>
@@ -322,11 +328,11 @@ export function DistributionPage() {
                     onChange={(userId) =>
                       setAssignForms((prev) => ({ ...prev, [op.id]: { ...form, userId } }))
                     }
-                    options={candidatesFor(op.skillId).map((u) => ({
-                      value: u.id,
-                      label: `${u.competent ? '✓ ' : ''}${u.fullName}`,
-                      hint: u.competent ? undefined : 'нет навыка',
-                    }))}
+                    options={(() => {
+                      const { skilled, unskilled } = candidatesFor(op.skillId);
+                      const list = showUnskilled[op.id] ? [...skilled, ...unskilled] : skilled;
+                      return list.map((u) => ({ value: u.id, label: u.fullName }));
+                    })()}
                     placeholder="Назначить сотрудника"
                   />
                   <input
@@ -351,6 +357,30 @@ export function DistributionPage() {
                     Себе
                   </button>
                 </form>
+
+                {(() => {
+                  const { skilled, unskilled } = candidatesFor(op.skillId);
+                  if (unskilled.length === 0) return null;
+                  const shown = showUnskilled[op.id];
+                  return (
+                    <div style={styles.unskilledRow}>
+                      {skilled.length === 0 && !shown && (
+                        <span style={styles.unskilledWarn}>
+                          Никто на участке не владеет этим навыком.
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        style={styles.unskilledToggle}
+                        onClick={() =>
+                          setShowUnskilled((prev) => ({ ...prev, [op.id]: !prev[op.id] }))
+                        }
+                      >
+                        {shown ? 'Скрыть без навыка' : `Показать без навыка (${unskilled.length})`}
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
@@ -511,6 +541,24 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
     gap: '8px',
     marginTop: '10px',
+  },
+  unskilledRow: {
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginTop: '6px',
+  },
+  unskilledWarn: { fontSize: '13px', color: COLORS.warning },
+  unskilledToggle: {
+    border: 'none',
+    background: 'none',
+    padding: 0,
+    fontSize: '13px',
+    fontFamily: 'inherit',
+    color: COLORS.mutedText,
+    textDecoration: 'underline',
+    cursor: 'pointer',
   },
   input: {
     padding: '8px 10px',

@@ -23,6 +23,15 @@ export async function expectPath(page: Page, path: string) {
   await expect(page).toHaveURL(new RegExp(path.replace(/\//g, '\\/') + '$'));
 }
 
+/**
+ * Выбор в компоненте Select. Нативный `selectOption` с ним не работает — там не
+ * `<select>`, а кнопка со списком, — поэтому открываем и щёлкаем по строке.
+ */
+export async function chooseOption(trigger: Locator, name: string | RegExp) {
+  await trigger.click();
+  await trigger.page().getByRole('option', { name }).first().click();
+}
+
 /** Действие строки: первое видно сразу, остальные — под «•••». */
 export async function rowAction(row: Locator, label: string) {
   const inline = row.getByRole('button', { name: label });
