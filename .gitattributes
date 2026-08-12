@@ -1,0 +1,20 @@
+# Скрипты исполняются внутри Linux-контейнеров — только LF.
+# Без этого git на Windows (core.autocrlf=true) переписывает LF в CRLF,
+# shebang превращается в "#!/bin/sh\r", и бэкенд падает при старте с
+# "exec ./docker-entrypoint.sh: no such file or directory".
+*.sh text eol=lf
+
+# Windows-скрипты запускаются в cmd.exe — только CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Бинарные файлы не трогать.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.pdf binary
+*.pptx binary
+*.docx binary
+*.xlsx binary
+*.gz binary
