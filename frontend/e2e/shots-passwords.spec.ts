@@ -1,5 +1,5 @@
 import { test, type APIRequestContext } from '@playwright/test';
-import { login } from './helpers';
+import { login, rowAction } from './helpers';
 
 /** Скриншоты экранов с паролями (вручную: npx playwright test e2e/shots-passwords.spec.ts). */
 
@@ -18,7 +18,7 @@ test('скриншоты паролей', async ({ page, request }) => {
 
   await login(page, 'admin');
   await page.getByRole('link', { name: 'Пользователи' }).click();
-  await page.getByRole('row', { name: /worker/ }).first().getByRole('button', { name: 'Пароль' }).click();
+  await rowAction(page.getByRole('row', { name: /worker/ }).first(), 'Сменить пароль');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${DIR}/users-password.png`, fullPage: true });
 

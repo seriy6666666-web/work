@@ -10,6 +10,8 @@ import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
+import { RowActions } from '../../components/RowActions';
+import { SearchSelect } from '../../components/SearchSelect';
 import { COLORS, RADIUS } from '../../theme';
 
 interface UserFormState {
@@ -44,6 +46,7 @@ export function UsersPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [withArchived, setWithArchived] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
@@ -104,6 +107,7 @@ export function UsersPage() {
         managerId: form.managerId || undefined,
       });
       setForm(EMPTY_FORM);
+      setShowCreate(false);
       toast.success('Пользователь создан');
       await refresh();
     } catch (err) {
@@ -228,77 +232,110 @@ export function UsersPage() {
   return (
     <AdminLayout title="Пользователи" breadcrumb="Администрирование">
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <input
-          style={styles.input}
-          placeholder="Логин"
-          value={form.username}
-          onChange={(e) => setForm({ ...form, username: e.target.value })}
-          required
-        />
-        <input
-          style={styles.input}
-          placeholder="Пароль"
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-          required
-        />
-        <button
-          type="button"
-          style={styles.ghostButton}
-          onClick={() => setForm({ ...form, password: makePassword() })}
-        >
-          Сгенерировать
+      <div style={styles.topBar}>
+        <button style={styles.button} onClick={() => setShowCreate((v) => !v)}>
+          {showCreate ? 'Свернуть' : '+ Добавить сотрудника'}
         </button>
-        <input
-          style={styles.input}
-          placeholder="ФИО"
-          value={form.fullName}
-          onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-          required
-        />
-        <select
-          style={styles.input}
-          value={form.role}
-          onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-        >
-          {ROLES.map((role) => (
-            <option key={role} value={role}>
-              {ROLE_LABELS[role]}
-            </option>
-          ))}
-        </select>
-        {SITE_BOUND_ROLES.includes(form.role) && (
-          <select
-            style={styles.input}
-            value={form.siteId}
-            onChange={(e) => setForm({ ...form, siteId: e.target.value })}
-            required
-          >
-            <option value="">Выберите участок</option>
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <select
-          style={styles.input}
-          value={form.managerId}
-          onChange={(e) => setForm({ ...form, managerId: e.target.value })}
-        >
-          <option value="">Без руководителя</option>
-          {managerOptions.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.fullName} — {ROLE_LABELS[m.role]}
-            </option>
-          ))}
-        </select>
-        <button style={styles.button} type="submit" disabled={creating}>
-          Добавить
-        </button>
-      </form>
+      </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreate} style={styles.createCard}>
+          <div style={styles.formGrid}>
+            <label style={styles.field}>
+              <span style={styles.fieldLabel}>ФИО</span>
+              <input
+                style={styles.input}
+                placeholder="Иванов Иван"
+                value={form.fullName}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                required
+              />
+            </label>
+            <label style={styles.field}>
+              <span style={styles.fieldLabel}>Логин</span>
+              <input
+                style={styles.input}
+                placeholder="ivanov"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                required
+              />
+            </label>
+            <label style={styles.field}>
+              <span style={styles.fieldLabel}>Пароль</span>
+              <input
+                style={styles.input}
+                placeholder="belmy-7413"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                required
+              />
+              <button
+                type="button"
+                style={styles.tinyLink}
+                onClick={() => setForm({ ...form, password: makePassword() })}
+              >
+                Сгенерировать
+              </button>
+            </label>
+            <label style={styles.field}>
+              <span style={styles.fieldLabel}>Роль</span>
+              <select
+                style={styles.input}
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+              >
+                {ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {ROLE_LABELS[role]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {SITE_BOUND_ROLES.includes(form.role) && (
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Участок</span>
+                <select
+                  style={styles.input}
+                  value={form.siteId}
+                  onChange={(e) => setForm({ ...form, siteId: e.target.value })}
+                  required
+                >
+                  <option value="">Выберите участок</option>
+                  {sites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label style={styles.field}>
+              <span style={styles.fieldLabel}>Руководитель</span>
+              <SearchSelect
+                width="100%"
+                value={form.managerId}
+                onChange={(managerId) => setForm({ ...form, managerId })}
+                options={managerOptions.map((m) => ({
+                  value: m.id,
+                  label: m.fullName,
+                  hint: ROLE_LABELS[m.role],
+                }))}
+                placeholder="Без руководителя"
+              />
+            </label>
+          </div>
+
+          <div style={styles.formActions}>
+            <button type="button" style={styles.ghostButton} onClick={() => setShowCreate(false)}>
+              Отмена
+            </button>
+            <button style={styles.button} type="submit" disabled={creating}>
+              Добавить
+            </button>
+          </div>
+        </form>
+      )}
 
       {issued && (
         <div style={styles.issuedBox}>
@@ -434,25 +471,20 @@ export function UsersPage() {
                     <td style={styles.td}>{u.managerName ?? '—'}</td>
                     <td style={{ ...styles.td, textAlign: 'right' }}>
                       {u.archivedAt ? (
-                        <button style={styles.linkButton} onClick={() => handleRestore(u)}>
-                          Вернуть в работу
-                        </button>
+                        <RowActions
+                          primary={{ label: 'Вернуть в работу', onClick: () => handleRestore(u) }}
+                          actions={[{ label: 'Удалить', onClick: () => handleDelete(u), danger: true }]}
+                        />
                       ) : (
-                        <>
-                          <button style={styles.linkButton} onClick={() => startEdit(u)}>
-                            Редактировать
-                          </button>
-                          <button style={styles.linkButton} onClick={() => startPassword(u)}>
-                            Пароль
-                          </button>
-                          <button style={styles.linkButton} onClick={() => handleArchive(u)}>
-                            В архив
-                          </button>
-                        </>
+                        <RowActions
+                          primary={{ label: 'Редактировать', onClick: () => startEdit(u) }}
+                          actions={[
+                            { label: 'Сменить пароль', onClick: () => startPassword(u) },
+                            { label: 'В архив', onClick: () => handleArchive(u) },
+                            { label: 'Удалить', onClick: () => handleDelete(u), danger: true },
+                          ]}
+                        />
                       )}
-                      <button style={styles.linkButtonDanger} onClick={() => handleDelete(u)}>
-                        Удалить
-                      </button>
                     </td>
                   </>
                 )}
@@ -502,13 +534,31 @@ export function UsersPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  createForm: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '12px',
-    marginBottom: '16px',
-    alignItems: 'center',
+  topBar: { marginBottom: '16px' },
+  createCard: {
+    background: COLORS.white,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    borderRadius: RADIUS.md,
+    padding: '18px 20px',
+    marginBottom: '20px',
   },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '14px 18px',
+  },
+  field: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  fieldLabel: { fontSize: '12px', color: COLORS.mutedText },
+  tinyLink: {
+    alignSelf: 'flex-start',
+    border: 'none',
+    background: 'none',
+    color: COLORS.accentDark,
+    fontSize: '13px',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  formActions: { display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' },
   toolbar: {
     marginBottom: '16px',
     display: 'flex',

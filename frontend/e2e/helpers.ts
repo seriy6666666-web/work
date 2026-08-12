@@ -1,4 +1,4 @@
-import { type Page, expect } from '@playwright/test';
+import { type Locator, type Page, expect } from '@playwright/test';
 
 /** Suppresses the intro splash so tests land directly on the app. */
 export async function skipIntro(page: Page) {
@@ -21,4 +21,15 @@ export async function login(page: Page, username: string, password = 'password12
 
 export async function expectPath(page: Page, path: string) {
   await expect(page).toHaveURL(new RegExp(path.replace(/\//g, '\\/') + '$'));
+}
+
+/** Действие строки: первое видно сразу, остальные — под «•••». */
+export async function rowAction(row: Locator, label: string) {
+  const inline = row.getByRole('button', { name: label });
+  if (await inline.count()) {
+    await inline.first().click();
+    return;
+  }
+  await row.getByRole('button', { name: 'Ещё действия' }).click();
+  await row.page().getByRole('button', { name: label }).click();
 }

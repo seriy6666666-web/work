@@ -7,6 +7,7 @@ import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { SearchSelect } from '../../components/SearchSelect';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 function ymd(d: Date): string {
@@ -103,19 +104,13 @@ export function GoalsPage() {
           <span style={styles.caption}>Дата</span>
           <input style={styles.input} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
-        <select
-          style={{ ...styles.input, flex: 1, minWidth: '200px' }}
+        <SearchSelect
+          width="240px"
           value={form.userId}
-          onChange={(e) => setForm({ ...form, userId: e.target.value })}
-          required
-        >
-          <option value="">Сотрудник</option>
-          {(data?.workers ?? []).map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.fullName}
-            </option>
-          ))}
-        </select>
+          onChange={(userId) => setForm({ ...form, userId })}
+          options={(data?.workers ?? []).map((w) => ({ value: w.id, label: w.fullName }))}
+          placeholder="Найти сотрудника"
+        />
         <input
           style={{ ...styles.input, maxWidth: '140px' }}
           type="number"

@@ -9,9 +9,9 @@ test('начальник участка ставит цель сотрудник
   await expect(page).toHaveURL(/\/site-lead\/goals$/);
   await expect(page.getByRole('heading', { name: 'Цели сотрудников' })).toBeVisible();
 
-  const worker = page.locator('select').first();
-  const option = worker.locator('option').nth(1);
-  await worker.selectOption(await option.getAttribute('value'));
+  // Сотрудника выбираем поиском по фамилии, а не длинным списком.
+  await page.getByPlaceholder('Найти сотрудника').click();
+  await page.locator('button').filter({ hasText: /^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/ }).first().click();
   await page.getByPlaceholder('План, шт').fill('90');
   await page.getByRole('button', { name: 'Задать цель' }).click();
   // Цель появилась в таблице ниже формы.

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { api, ApiError, type Platform } from '../../api/client';
 import { AdminLayout } from './AdminLayout';
+import { RowActions } from '../../components/RowActions';
 import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
@@ -184,12 +185,10 @@ export function PlatformsPage() {
                     </>
                   ) : (
                     <>
-                      <button style={styles.linkButton} onClick={() => startEdit(p)}>
-                        Изменить
-                      </button>
-                      <button style={styles.linkButtonDanger} onClick={() => handleDelete(p)}>
-                        Удалить
-                      </button>
+                      <RowActions
+                        primary={{ label: 'Изменить', onClick: () => startEdit(p) }}
+                        actions={[{ label: 'Удалить', onClick: () => handleDelete(p), danger: true }]}
+                      />
                     </>
                   )}
                 </td>

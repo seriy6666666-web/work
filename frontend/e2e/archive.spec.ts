@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { login } from './helpers';
+import { login, rowAction } from './helpers';
 
 /** Архив сотрудника: увольнение без потери истории. */
 
@@ -35,7 +35,7 @@ test('админ отправляет сотрудника в архив и во
 
   const row = page.getByRole('row', { name: /worker/ }).first();
   await expect(row).toBeVisible();
-  await row.getByRole('button', { name: 'В архив' }).click();
+  await rowAction(row, 'В архив');
   await page.getByRole('button', { name: 'В архив' }).last().click(); // подтверждение
 
   // Из обычного списка человек пропал.
@@ -54,7 +54,7 @@ test('админ отправляет сотрудника в архив и во
   await expect(archived).toBeVisible();
   await expect(archived.getByText('в архиве')).toBeVisible();
 
-  await archived.getByRole('button', { name: 'Вернуть в работу' }).click();
+  await rowAction(archived, 'Вернуть в работу');
   await expect(page.getByText(/снова в работе/)).toBeVisible();
 
   const allowed = await request.post(`${API}/auth/login`, {

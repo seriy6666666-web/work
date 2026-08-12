@@ -19,6 +19,7 @@ import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
+import { SearchSelect } from '../../components/SearchSelect';
 import { useDistributionUpdates } from '../../realtime';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
@@ -315,23 +316,19 @@ export function DistributionPage() {
                 )}
 
                 <form onSubmit={(e) => handleAssign(e, op.id)} style={styles.assignForm}>
-                  <select
-                    style={styles.input}
+                  <SearchSelect
+                    width="240px"
                     value={form.userId}
-                    onChange={(e) =>
-                      setAssignForms((prev) => ({ ...prev, [op.id]: { ...form, userId: e.target.value } }))
+                    onChange={(userId) =>
+                      setAssignForms((prev) => ({ ...prev, [op.id]: { ...form, userId } }))
                     }
-                    required
-                  >
-                    <option value="">Назначить сотрудника...</option>
-                    {candidatesFor(op.skillId).map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.competent ? '✓ ' : ''}
-                        {u.fullName}
-                        {!u.competent ? ' (нет навыка)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                    options={candidatesFor(op.skillId).map((u) => ({
+                      value: u.id,
+                      label: `${u.competent ? '✓ ' : ''}${u.fullName}`,
+                      hint: u.competent ? undefined : 'нет навыка',
+                    }))}
+                    placeholder="Назначить сотрудника"
+                  />
                   <input
                     style={styles.input}
                     type="number"

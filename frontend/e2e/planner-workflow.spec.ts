@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, rowAction } from './helpers';
 
 /**
  * Deep planner workflow: create a skill, create an order, add an operation to
@@ -55,7 +55,7 @@ test('planner: skill → order → operation → cleanup', async ({ page }) => {
 
   await page.getByRole('link', { name: 'Навыки' }).click();
   await page.getByPlaceholder('Поиск навыка...').fill(skillName);
-  await page.getByRole('row', { name: new RegExp(skillName) }).getByRole('button', { name: 'Удалить' }).click();
+  await rowAction(page.getByRole('row', { name: new RegExp(skillName) }), 'Удалить');
   await page.getByRole('button', { name: 'Удалить', exact: true }).last().click();
   await expect(page.getByText('Навык удалён')).toBeVisible();
 });

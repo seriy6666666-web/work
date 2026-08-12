@@ -7,6 +7,7 @@ import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
+import { SearchSelect } from '../../components/SearchSelect';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 function ymd(d: Date): string {
@@ -116,20 +117,14 @@ export function ShiftLeadsPage() {
             </option>
           ))}
         </select>
-        <select
-          style={{ ...styles.input, flex: 1, minWidth: '200px' }}
+        <SearchSelect
+          width="240px"
           value={form.userId}
-          onChange={(e) => setForm({ ...form, userId: e.target.value })}
-          required
+          onChange={(userId) => setForm({ ...form, userId })}
+          options={candidates.map((c) => ({ value: c.id, label: c.fullName }))}
+          placeholder={form.siteId ? 'Найти сотрудника' : 'Сначала выберите участок'}
           disabled={!form.siteId}
-        >
-          <option value="">{form.siteId ? 'Сотрудник' : 'Сначала выберите участок'}</option>
-          {candidates.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.fullName}
-            </option>
-          ))}
-        </select>
+        />
         <input
           style={styles.input}
           type="date"
@@ -147,12 +142,13 @@ export function ShiftLeadsPage() {
       </form>
 
       <div style={styles.period}>
+        <span style={styles.periodTitle}>Показать назначения</span>
         <label style={styles.dateLabel}>
-          <span style={styles.caption}>С</span>
+          <span style={styles.caption}>с</span>
           <input style={styles.input} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </label>
         <label style={styles.dateLabel}>
-          <span style={styles.caption}>По</span>
+          <span style={styles.caption}>по</span>
           <input style={styles.input} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
       </div>
@@ -207,7 +203,15 @@ export function ShiftLeadsPage() {
 const styles: Record<string, React.CSSProperties> = {
   hint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0 },
   form: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' },
-  period: { display: 'flex', gap: '12px', alignItems: 'flex-end', marginBottom: '14px' },
+  period: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'flex-end',
+    marginBottom: '14px',
+    paddingTop: '14px',
+    borderTop: `1px solid ${COLORS.lightGrayBg}`,
+  },
+  periodTitle: { fontSize: '13px', color: COLORS.mutedText, alignSelf: 'center' },
   dateLabel: { display: 'flex', flexDirection: 'column', gap: '4px' },
   caption: { fontSize: '12px', color: COLORS.mutedText },
   input: {

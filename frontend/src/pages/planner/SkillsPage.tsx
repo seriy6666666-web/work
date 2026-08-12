@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { api, ApiError, type Skill } from '../../api/client';
 import { PlannerLayout } from './PlannerLayout';
+import { RowActions } from '../../components/RowActions';
 import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
@@ -196,12 +197,10 @@ export function SkillsPage() {
                     </>
                   ) : (
                     <>
-                      <button style={styles.linkButton} onClick={() => startEdit(skill)}>
-                        Переименовать
-                      </button>
-                      <button style={styles.linkButtonDanger} onClick={() => handleDelete(skill)}>
-                        Удалить
-                      </button>
+                      <RowActions
+                        primary={{ label: 'Переименовать', onClick: () => startEdit(skill) }}
+                        actions={[{ label: 'Удалить', onClick: () => handleDelete(skill), danger: true }]}
+                      />
                     </>
                   )}
                 </td>

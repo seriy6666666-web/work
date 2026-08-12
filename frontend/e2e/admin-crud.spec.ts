@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, rowAction } from './helpers';
 
 test('admin can create a site (toast) and delete it (confirm modal)', async ({ page }) => {
   await login(page, 'admin');
@@ -21,7 +21,7 @@ test('admin can create a site (toast) and delete it (confirm modal)', async ({ p
 
   // Delete via confirm modal
   const row = page.getByRole('row', { name: new RegExp(name) });
-  await row.getByRole('button', { name: 'Удалить' }).click();
+  await rowAction(row, 'Удалить');
 
   const dialog = page.getByText('Удаление участка');
   await expect(dialog).toBeVisible();

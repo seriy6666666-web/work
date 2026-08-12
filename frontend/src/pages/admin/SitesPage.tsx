@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { api, ApiError, type Site } from '../../api/client';
 import { AdminLayout } from './AdminLayout';
+import { RowActions } from '../../components/RowActions';
 import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
@@ -153,12 +154,10 @@ export function SitesPage() {
                     </>
                   ) : (
                     <>
-                      <button style={styles.linkButton} onClick={() => startEdit(site)}>
-                        Переименовать
-                      </button>
-                      <button style={styles.linkButtonDanger} onClick={() => handleDelete(site)}>
-                        Удалить
-                      </button>
+                      <RowActions
+                        primary={{ label: 'Переименовать', onClick: () => startEdit(site) }}
+                        actions={[{ label: 'Удалить', onClick: () => handleDelete(site), danger: true }]}
+                      />
                     </>
                   )}
                 </td>

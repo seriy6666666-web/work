@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { login } from './helpers';
+import { login, rowAction } from './helpers';
 
 /** Пароли: админ задаёт их вручную, импорт выдаёт каждому свой + список для раздачи. */
 
@@ -17,7 +17,7 @@ test('админ задаёт новый пароль сотруднику, и �
   await page.getByRole('link', { name: 'Пользователи' }).click();
 
   const row = page.getByRole('row', { name: /worker/ }).first();
-  await row.getByRole('button', { name: 'Пароль' }).click();
+  await rowAction(row, 'Сменить пароль');
 
   // Пароль подставляется сгенерированным — админу остаётся нажать «Сохранить».
   const input = page.locator('tr').filter({ hasText: 'Новый пароль для' }).locator('input');
