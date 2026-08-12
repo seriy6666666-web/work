@@ -17,4 +17,9 @@ export class UpdateOperationDto {
   @IsOptional()
   @IsUUID()
   skillId?: string;
+
+  /** С адреса операции списываются материалы — его меняют, если работа ушла на другую площадку. */
+  @IsOptional()
+  @IsUUID()
+  platformId?: string;
 }

@@ -166,13 +166,30 @@ export class DistributionService {
   async removeAssignment(siteId: string, id: string) {
     const assignment = await this.prisma.assignment.findUnique({
       where: { id },
-      include: { operation: { select: { siteId: true, secondarySiteId: true, orderId: true } } },
+      include: {
+        operation: { select: { siteId: true, secondarySiteId: true, orderId: true } },
+        completionRecords: { select: { doneQuantity: true, defectQuantity: true } },
+      },
     });
     if (!assignment) {
       throw new NotFoundException('Назначение не найдено');
     }
     if (!belongsToSite(assignment.operation, siteId)) {
       throw new ForbiddenException('Назначение относится к другому участку');
+    }
+
+    /**
+     * Снять человека с операции, по которой он уже отчитался, значит потерять
+     * выработку и брак — это история производства. Раньше здесь падал Prisma на
+     * обязательной связи с отметкой, и начальник участка получал 500 без объяснений.
+     */
+    const record = assignment.completionRecords[0];
+    if (record) {
+      const done = record.doneQuantity ?? 0;
+      throw new BadRequestException(
+        `Сотрудник уже отчитался по этой операции (${done} годных, ${record.defectQuantity} брак) — ` +
+          'снять его нельзя, иначе потеряется выработка. Исправьте количество или уменьшите назначенный объём.',
+      );
     }
 
     await this.prisma.assignment.delete({ where: { id } });

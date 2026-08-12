@@ -14,4 +14,9 @@ export class CreateOperationDto {
 
   @IsUUID()
   skillId: string;
+
+  /** Адрес, где операцию делают. Не указан — берётся адрес заказа. */
+  @IsOptional()
+  @IsUUID()
+  platformId?: string;
 }

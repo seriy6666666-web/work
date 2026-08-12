@@ -79,6 +79,14 @@ model Equipment {
 
   site   Site   @relation(fields: [siteId], references: [id])
   siteId String
+
+  /**
+   * Адрес, где оборудование физически стоит. Участок и адрес — разные измерения:
+   * участок призмы работает на двух адресах, поэтому одного поля «участок» мало.
+   * Пусто = адрес не указан, видно всем на участке.
+   */
+  platform   Platform? @relation(fields: [platformId], references: [id])
+  platformId String?
 }
 
 enum FeedbackType {
@@ -141,6 +149,18 @@ model User {
   site         Site?    @relation(fields: [siteId], references: [id])
   siteId       String?
   createdAt    DateTime @default(now())
+
+  /**
+   * Адрес, на котором человек работает. У начальника участка это же поле решает,
+   * что он видит: с адресом — только своих по этому адресу, без адреса — весь
+   * участок. Так участок призмы делится на двух начальников по разным адресам,
+   * а цилиндры и заготовки, живущие на одном адресе, продолжают работать как были.
+   *
+   * Зам начальника участка — это второй SITE_LEAD с тем же участком и адресом,
+   * отдельной роли для него нет: зам нужен, чтобы подменять, значит права те же.
+   */
+  platform   Platform? @relation(fields: [platformId], references: [id])
+  platformId String?
 
   /**
    * Уволенных не удаляем — за ними история производства. Архивный сотрудник не
@@ -408,6 +428,9 @@ model Platform {
   products  Product[]
   stocks    MaterialStock[]
   orders    Order[]
+  users     User[]
+  equipment Equipment[]
+  operations Operation[]
 }
 
 // "Проект" в терминах заказчика: готовый шаблон изделия с техкартой (operations).
@@ -513,6 +536,16 @@ model Operation {
 
   skill   Skill  @relation(fields: [skillId], references: [id])
   skillId String
+
+  /**
+   * Адрес, где операцию фактически выполняют. Материалы списываются с остатка этого
+   * адреса: раньше брали адрес заказа, и если заказ оформлен на одном адресе, а
+   * сделали на другом, списывался чужой склад.
+   *
+   * Пусто = адрес не указан, тогда берём адрес заказа, как было раньше.
+   */
+  platform   Platform? @relation(fields: [platformId], references: [id])
+  platformId String?
 
   assignments  Assignment[]
   materialReqs OperationMaterialReq[]

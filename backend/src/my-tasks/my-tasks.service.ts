@@ -117,12 +117,24 @@ export class MyTasksService {
         materialReqs: true,
       },
     });
-    if (!op?.order.projectId || !op.order.platformId || op.materialReqs.length === 0) return;
+    if (!op?.order.projectId || op.materialReqs.length === 0) return;
+
+    /**
+     * Списываем с адреса, где операцию делали, а не с адреса заказа. Раньше брали
+     * адрес заказа: если заказ оформлен на ЮП26, а операцию выполнили на ЮП33,
+     * материалы уходили со склада ЮП26 — списывался чужой остаток, и обе площадки
+     * видели неправду.
+     *
+     * Адрес заказа остаётся запасным вариантом: у операций, созданных до появления
+     * этого поля, и там, где адрес не указан, поведение не меняется.
+     */
+    const platformId = op.platformId ?? op.order.platformId;
+    if (!platformId) return;
 
     for (const req of op.materialReqs) {
       await this.materials.consume(
         op.order.projectId,
-        op.order.platformId,
+        platformId,
         req.materialId,
         req.quantityPerUnit * deltaQuantity,
       );

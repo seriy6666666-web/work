@@ -143,6 +143,10 @@ export class OrdersService {
             skillId: op.skillId,
             siteId: op.siteId,
             secondarySiteId: op.secondarySiteId,
+            // По умолчанию операцию делают там же, где оформлен заказ. Если фактически
+            // её выполнят на другом адресе, планировщик меняет адрес у операции — с
+            // него и спишутся материалы.
+            platformId: platform.id,
             materialReqs: {
               create: op.materials.map((m) => ({
                 materialId: m.materialId,

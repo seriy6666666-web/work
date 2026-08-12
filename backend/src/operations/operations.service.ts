@@ -40,6 +40,10 @@ export class OperationsService {
           secondarySiteId: dto.secondarySiteId,
           skillId: dto.skillId,
           orderId,
+          // Адрес операции по умолчанию — адрес заказа: обычно где оформили, там и делают.
+          // Материалы списываются именно с адреса операции, поэтому если работа уйдёт на
+          // другую площадку, адрес нужно поменять здесь, а не у заказа.
+          platformId: dto.platformId ?? order.platformId,
         },
         include: includeSiteAndSkill,
       });
@@ -60,6 +64,9 @@ export class OperationsService {
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,
           skillId: dto.skillId,
+          // Меняется, когда работу фактически делают на другом адресе: с адреса
+          // операции списываются материалы.
+          platformId: dto.platformId,
         },
         include: includeSiteAndSkill,
       });
