@@ -11,6 +11,26 @@ const includeParties = {
   toSite: { select: { id: true, name: true } },
 } as const;
 
+/**
+ * Окно перевода считаем днями, а не минутами.
+ *
+ * Даты приходят из <input type="date"> и ложатся в базу полуночью. Раньше окно
+ * сравнивалось с текущим моментом: `endDate >= now()`. Для перевода «с 13-го по
+ * 13-е» это условие ложно уже в 00:01, поэтому самый частый случай по ТЗ п. 3.7 —
+ * попросить человека на одну смену — молча не срабатывал: начальники запрос
+ * создали и подтвердили, а на участке сотрудник так и не появлялся.
+ *
+ * Считаем так же, как отсутствия (`isWithinToday` в absences.service.ts): день
+ * целиком, от полуночи до полуночи.
+ */
+function activeTodayWindow() {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+  return { startDate: { lt: todayEnd }, endDate: { gte: todayStart } };
+}
+
 @Injectable()
 export class TransfersService {
   constructor(
@@ -147,13 +167,11 @@ export class TransfersService {
   }
 
   async getActiveIncomingTransfers(siteId: string) {
-    const now = new Date();
     return this.prisma.transfer.findMany({
       where: {
         toSiteId: siteId,
         status: TransferStatus.APPROVED,
-        startDate: { lte: now },
-        endDate: { gte: now },
+        ...activeTodayWindow(),
       },
       include: includeParties,
     });
@@ -173,7 +191,6 @@ export class TransfersService {
    * домашний адрес другой.
    */
   async getEffectiveSiteUserIds(siteId: string, viewerId?: string): Promise<string[]> {
-    const now = new Date();
     const viewerPlatformId = viewerId ? await this.platformOf(viewerId) : null;
 
     const [homeUsers, transferredUsers] = await Promise.all([
@@ -186,8 +203,7 @@ export class TransfersService {
         where: {
           toSiteId: siteId,
           status: TransferStatus.APPROVED,
-          startDate: { lte: now },
-          endDate: { gte: now },
+          ...activeTodayWindow(),
         },
         select: { userId: true },
       }),
