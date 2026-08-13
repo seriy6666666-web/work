@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -76,7 +77,22 @@ function corsOrigin(): string[] | true {
 async function bootstrap() {
   assertSecretsAreSafe();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  /**
+   * Сколько прокси стоит перед приложением. В нашем стеке два: caddy (шифрование)
+   * и nginx фронтенда (раздача файлов и проксирование API), поэтому 2.
+   *
+   * Нужно для лимита входов: он считается по адресу клиента, а из-за прокси все
+   * запросы приходят с одного адреса. Без этой настройки один планшет, на котором
+   * человек путает пароль, расходовал бы лимит на всю смену.
+   *
+   * Именно число, а не 'uniquelocal': планшеты в цеху сами находятся в частной
+   * сети, и правило «доверять частным адресам» проскочило бы мимо клиента и взяло
+   * бы адрес неизвестно чей. Меняется вместе с числом прокси в схеме развёртывания.
+   */
+  app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 2));
+
   app.use(helmet());
   app.enableCors({ origin: corsOrigin() });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

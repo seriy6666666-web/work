@@ -15,5 +15,8 @@ backups/
 *-dump.sql
 dump.sql
 
+# Корневой сертификат Caddy — свой на каждой установке, выгружается командой из README
+certs/
+
 # Office owner-lock temp files
 ~$*

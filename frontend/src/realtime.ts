@@ -4,6 +4,17 @@ import { io, type Socket } from 'socket.io-client';
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 /**
+ * Куда подключать socket.io.
+ *
+ * Когда API отдаётся с того же адреса через прокси, VITE_API_URL относительный
+ * («/api»). Передать такую строку в io() нельзя: socket.io трактует строку,
+ * начинающуюся со слеша, как имя пространства имён, а не как адрес — соединение
+ * молча уходило бы не туда, и доска распределения перестала бы обновляться.
+ * В этом случае подключаемся к текущему источнику, а прокси разбирается сам.
+ */
+const WS_URL = API_URL.startsWith('/') ? window.location.origin : API_URL;
+
+/**
  * Subscribes to real-time distribution-board changes for a given site.
  * Calls `onChange` (debounced) whenever the server emits an update for
  * this site — e.g. a worker marks a task done, or another action changes
@@ -15,7 +26,7 @@ export function useDistributionUpdates(siteId: string | null | undefined, onChan
 
   useEffect(() => {
     if (!siteId) return;
-    const socket: Socket = io(API_URL, { transports: ['websocket'] });
+    const socket: Socket = io(WS_URL, { transports: ['websocket'] });
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     const handler = (payload: { siteId: string }) => {
@@ -43,7 +54,7 @@ export function useNotificationUpdates(userId: string | null | undefined, onNew:
 
   useEffect(() => {
     if (!userId) return;
-    const socket: Socket = io(API_URL, { transports: ['websocket'] });
+    const socket: Socket = io(WS_URL, { transports: ['websocket'] });
 
     const handler = (payload: { userId: string }) => {
       if (payload.userId === userId) callbackRef.current();

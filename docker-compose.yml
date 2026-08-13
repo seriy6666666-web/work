@@ -37,9 +37,15 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
+      # Сколько прокси перед приложением: caddy + nginx фронтенда. Нужно, чтобы лимит
+      # входов считался по адресу планшета, а не по адресу прокси на всех сразу.
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
       PORT: 3000
     ports:
-      - '3000:3000'
+      # Только для локальных проверок и e2e-тестов с этого же компьютера. Наружу
+      # бэкенд не смотрит: снаружи всё идёт через caddy по HTTPS. Заодно это значит,
+      # что заголовок X-Forwarded-For нельзя подделать из сети в обход прокси.
+      - '127.0.0.1:3000:3000'
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1']
       interval: 10s
@@ -51,13 +57,41 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+        # Относительный адрес: интерфейс и API отдаются с одного источника, API
+        # проксирует nginx фронтенда. Поэтому CORS не нужен и адрес сервера не
+        # вшивается в сборку — один и тот же образ работает на любом адресе.
+        VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - '5173:80'
+      # Тоже только локально: снаружи вход через caddy по HTTPS, иначе люди будут
+      # заходить по http:// и шифрование окажется бесполезным.
+      - '127.0.0.1:5173:80'
+
+  caddy:
+    # Шифрование (HTTPS) для доступа с планшетов и телефонов. Единственный сервис,
+    # который смотрит в сеть. Настройки — в ./Caddyfile.
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    environment:
+      # Адреса, на которые выписывать сертификат. Через запятую, со схемой.
+      SERVER_HOST: ${SERVER_HOST:-https://192.168.8.52}
+      # Тот же адрес без схемы — какой сертификат подавать, если клиент не сообщил
+      # имя сервера. При обращении по IP браузер SNI не отправляет.
+      SERVER_NAME: ${SERVER_NAME:-192.168.8.52}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Сертификаты и корневой центр сертификации переживают пересоздание контейнера:
+      # иначе на планшетах пришлось бы заново ставить корневой сертификат.
+      - caddy_data:/data
+      - caddy_config:/config
 
   backup:
     # Версия обязана совпадать с postgres выше. Без тега образ тянул pg_dump 18 к
@@ -82,3 +116,5 @@ services:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
