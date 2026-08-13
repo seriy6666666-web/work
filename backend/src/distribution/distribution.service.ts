@@ -143,6 +143,23 @@ export class DistributionService {
       throw new BadRequestException('Сотрудник отсутствует');
     }
 
+    /**
+     * Один человек на операции — одна запись. В базе это ограничение тоже стоит, но
+     * без явной проверки начальник участка получил бы отказ вида «нарушено ограничение
+     * уникальности». Раньше проверки не было вовсе: сотрудника можно было назначить
+     * дважды, доска показывала его дважды, а объёмы складывались.
+     */
+    const already = await this.prisma.assignment.findUnique({
+      where: { operationId_userId: { operationId: dto.operationId, userId: dto.userId } },
+      include: { user: { select: { fullName: true } } },
+    });
+    if (already) {
+      throw new BadRequestException(
+        `«${already.user.fullName}» уже назначен на эту операцию (${already.assignedQuantity ?? 'весь объём'}). ` +
+          'Чтобы изменить объём, поправьте существующее назначение, а не добавляйте второе.',
+      );
+    }
+
     const assignment = await this.prisma.assignment.create({
       data: {
         operationId: dto.operationId,

@@ -55,17 +55,41 @@ export function PlantSummaryPage() {
         <EmptyState icon="building" title="Участков пока нет" hint="Данные появятся после создания участков и выполнения операций." />
       ) : (
         <>
-          <div style={{ marginBottom: '24px' }}>
-            <BarChart
-              title={summary.some((s) => s.normRate !== null) ? 'Выработка по норме' : 'Выполнение плана по участкам'}
-              threshold={summary.some((s) => s.normRate !== null) ? 0.85 : 0.7}
-              data={summary.map((s) => ({
-                label: s.siteName,
-                value: s.normRate ?? s.completionRate,
-                sub: `${s.workersCount} сотр. с данными`,
-              }))}
-            />
-          </div>
+          {(() => {
+            /**
+             * На графике только выработка по норме и ничего больше.
+             *
+             * Раньше у участка без заданных норм столбец подставлял выполнение плана,
+             * а подпись графика оставалась прежней. Выполнение плана обычно заметно
+             * выше выработки по норме (92–97 % против 26–30 %), поэтому участок, у
+             * которого показатель просто не посчитан, выглядел лучшим на заводе —
+             * ровно наоборот тому, ради чего этот экран и нужен.
+             *
+             * Теперь у таких участков столбца нет, а под графиком сказано, каких норм
+             * не хватает: это не «плохо работают», это «нечем измерить».
+             */
+            const noNorms = summary.filter((s) => s.normRate === null && s.workersCount > 0);
+            return (
+              <div style={{ marginBottom: '24px' }}>
+                <BarChart
+                  title="Выработка по норме"
+                  threshold={0.85}
+                  data={summary.map((s) => ({
+                    label: s.siteName,
+                    value: s.normRate,
+                    sub: `${s.workersCount} сотр. с данными`,
+                  }))}
+                />
+                {noNorms.length > 0 && (
+                  <p style={styles.normsHint}>
+                    Нет данных по норме: {noNorms.map((s) => s.siteName).join(', ')} — у операций этих
+                    участков не заданы нормы выработки. Задайте их в разделе «Навыки», иначе сравнить
+                    участки между собой нельзя.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           <table style={styles.table}>
             <thead>
@@ -104,6 +128,12 @@ export function PlantSummaryPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  normsHint: {
+    margin: '10px 2px 0',
+    fontSize: '13px',
+    lineHeight: 1.5,
+    color: COLORS.mutedText,
+  },
   periodSwitch: {
     display: 'flex',
     gap: '8px',
