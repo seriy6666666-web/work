@@ -59,7 +59,15 @@ export class MyTasksService {
     }
 
     const existing = assignment.completionRecords[0];
-    const previousDone = existing?.doneQuantity ?? 0;
+    /**
+     * Материал расходуется на всё изготовленное, включая брак: на испорченную
+     * пластину свинец ушёл ровно так же, как на годную.
+     *
+     * Раньше списывали только по годным. Остаток в системе держался выше
+     * фактического, расхождение копилось со скоростью процента брака, а сигнал о
+     * низком остатке срабатывал позже, чем материал реально заканчивался.
+     */
+    const previousProduced = (existing?.doneQuantity ?? 0) + (existing?.defectQuantity ?? 0);
     if (!existing) {
       await this.prisma.completionRecord.create({
         data: {
@@ -88,9 +96,13 @@ export class MyTasksService {
       });
     }
 
-    // Автосписание материалов по факту: списываем изменение произведённого
-    // количества (при исправлении — разницу, при уменьшении — возврат).
-    const delta = (dto.doneQuantity ?? 0) - previousDone;
+    /**
+     * Автосписание по факту: списываем изменение изготовленного количества
+     * (при исправлении — разницу, при уменьшении — возврат). Считаем по сумме
+     * годных и брака, иначе правка одного только брака остаток бы не двигала.
+     */
+    const produced = (dto.doneQuantity ?? 0) + (dto.defectQuantity ?? 0);
+    const delta = produced - previousProduced;
     if (delta !== 0) {
       await this.consumeMaterials(assignment.operationId, delta);
     }
@@ -106,8 +118,8 @@ export class MyTasksService {
 
   /**
    * Списать материалы по техкарте операции с остатка нужной площадки/проекта.
-   * `deltaQuantity` — изменение произведённого количества (может быть < 0 = возврат).
-   * Расход считается по годным изделиям (doneQuantity).
+   * `deltaQuantity` — изменение изготовленного количества (может быть < 0 = возврат).
+   * Расход считается по всему изготовленному: годные плюс брак.
    */
   private async consumeMaterials(operationId: string, deltaQuantity: number) {
     const op = await this.prisma.operation.findUnique({

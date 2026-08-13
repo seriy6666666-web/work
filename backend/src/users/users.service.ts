@@ -119,7 +119,13 @@ export class UsersService {
           role: dto.role,
           siteId,
           managerId: dto.managerId,
-          ...(passwordHash ? { passwordHash } : {}),
+          /**
+           * Новый пароль снимает блокировку за подбор. Отдельной кнопки «разблокировать»
+           * нет намеренно: человек, которого заблокировало, пароль обычно и забыл, а
+           * администратор в этом случае всё равно задаёт новый. Ждать пять минут с
+           * новым паролем в руках было бы издевательством.
+           */
+          ...(passwordHash ? { passwordHash, failedLoginCount: 0, lockedUntil: null } : {}),
         },
         include: includeSite,
       });
