@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOperationDto } from './dto/create-operation.dto';
@@ -81,14 +81,50 @@ export class OperationsService {
     }
   }
 
+  /**
+   * Удалять операцию, по которой уже отчитались, нельзя: вместе с ней ушли бы
+   * выработка и брак, а это история производства.
+   *
+   * Раньше проверки не было и Prisma падала на внешнем ключе назначений —
+   * планировщик получал «Внутренняя ошибка сервера» без объяснения. Заказы,
+   * участки и навыки в этом же приложении отвечают на такое понятным текстом
+   * вида «У заказа есть операции — сначала удалите их»; операции отставали.
+   *
+   * Если назначения есть, но никто ещё не отчитывался, операцию удаляем вместе
+   * с ними: это ещё не история, а просто нераспределённое обратно назначение.
+   */
   async remove(id: string) {
-    try {
-      await this.prisma.operation.delete({ where: { id } });
-    } catch (err) {
-      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
-        throw new NotFoundException('Операция не найдена');
-      }
-      throw err;
+    const operation = await this.prisma.operation.findUnique({
+      where: { id },
+      include: {
+        skill: { select: { name: true } },
+        assignments: {
+          include: {
+            user: { select: { fullName: true } },
+            completionRecords: { select: { doneQuantity: true, defectQuantity: true } },
+          },
+        },
+      },
+    });
+    if (!operation) {
+      throw new NotFoundException('Операция не найдена');
     }
+
+    const reported = operation.assignments.filter((a) => a.completionRecords.length > 0);
+    if (reported.length > 0) {
+      const who = reported.map((a) => a.user.fullName).join(', ');
+      const done = reported.reduce((sum, a) => sum + (a.completionRecords[0]?.doneQuantity ?? 0), 0);
+      throw new ConflictException(
+        `По операции «${operation.skill.name}» уже отчитались (${who}; ${done} шт годных) — ` +
+          'удалить её нельзя, иначе потеряется выработка. Уменьшите объём операции или ' +
+          'снимите незанятых сотрудников.',
+      );
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.assignment.deleteMany({ where: { operationId: id } }),
+      this.prisma.operationMaterialReq.deleteMany({ where: { operationId: id } }),
+      this.prisma.operation.delete({ where: { id } }),
+    ]);
   }
 }

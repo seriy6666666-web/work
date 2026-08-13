@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Role } from '../generated/prisma/enums';
@@ -39,9 +39,43 @@ export class MaterialsService {
     });
   }
 
+  /**
+   * Материал, который где-то используется, удалять нельзя: на нём висят нормы
+   * расхода в техкартах и в уже запущенных заказах, а по ним считается списание.
+   *
+   * Раньше проверки не было, и Prisma падала на внешнем ключе — планировщик
+   * получал «Внутренняя ошибка сервера» без единого намёка, что делать. Заказы в
+   * этом же приложении отвечают на такое понятным «У заказа есть операции —
+   * сначала удалите их»; материалы просто отставали.
+   */
   async removeMaterial(id: string) {
-    await this.ensureMaterial(id);
-    await this.prisma.material.delete({ where: { id } });
+    const material = await this.ensureMaterial(id);
+
+    const [techcardReqs, operationReqs, stocks] = await Promise.all([
+      this.prisma.operationMaterial.count({ where: { materialId: id } }),
+      this.prisma.operationMaterialReq.count({ where: { materialId: id } }),
+      this.prisma.materialStock.count({ where: { materialId: id } }),
+    ]);
+
+    const used: string[] = [];
+    if (techcardReqs > 0) used.push(`техкарты изделий (${techcardReqs})`);
+    if (operationReqs > 0) used.push(`операции заказов (${operationReqs})`);
+    if (used.length > 0) {
+      throw new ConflictException(
+        `«${material.name}» используется: ${used.join(', ')}. Сначала уберите материал ` +
+          'из техкарт и операций — иначе списание по этим нормам считать будет не по чему.',
+      );
+    }
+
+    /**
+     * Остатки — не препятствие: это склад самого материала, он уходит вместе с ним.
+     * Удаляем в одной транзакции, чтобы не остался остаток без материала.
+     */
+    await this.prisma.$transaction([
+      this.prisma.materialStock.deleteMany({ where: { materialId: id } }),
+      this.prisma.material.delete({ where: { id } }),
+    ]);
+    return { deletedStocks: stocks };
   }
 
   // --- Остатки в разрезе (площадка × проект) ---

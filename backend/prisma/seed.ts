@@ -188,11 +188,25 @@ async function main() {
     }
   }
 
+  /**
+   * Площадку берём из самого списка PLATFORMS, а не по строковому имени.
+   *
+   * Раньше здесь стояло `platformByName.get('Площадка Минск')` — имя, которое
+   * осталось от прежнего наименования площадок. После переименования на ЮП26/ЮП33
+   * поиск возвращал undefined, и заполнение демо-данными падало на этой строке:
+   * на чистой базе успевали создаться площадки, участки, пользователи и навыки, а
+   * изделия, заказы и материалы — уже нет. То есть установка «с нуля», ровно та,
+   * что делается при развёртывании, обрывалась на середине с ошибкой Prisma.
+   *
+   * Привязка к имени из PLATFORMS[0] переживает любое переименование площадок.
+   */
+  const mainPlatformId = platformByName.get(PLATFORMS[0][0])!;
+
   // --- Product routing template ---
   const product = await prisma.product.create({
     data: {
       name: 'АКБ-48В',
-      platforms: { connect: [{ id: platformByName.get('Площадка Минск')! }] },
+      platforms: { connect: [{ id: mainPlatformId }] },
     },
   });
   const routing = ['Сборка АКБ', 'Пайка', 'Тестирование'];
@@ -335,14 +349,13 @@ async function main() {
     ],
   });
 
-  // Остатки на площадке Минск под проект АКБ-48В (Корпус — ниже порога)
-  const minsk = platformByName.get('Площадка Минск')!;
+  // Остатки на первой площадке под проект АКБ-48В (Корпус — ниже порога)
   await prisma.materialStock.createMany({
     data: [
-      { materialId: matByName.get('Литиевые ячейки')!, platformId: minsk, projectId: product.id, quantity: 1500, lowStockThreshold: 500 },
-      { materialId: matByName.get('Корпус АКБ')!, platformId: minsk, projectId: product.id, quantity: 80, lowStockThreshold: 100 },
-      { materialId: matByName.get('Припой')!, platformId: minsk, projectId: product.id, quantity: 12, lowStockThreshold: 5 },
-      { materialId: matByName.get('Клеммы')!, platformId: minsk, projectId: product.id, quantity: 300, lowStockThreshold: 200 },
+      { materialId: matByName.get('Литиевые ячейки')!, platformId: mainPlatformId, projectId: product.id, quantity: 1500, lowStockThreshold: 500 },
+      { materialId: matByName.get('Корпус АКБ')!, platformId: mainPlatformId, projectId: product.id, quantity: 80, lowStockThreshold: 100 },
+      { materialId: matByName.get('Припой')!, platformId: mainPlatformId, projectId: product.id, quantity: 12, lowStockThreshold: 5 },
+      { materialId: matByName.get('Клеммы')!, platformId: mainPlatformId, projectId: product.id, quantity: 300, lowStockThreshold: 200 },
     ],
   });
 
