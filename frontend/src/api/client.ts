@@ -7,6 +7,84 @@ export class ApiError extends Error {
     super(message);
     this.status = status;
   }
+
+  /** Сервер не ответил вовсе: связь пропала, а не отказал сервер. */
+  get isOffline() {
+    return this.status === OFFLINE_STATUS;
+  }
+}
+
+/**
+ * Признак «связи нет». Настоящего кода ответа тут быть не может — сервер молчит,
+ * отвечать некому, поэтому берём ноль: он не пересекается ни с одним кодом HTTP.
+ */
+export const OFFLINE_STATUS = 0;
+
+export const OFFLINE_MESSAGE =
+  'Нет связи с сервером. Проверьте сеть и попробуйте ещё раз — введённое сохранится.';
+
+/**
+ * Обрыв связи и отказ сервера — разные беды, и делать с ними надо разное.
+ *
+ * `fetch` при пропавшей сети отклоняется с TypeError, а не отдаёт ответ. Раньше
+ * этот TypeError уходил мимо ApiError, и на экране появлялась общая заглушка
+ * вида «Не удалось сохранить отметку» — ровно та же, что и при отказе сервера.
+ * Рабочий у станка по ней не мог понять, нажать ещё раз через минуту или идти к
+ * начальнику участка.
+ *
+ * Ошибку разбора ответа сюда не заворачиваем: это не потеря связи, а сломанный
+ * ответ, и прятать его под «проверьте сеть» — значит гонять человека к роутеру
+ * из-за ошибки на сервере.
+ */
+async function fetchOrOffline(input: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new ApiError(OFFLINE_STATUS, OFFLINE_MESSAGE);
+  }
+}
+
+/**
+ * Отказ при скачивании файла. Тело здесь не разбираем — ответ двоичный, — но
+ * различать «сервер лежит» и «отказано» человеку нужно ровно так же.
+ */
+function downloadError(res: Response, what: string): ApiError {
+  const isServerDown = res.status === 502 || res.status === 503 || res.status === 504;
+  return new ApiError(res.status, isServerDown ? SERVER_DOWN_MESSAGE : `${what}: ${res.status}`);
+}
+
+export const SERVER_DOWN_MESSAGE =
+  'Сервер сейчас недоступен — возможно, перезапускается. ' +
+  'Попробуйте через минуту, введённое сохранится.';
+
+/**
+ * Разобрать ответ и, если он неуспешен, превратить его в понятную ошибку.
+ *
+ * Тело не всегда наше. Когда бэкенд лежит, а прокси на ногах — а на проводной
+ * заводской сети это куда более частый случай, чем настоящий обрыв, — наружу
+ * уходит 502 со страницей от nginx. Раньше её пытались разобрать как JSON,
+ * `JSON.parse` бросал SyntaxError мимо ApiError, и на экране появлялась общая
+ * заглушка вместо объяснения. Теперь неразобранное тело просто считаем
+ * отсутствующим и говорим по коду ответа.
+ */
+async function parseResponse<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  let body: { message?: string } | undefined;
+  try {
+    body = text ? JSON.parse(text) : undefined;
+  } catch {
+    body = undefined;
+  }
+
+  if (!res.ok) {
+    const isServerDown = res.status === 502 || res.status === 503 || res.status === 504;
+    throw new ApiError(
+      res.status,
+      body?.message ?? (isServerDown ? SERVER_DOWN_MESSAGE : `Ошибка запроса: ${res.status}`),
+    );
+  }
+
+  return body as T;
 }
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
@@ -16,16 +94,8 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     ...options.headers,
   };
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-
-  const text = await res.text();
-  const body = text ? JSON.parse(text) : undefined;
-
-  if (!res.ok) {
-    throw new ApiError(res.status, body?.message ?? `Ошибка запроса: ${res.status}`);
-  }
-
-  return body as T;
+  const res = await fetchOrOffline(`${API_URL}${path}`, { ...options, headers });
+  return parseResponse<T>(res);
 }
 
 /**
@@ -36,19 +106,13 @@ async function upload<T>(path: string, file: File, token: string): Promise<T> {
   const form = new FormData();
   form.append('file', file);
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetchOrOffline(`${API_URL}${path}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
   });
 
-  const text = await res.text();
-  const body = text ? JSON.parse(text) : undefined;
-
-  if (!res.ok) {
-    throw new ApiError(res.status, body?.message ?? `Ошибка запроса: ${res.status}`);
-  }
-  return body as T;
+  return parseResponse<T>(res);
 }
 
 /** Пустые фильтры в query не отправляем — иначе бэкенд получит `type=` и споткнётся. */
@@ -59,8 +123,8 @@ function clean(filters: Record<string, string | undefined>): Record<string, stri
 }
 
 async function downloadCsv(path: string, token: string): Promise<Blob> {
-  const res = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new ApiError(res.status, 'Не удалось скачать файл');
+  const res = await fetchOrOffline(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw downloadError(res, 'Не удалось скачать файл');
   return res.blob();
 }
 
@@ -164,10 +228,10 @@ export const api = {
     const q = new URLSearchParams();
     if (from) q.set('from', from);
     if (to) q.set('to', to);
-    const res = await fetch(`${API_URL}/attendance/journal/export?${q.toString()}`, {
+    const res = await fetchOrOffline(`${API_URL}/attendance/journal/export?${q.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new ApiError(res.status, 'Не удалось скачать журнал');
+    if (!res.ok) throw downloadError(res, 'Не удалось скачать журнал');
     return res.blob();
   },
 
@@ -205,12 +269,10 @@ export const api = {
   getSiteRanking: (token: string, period: StatsPeriod) =>
     request<SiteRanking>(`/stats/site-ranking?period=${period}`, {}, token),
   exportSiteRanking: async (token: string, period: StatsPeriod) => {
-    const res = await fetch(`${API_URL}/stats/site-ranking/export?period=${period}`, {
+    const res = await fetchOrOffline(`${API_URL}/stats/site-ranking/export?period=${period}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) {
-      throw new ApiError(res.status, `Не удалось скачать отчёт: ${res.status}`);
-    }
+    if (!res.ok) throw downloadError(res, 'Не удалось скачать отчёт');
     return res.blob();
   },
   getPlantSummary: (token: string, period: StatsPeriod) =>

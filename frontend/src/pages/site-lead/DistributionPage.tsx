@@ -69,7 +69,7 @@ export function DistributionPage() {
   // Live updates: when a worker marks a task done (or the board changes),
   // silently refresh without a loading flash or a toast (avoids echoing the
   // site lead's own actions back as redundant notifications).
-  useDistributionUpdates(user?.siteId, () => refresh(false));
+  const { connected: liveConnected } = useDistributionUpdates(user?.siteId, () => refresh(false));
 
   /**
    * Кандидаты на операцию, разделённые по владению навыком. Раньше список был общий:
@@ -183,6 +183,19 @@ export function DistributionPage() {
       title="Распределение операций"
       breadcrumb={summary ? `Участок «${summary.siteName}» · Распределение` : 'Начальник участка'}
     >
+      {/*
+        Доска обновляется сама, и именно поэтому молчание опаснее ошибки: без связи
+        она выглядит точно так же, как рабочая, только цифры на ней — на момент
+        открытия страницы. Начальник участка распределял бы людей по вчерашней
+        картине и не понял бы, почему она не сходится.
+      */}
+      {!liveConnected && (
+        <div style={styles.offlineBanner} role="status">
+          Нет связи с сервером — данные могли устареть. Обновление возобновится само,
+          как только связь вернётся.
+        </div>
+      )}
+
       <div style={styles.statsRow}>
         <StatCard
           label="Выполнение плана"
@@ -432,6 +445,16 @@ export function DistributionPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  offlineBanner: {
+    padding: '10px 14px',
+    marginBottom: '16px',
+    borderRadius: RADIUS.sm,
+    background: COLORS.warningBg,
+    color: COLORS.warning,
+    border: `1px solid ${COLORS.warning}`,
+    fontSize: '14px',
+    lineHeight: 1.5,
+  },
   statsRow: {
     display: 'flex',
     flexWrap: 'wrap',
