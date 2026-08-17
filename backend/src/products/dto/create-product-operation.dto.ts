@@ -2,7 +2,7 @@ import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateProductOperationDto {
   @IsString()
-  skillId: string;
+  operationTypeId: string;
 
   @IsString()
   siteId: string;

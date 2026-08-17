@@ -9,7 +9,9 @@ import { SetPlatformsDto } from './dto/set-platforms.dto';
 const includeOps = {
   operations: {
     include: {
-      skill: { select: { id: true, name: true } },
+      operationType: {
+        select: { id: true, name: true, norm: true, skill: { select: { id: true, name: true } } },
+      },
       site: { select: { id: true, name: true } },
       secondarySite: { select: { id: true, name: true } },
       materials: { include: { material: { select: { id: true, name: true, unit: true } } } },
@@ -91,7 +93,7 @@ export class ProductsService {
     await this.prisma.productOperation.create({
       data: {
         productId,
-        skillId: dto.skillId,
+        operationTypeId: dto.operationTypeId,
         siteId: dto.siteId,
         secondarySiteId: dto.secondarySiteId || null,
         sequence: dto.sequence ?? count,

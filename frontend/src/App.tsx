@@ -14,6 +14,7 @@ import { FeedbackPage } from './pages/admin/FeedbackPage';
 import { OrdersPage } from './pages/planner/OrdersPage';
 import { OrderDetailPage } from './pages/planner/OrderDetailPage';
 import { SkillsPage } from './pages/planner/SkillsPage';
+import { OperationTypesPage } from './pages/planner/OperationTypesPage';
 import { ProductsPage } from './pages/planner/ProductsPage';
 import { MaterialsPage } from './pages/planner/MaterialsPage';
 import { ImportPage } from './pages/planner/ImportPage';
@@ -118,6 +119,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['PLANNER']}>
                   <OrderDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/planner/operations"
+              element={
+                <ProtectedRoute allowedRoles={['PLANNER']}>
+                  <OperationTypesPage />
                 </ProtectedRoute>
               }
             />

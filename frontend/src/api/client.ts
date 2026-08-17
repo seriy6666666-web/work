@@ -200,6 +200,19 @@ export const api = {
   deleteSkill: (token: string, id: string) =>
     request<void>(`/skills/${id}`, { method: 'DELETE' }, token),
 
+  listOperationTypes: (token: string, withArchived = false) =>
+    request<OperationType[]>(`/operation-types${withArchived ? '?withArchived=true' : ''}`, {}, token),
+  createOperationType: (token: string, payload: CreateOperationTypePayload) =>
+    request<OperationType>('/operation-types', { method: 'POST', body: JSON.stringify(payload) }, token),
+  updateOperationType: (token: string, id: string, payload: UpdateOperationTypePayload) =>
+    request<OperationType>(`/operation-types/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  archiveOperationType: (token: string, id: string) =>
+    request<OperationType>(`/operation-types/${id}/archive`, { method: 'POST' }, token),
+  restoreOperationType: (token: string, id: string) =>
+    request<OperationType>(`/operation-types/${id}/restore`, { method: 'POST' }, token),
+  deleteOperationType: (token: string, id: string) =>
+    request<void>(`/operation-types/${id}`, { method: 'DELETE' }, token),
+
   getCompetencyMatrix: (token: string) => request<CompetencyMatrix>('/competency-matrix', {}, token),
   setCompetency: (token: string, payload: SetCompetencyPayload) =>
     request<SetCompetencyPayload>('/competency', { method: 'PUT', body: JSON.stringify(payload) }, token),
@@ -564,10 +577,10 @@ export interface Operation {
   orderId: string;
   siteId: string;
   secondarySiteId: string | null;
-  skillId: string;
+  operationTypeId: string;
   site: { id: string; name: string };
   secondarySite: { id: string; name: string } | null;
-  skill: { id: string; name: string };
+  operationType: { id: string; name: string; norm: number | null; skill: { id: string; name: string } | null };
 }
 
 export interface OrderDetail extends Omit<Order, 'operationsCount' | 'operationsQuantity'> {
@@ -593,21 +606,47 @@ export interface CreateOperationPayload {
   quantity: number;
   siteId: string;
   secondarySiteId?: string;
-  skillId: string;
+  operationTypeId: string;
 }
 
 export interface UpdateOperationPayload {
   quantity?: number;
   siteId?: string;
   secondarySiteId?: string;
-  skillId?: string;
+  operationTypeId?: string;
 }
 
 export interface Skill {
   id: string;
   name: string;
-  norm: number | null;
   createdAt: string;
+}
+
+/**
+ * Операция справочника — что делают на производстве. Навык необязателен:
+ * часть операций умеют все, и требовать для них квалификацию не нужно.
+ */
+export interface OperationType {
+  id: string;
+  name: string;
+  norm: number | null;
+  skillId: string | null;
+  skill: { id: string; name: string } | null;
+  archivedAt: string | null;
+  usedInOrders?: number;
+  usedInProducts?: number;
+}
+
+export interface CreateOperationTypePayload {
+  name: string;
+  norm?: number;
+  skillId?: string;
+}
+
+export interface UpdateOperationTypePayload {
+  name?: string;
+  norm?: number | null;
+  skillId?: string | null;
 }
 
 export interface OperationMaterial {
@@ -619,10 +658,10 @@ export interface OperationMaterial {
 export interface ProductOperation {
   id: string;
   sequence: number;
-  skillId: string;
+  operationTypeId: string;
   siteId: string;
   secondarySiteId: string | null;
-  skill: { id: string; name: string };
+  operationType: { id: string; name: string; norm: number | null; skill: { id: string; name: string } | null };
   site: { id: string; name: string };
   secondarySite: { id: string; name: string } | null;
   materials: OperationMaterial[];
@@ -736,7 +775,7 @@ export interface Product {
 }
 
 export interface CreateProductOperationPayload {
-  skillId: string;
+  operationTypeId: string;
   siteId: string;
   secondarySiteId?: string;
   sequence?: number;
@@ -834,12 +873,10 @@ export interface UpdateEquipmentPayload {
 
 export interface CreateSkillPayload {
   name: string;
-  norm?: number | null;
 }
 
 export interface UpdateSkillPayload {
   name?: string;
-  norm?: number | null;
 }
 
 export interface CompetencyMatrix {
@@ -869,9 +906,9 @@ export interface DistributionOperation {
   quantity: number;
   siteId: string;
   secondarySiteId: string | null;
-  skillId: string;
+  operationTypeId: string;
   order: { id: string; name: string; priority: number; dueDate: string };
-  skill: { id: string; name: string };
+  operationType: { id: string; name: string; norm: number | null; skill: { id: string; name: string } | null };
   secondarySite: { id: string; name: string } | null;
   assignments: Assignment[];
   hasCompetentWorker: boolean;
@@ -955,7 +992,7 @@ export interface MyTask {
   operation: {
     id: string;
     quantity: number;
-    skill: { id: string; name: string };
+    operationType: { id: string; name: string; norm: number | null; skill: { id: string; name: string } | null };
     order: { id: string; name: string; priority: number; dueDate: string };
   };
   completionRecord: CompletionRecord | null;

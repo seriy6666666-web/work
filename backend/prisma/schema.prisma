@@ -415,13 +415,58 @@ model PlannedShift {
   @@index([siteId, date])
 }
 
+/**
+ * Навык — квалификация человека, а не работа. «Пайка», «Ручная сварка», «Гравер».
+ * Отвечает на вопрос «что человек умеет» и живёт в матрице компетенций.
+ *
+ * Норма выработки отсюда уехала в OperationType: у навыка единой нормы быть не
+ * может, пайка шин и пайка балансировочных проводов идут с разной скоростью.
+ */
 model Skill {
-  id                String             @id @default(uuid())
-  name              String             @unique
-  norm              Float?
+  id             String          @id @default(uuid())
+  name           String          @unique
+  createdAt      DateTime        @default(now())
+  competencies   Competency[]
+  operationTypes OperationType[]
+}
+
+/**
+ * Справочник операций — что именно делают на производстве: «Пайка шин»,
+ * «Сортировка ячеек», «Установка ячеек в холдер».
+ *
+ * Раньше операции отдельной сущностью не были: у операции заказа хранилась только
+ * ссылка на навык, и в интерфейсе она называлась его именем. Из-за этого «что
+ * делаем» и «что человек умеет» слились в одно, а операции без квалификации
+ * создать было нельзя — навык был обязателен. На пилоте это сразу вылезло: в
+ * справочнике навыков оказались «Сортировка ячеек» и «Установка ячеек в холдер»,
+ * заведённые туда вынужденно.
+ *
+ * Справочник, а не свободный текст в каждой техкарте: иначе через полгода
+ * появятся «Сортировка ячеек», «сортировка ячейки» и «Сортировка Ячеек» — три
+ * разные строки об одном, и статистику по операции будет не собрать.
+ */
+model OperationType {
+  id   String @id @default(uuid())
+  name String @unique
+
+  /** Норма выработки за смену, годных единиц. Не задана — выработку не считаем. */
+  norm Float?
+
+  /**
+   * Требуемая квалификация. Необязательна: часть операций умеют все, и требовать
+   * для них навык — значит заводить фиктивный навык ради одной галочки.
+   */
+  skill   Skill?  @relation(fields: [skillId], references: [id])
+  skillId String?
+
+  /**
+   * Операции не удаляем, если они уже попали в заказы: за ними выработка людей.
+   * Архивная операция пропадает из выбора, но остаётся в истории и отчётах.
+   */
+  archivedAt DateTime?
+
   createdAt         DateTime           @default(now())
   operations        Operation[]
-  competencies      Competency[]
   productOperations ProductOperation[]
 }
 
@@ -463,8 +508,9 @@ model ProductOperation {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
 
-  skill   Skill  @relation(fields: [skillId], references: [id])
-  skillId String
+  /** Что делаем на этом шаге. Название и требуемый навык — из справочника. */
+  operationType   OperationType @relation(fields: [operationTypeId], references: [id])
+  operationTypeId String
 
   site   Site   @relation("ProductOpSite", fields: [siteId], references: [id])
   siteId String
@@ -545,8 +591,12 @@ model Operation {
   secondarySite   Site?   @relation("OperationSecondarySite", fields: [secondarySiteId], references: [id])
   secondarySiteId String?
 
-  skill   Skill  @relation(fields: [skillId], references: [id])
-  skillId String
+  /**
+   * Что делаем. Название и требуемая квалификация берутся из справочника, поэтому
+   * одна и та же операция называется одинаково во всех заказах.
+   */
+  operationType   OperationType @relation(fields: [operationTypeId], references: [id])
+  operationTypeId String
 
   /**
    * Адрес, где операцию фактически выполняют. Материалы списываются с остатка этого

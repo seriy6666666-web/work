@@ -1,7 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type OrderDetail, type OrderStatus, type Site, type Skill } from '../../api/client';
+import {
+  api,
+  ApiError,
+  type OperationType,
+  type OrderDetail,
+  type OrderStatus,
+  type Site,
+} from '../../api/client';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '../../constants/orderStatus';
 import { PlannerLayout } from './PlannerLayout';
 import { Badge } from '../../components/Badge';
@@ -24,7 +31,7 @@ export function OrderDetailPage() {
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
-  const [skills, setSkills] = useState<Skill[]>([]);
+  const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,21 +44,21 @@ export function OrderDetailPage() {
     status: 'CREATED' as OrderStatus,
   });
 
-  const [opForm, setOpForm] = useState({ skillId: '', quantity: '', siteId: '', secondarySiteId: '' });
+  const [opForm, setOpForm] = useState({ operationTypeId: '', quantity: '', siteId: '', secondarySiteId: '' });
   const [addingOp, setAddingOp] = useState(false);
 
   async function refresh() {
     if (!token || !id) return;
     setLoading(true);
     try {
-      const [orderData, sitesData, skillsData] = await Promise.all([
+      const [orderData, sitesData, operationTypesData] = await Promise.all([
         api.getOrder(token, id),
         api.listSites(token),
-        api.listSkills(token),
+        api.listOperationTypes(token),
       ]);
       setOrder(orderData);
       setSites(sitesData);
-      setSkills(skillsData);
+      setOperationTypes(operationTypesData);
       setOrderForm({
         name: orderData.name,
         quantity: String(orderData.quantity),
@@ -117,19 +124,19 @@ export function OrderDetailPage() {
     // Проверок здесь не было вовсе: за обязательность полей отвечали нативные required
     // у <select>. У своего компонента их нет, поэтому проверяем сами, иначе уйдёт
     // запрос с пустыми полями и вернётся невнятная ошибка валидации с сервера.
-    if (!opForm.skillId || !opForm.siteId || !opForm.quantity) {
-      toast.error('Выберите навык, участок и укажите количество');
+    if (!opForm.operationTypeId || !opForm.siteId || !opForm.quantity) {
+      toast.error('Выберите операцию, участок и укажите количество');
       return;
     }
     setAddingOp(true);
     try {
       await api.createOperation(token, id, {
-        skillId: opForm.skillId,
+        operationTypeId: opForm.operationTypeId,
         quantity: Number(opForm.quantity),
         siteId: opForm.siteId,
         secondarySiteId: opForm.secondarySiteId || undefined,
       });
-      setOpForm({ skillId: '', quantity: '', siteId: '', secondarySiteId: '' });
+      setOpForm({ operationTypeId: '', quantity: '', siteId: '', secondarySiteId: '' });
       toast.success('Операция добавлена');
       await refresh();
     } catch (err) {
@@ -240,9 +247,9 @@ export function OrderDetailPage() {
 
       <h3 style={styles.subheading}>Операции</h3>
 
-      {skills.length === 0 && (
+      {operationTypes.length === 0 && (
         <p style={styles.hint}>
-          Справочник навыков пуст. <Link to="/planner/skills">Создайте навыки</Link>, чтобы добавлять операции.
+          Справочник операций пуст. <Link to="/planner/operations">Заведите операции</Link>, чтобы добавлять их в заказ.
         </p>
       )}
 
@@ -251,9 +258,12 @@ export function OrderDetailPage() {
           width="200px"
           ariaLabel="Навык"
           placeholder="Выберите навык"
-          value={opForm.skillId}
-          onChange={(skillId) => setOpForm({ ...opForm, skillId })}
-          options={skills.map((skill) => ({ value: skill.id, label: skill.name }))}
+          value={opForm.operationTypeId}
+          onChange={(operationTypeId) => setOpForm({ ...opForm, operationTypeId })}
+          options={operationTypes.map((o) => ({
+            value: o.id,
+            label: o.skill ? `${o.name} — навык: ${o.skill.name}` : o.name,
+          }))}
         />
         <input
           style={styles.input}
@@ -305,7 +315,12 @@ export function OrderDetailPage() {
         <tbody>
           {order.operations.map((op) => (
             <tr key={op.id}>
-              <td style={styles.td}>{op.skill.name}</td>
+              <td style={styles.td}>
+                {op.operationType.name}
+                {op.operationType.skill && (
+                  <div style={styles.opSkill}>навык: {op.operationType.skill.name}</div>
+                )}
+              </td>
               <td style={styles.td}>{op.quantity}</td>
               <td style={styles.td}>{op.site.name}</td>
               <td style={styles.td}>
@@ -332,6 +347,11 @@ export function OrderDetailPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  opSkill: {
+    color: COLORS.mutedText,
+    fontSize: '13px',
+    marginTop: '2px',
+  },
   backLink: {
     color: COLORS.accentDark,
     fontSize: '14px',

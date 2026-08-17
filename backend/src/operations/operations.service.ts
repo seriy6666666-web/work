@@ -4,10 +4,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOperationDto } from './dto/create-operation.dto';
 import { UpdateOperationDto } from './dto/update-operation.dto';
 
-const includeSiteAndSkill = {
+const includeSiteAndOperation = {
   site: { select: { id: true, name: true } },
   secondarySite: { select: { id: true, name: true } },
-  skill: { select: { id: true, name: true } },
+  operationType: {
+    select: { id: true, name: true, norm: true, skill: { select: { id: true, name: true } } },
+  },
 } as const;
 
 @Injectable()
@@ -21,8 +23,8 @@ export class OperationsService {
     }
     return this.prisma.operation.findMany({
       where: { orderId },
-      include: includeSiteAndSkill,
-      orderBy: { skill: { name: 'asc' } },
+      include: includeSiteAndOperation,
+      orderBy: { operationType: { name: 'asc' } },
     });
   }
 
@@ -38,18 +40,18 @@ export class OperationsService {
           quantity: dto.quantity,
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,
-          skillId: dto.skillId,
+          operationTypeId: dto.operationTypeId,
           orderId,
           // Адрес операции по умолчанию — адрес заказа: обычно где оформили, там и делают.
           // Материалы списываются именно с адреса операции, поэтому если работа уйдёт на
           // другую площадку, адрес нужно поменять здесь, а не у заказа.
           platformId: dto.platformId ?? order.platformId,
         },
-        include: includeSiteAndSkill,
+        include: includeSiteAndOperation,
       });
     } catch (err) {
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2003') {
-        throw new BadRequestException('Указанный участок или навык не найден');
+        throw new BadRequestException('Указанный участок или операция не найдены');
       }
       throw err;
     }
@@ -63,19 +65,19 @@ export class OperationsService {
           quantity: dto.quantity,
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,
-          skillId: dto.skillId,
+          operationTypeId: dto.operationTypeId,
           // Меняется, когда работу фактически делают на другом адресе: с адреса
           // операции списываются материалы.
           platformId: dto.platformId,
         },
-        include: includeSiteAndSkill,
+        include: includeSiteAndOperation,
       });
     } catch (err) {
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
         throw new NotFoundException('Операция не найдена');
       }
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2003') {
-        throw new BadRequestException('Указанный участок или навык не найден');
+        throw new BadRequestException('Указанный участок или операция не найдены');
       }
       throw err;
     }
@@ -97,7 +99,7 @@ export class OperationsService {
     const operation = await this.prisma.operation.findUnique({
       where: { id },
       include: {
-        skill: { select: { name: true } },
+        operationType: { select: { name: true } },
         assignments: {
           include: {
             user: { select: { fullName: true } },
@@ -115,7 +117,7 @@ export class OperationsService {
       const who = reported.map((a) => a.user.fullName).join(', ');
       const done = reported.reduce((sum, a) => sum + (a.completionRecords[0]?.doneQuantity ?? 0), 0);
       throw new ConflictException(
-        `По операции «${operation.skill.name}» уже отчитались (${who}; ${done} шт годных) — ` +
+        `По операции «${operation.operationType.name}» уже отчитались (${who}; ${done} шт годных) — ` +
           'удалить её нельзя, иначе потеряется выработка. Уменьшите объём операции или ' +
           'снимите незанятых сотрудников.',
       );

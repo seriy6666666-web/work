@@ -472,7 +472,7 @@ export class ImportService {
     const summary: ImportReport['summary'] = [
       { label: 'Лист', value: parsed.sheetName },
       { label: 'Изделий (проектов)', value: products.size },
-      { label: 'Операций (навыков)', value: operations.size },
+      { label: 'Операций', value: operations.size },
       { label: 'Участков', value: sites.size },
       { label: 'Строк техкарты', value: parsed.rows.length },
     ];
@@ -494,27 +494,34 @@ export class ImportService {
     // Норма выработки: минуты на штуку → штук за 8-часовую смену.
     // У одной операции в разных изделиях время может отличаться — берём первое
     // и сообщаем о расхождении.
-    const skillIds = new Map<string, string>();
-    const skillMinutes = new Map<string, number>();
+    const operationTypeIds = new Map<string, string>();
+    const operationMinutes = new Map<string, number>();
     for (const row of parsed.rows) {
-      if (!skillMinutes.has(row.operation)) {
-        skillMinutes.set(row.operation, row.minutes);
-      } else if (skillMinutes.get(row.operation) !== row.minutes) {
+      if (!operationMinutes.has(row.operation)) {
+        operationMinutes.set(row.operation, row.minutes);
+      } else if (operationMinutes.get(row.operation) !== row.minutes) {
         issues.push({
           sheet: parsed.sheetName,
           row: 0,
-          message: `«${row.operation}» — разное время в разных изделиях (${skillMinutes.get(row.operation)} и ${row.minutes} мин), взято первое`,
+          message: `«${row.operation}» — разное время в разных изделиях (${operationMinutes.get(row.operation)} и ${row.minutes} мин), взято первое`,
         });
       }
     }
-    for (const [name, minutes] of skillMinutes) {
+    /**
+     * Лист «НОРМЫ» описывает операции, а не квалификации — в самом файле колонка
+     * так и называется. Раньше из неё заводились навыки, и справочник квалификаций
+     * забивался работами: на пилоте туда попали «Сортировка ячеек» и «Установка
+     * ячеек в холдер». Теперь пишем в справочник операций, а какая квалификация
+     * нужна для каждой, планировщик проставляет отдельно: в файле этого нет.
+     */
+    for (const [name, minutes] of operationMinutes) {
       const norm = Math.round((SHIFT_MINUTES / minutes) * 100) / 100;
-      const skill = await this.prisma.skill.upsert({
+      const operationType = await this.prisma.operationType.upsert({
         where: { name },
         update: { norm },
         create: { name, norm },
       });
-      skillIds.set(name, skill.id);
+      operationTypeIds.set(name, operationType.id);
     }
 
     let createdProducts = 0;
@@ -529,15 +536,15 @@ export class ImportService {
       bySequence.set(product.id, 0);
 
       for (const row of parsed.rows.filter((r) => r.product === productName)) {
-        const skillId = skillIds.get(row.operation)!;
+        const operationTypeId = operationTypeIds.get(row.operation)!;
         const siteId = siteIds.get(row.site!)!;
         const exists = await this.prisma.productOperation.findFirst({
-          where: { productId: product.id, skillId, siteId },
+          where: { productId: product.id, operationTypeId, siteId },
         });
         if (!exists) {
           const seq = bySequence.get(product.id) ?? 0;
           await this.prisma.productOperation.create({
-            data: { productId: product.id, skillId, siteId, sequence: seq },
+            data: { productId: product.id, operationTypeId, siteId, sequence: seq },
           });
           bySequence.set(product.id, seq + 1);
           createdOps++;

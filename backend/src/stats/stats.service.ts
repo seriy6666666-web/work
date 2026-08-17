@@ -58,7 +58,7 @@ export class StatsService {
       },
       include: {
         user: { select: { id: true, fullName: true } },
-        operation: { select: { quantity: true, skill: { select: { norm: true } } } },
+        operation: { select: { quantity: true, operationType: { select: { norm: true } } } },
         completionRecords: true,
       },
     });
@@ -130,7 +130,7 @@ export class StatsService {
 
         // Норма выработки: одна запись ≈ выработка за смену по операции.
         // Учитываем только операции, у которых задана положительная норма.
-        const norm = a.operation.skill?.norm ?? null;
+        const norm = a.operation.operationType?.norm ?? null;
         if (norm && norm > 0) {
           const good = record.doneQuantity ?? 0;
           entry.normGood += good;

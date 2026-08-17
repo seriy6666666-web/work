@@ -5,6 +5,7 @@ const TABS: SidebarTab[] = [
   { path: '/planner/orders', label: 'Заказы', icon: 'box' },
   { path: '/planner/products', label: 'Проекты', icon: 'grid' },
   { path: '/planner/materials', label: 'Материалы', icon: 'layers' },
+  { path: '/planner/operations', label: 'Операции', icon: 'list' },
   { path: '/planner/skills', label: 'Навыки', icon: 'star' },
   { path: '/planner/import', label: 'Импорт из Excel', icon: 'download' },
 ];

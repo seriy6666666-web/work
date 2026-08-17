@@ -14,7 +14,7 @@ export class SkillsService {
 
   async create(dto: CreateSkillDto) {
     try {
-      return await this.prisma.skill.create({ data: { name: dto.name, norm: dto.norm ?? null } });
+      return await this.prisma.skill.create({ data: { name: dto.name } });
     } catch (err) {
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
         throw new ConflictException('Навык с таким названием уже существует');
@@ -27,7 +27,7 @@ export class SkillsService {
     try {
       return await this.prisma.skill.update({
         where: { id },
-        data: { name: dto.name, norm: dto.norm },
+        data: { name: dto.name },
       });
     } catch (err) {
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
@@ -48,7 +48,10 @@ export class SkillsService {
         throw new NotFoundException('Навык не найден');
       }
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2003') {
-        throw new ConflictException('Навык используется в операциях — сначала удалите или измените их');
+        throw new ConflictException(
+          'Навык требуется операциям справочника или отмечен у сотрудников — ' +
+            'сначала уберите его оттуда',
+        );
       }
       throw err;
     }

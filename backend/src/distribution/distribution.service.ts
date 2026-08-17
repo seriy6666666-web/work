@@ -34,7 +34,9 @@ export class DistributionService {
         where: { OR: [{ siteId }, { secondarySiteId: siteId }] },
         include: {
           order: { select: { id: true, name: true, priority: true, dueDate: true } },
-          skill: { select: { id: true, name: true } },
+          operationType: {
+            select: { id: true, name: true, norm: true, skill: { select: { id: true, name: true } } },
+          },
           secondarySite: { select: { id: true, name: true } },
           assignments: {
             include: {
@@ -58,9 +60,16 @@ export class DistributionService {
         const done = a.completionRecords[0]?.doneQuantity ?? 0;
         return sum + done;
       }, 0);
+      /**
+       * Операции без требуемой квалификации выполняет кто угодно — «это все умеют».
+       * Для них вопрос «есть ли компетентный исполнитель» не имеет смысла, и
+       * предупреждение о его отсутствии показывать нельзя: начальник участка искал
+       * бы несуществующую проблему.
+       */
+      const requiredSkillId = op.operationType.skill?.id ?? null;
       return {
         ...op,
-        hasCompetentWorker: competentSkillIds.has(op.skillId),
+        hasCompetentWorker: requiredSkillId === null || competentSkillIds.has(requiredSkillId),
         totalDoneQuantity,
       };
     });

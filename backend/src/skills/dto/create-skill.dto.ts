@@ -1,13 +1,11 @@
-import { IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { MeaningfulName } from '../../common/meaningful-name';
 
+/**
+ * Навык — только квалификация. Норма выработки отсюда уехала на операцию:
+ * у «Пайки» единой нормы быть не может, пайка шин и пайка проводов идут с
+ * разной скоростью.
+ */
 export class CreateSkillDto {
-  @IsString()
-  @MinLength(1)
+  @MeaningfulName()
   name: string;
-
-  /** Норма выработки за смену (годных единиц). null — норма не задана. */
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  norm?: number | null;
 }

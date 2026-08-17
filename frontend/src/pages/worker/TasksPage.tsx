@@ -318,7 +318,7 @@ export function TasksPage() {
             return (
               <div key={task.id} style={styles.card}>
                 <div style={styles.cardHeader}>
-                  <span style={styles.skillName}>{task.operation.skill.name}</span>
+                  <span style={styles.skillName}>{task.operation.operationType.name}</span>
                   {task.operation.order.priority > 0 && <span style={styles.priorityBadge}>Приоритет</span>}
                 </div>
                 <p style={styles.orderInfo}>

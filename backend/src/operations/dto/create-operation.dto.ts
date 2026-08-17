@@ -13,7 +13,7 @@ export class CreateOperationDto {
   secondarySiteId?: string;
 
   @IsUUID()
-  skillId: string;
+  operationTypeId: string;
 
   /** Адрес, где операцию делают. Не указан — берётся адрес заказа. */
   @IsOptional()

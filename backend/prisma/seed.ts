@@ -31,13 +31,21 @@ const SEED_USERS: { username: string; fullName: string; role: Role; site?: strin
   { username: 'smirnov', fullName: 'Смирнов Дмитрий', role: Role.WORKER, site: 'Упаковка' },
 ];
 
-// [название, норма выработки за смену (годных единиц)]
-const SKILLS: [string, number][] = [
-  ['Сборка АКБ', 40],
-  ['Пайка', 60],
-  ['Тестирование', 50],
-  ['Контроль качества', 80],
-  ['Упаковка', 200],
+// Навык — квалификация человека, а не работа. Нормы у навыков нет: она уехала
+// на операцию, потому что пайка шин и пайка проводов идут с разной скоростью.
+const SKILLS: string[] = ['Сборка АКБ', 'Пайка', 'Тестирование', 'Контроль качества', 'Упаковка'];
+
+// Справочник операций: [название, норма за смену, требуемый навык или null].
+// Часть операций навыка не требует — их умеют все, и заводить ради них
+// фиктивную квалификацию неправильно.
+const OPERATION_TYPES: [string, number, string | null][] = [
+  ['Сборка АКБ', 40, 'Сборка АКБ'],
+  ['Пайка шин', 60, 'Пайка'],
+  ['Тестирование АКБ', 50, 'Тестирование'],
+  ['Контроль качества', 80, 'Контроль качества'],
+  ['Упаковка', 200, 'Упаковка'],
+  ['Сортировка ячеек', 120, null],
+  ['Установка ячеек в холдер', 150, null],
 ];
 
 // worker username -> skills they are certified for
@@ -163,11 +171,21 @@ async function main() {
 
   // --- Skills (idempotent) ---
   const skillByName = new Map<string, string>();
-  for (const [name, norm] of SKILLS) {
-    // Норму задаём только при создании — при повторном запуске не затираем
-    // возможные правки норм пользователем.
-    const skill = await prisma.skill.upsert({ where: { name }, update: {}, create: { name, norm } });
+  for (const name of SKILLS) {
+    const skill = await prisma.skill.upsert({ where: { name }, update: {}, create: { name } });
     skillByName.set(name, skill.id);
+  }
+
+  // --- Справочник операций (idempotent) ---
+  // Норму задаём только при создании — при повторном запуске не затираем правки.
+  const operationTypeByName = new Map<string, string>();
+  for (const [name, norm, skillName] of OPERATION_TYPES) {
+    const operationType = await prisma.operationType.upsert({
+      where: { name },
+      update: {},
+      create: { name, norm, skillId: skillName ? skillByName.get(skillName)! : null },
+    });
+    operationTypeByName.set(name, operationType.id);
   }
 
   // Heavy demo content is seeded only once (skipped if orders already exist).
@@ -209,18 +227,18 @@ async function main() {
       platforms: { connect: [{ id: mainPlatformId }] },
     },
   });
-  const routing = ['Сборка АКБ', 'Пайка', 'Тестирование'];
-  const prodOpBySkill = new Map<string, string>();
+  const routing = ['Сборка АКБ', 'Пайка шин', 'Тестирование АКБ'];
+  const prodOpByOperation = new Map<string, string>();
   for (let i = 0; i < routing.length; i++) {
     const po = await prisma.productOperation.create({
       data: {
         productId: product.id,
         sequence: i,
-        skillId: skillByName.get(routing[i])!,
+        operationTypeId: operationTypeByName.get(routing[i])!,
         siteId: assembly,
       },
     });
-    prodOpBySkill.set(routing[i], po.id);
+    prodOpByOperation.set(routing[i], po.id);
   }
 
   // --- Orders + operations ---
@@ -234,9 +252,9 @@ async function main() {
       status: 'IN_PROGRESS',
       operations: {
         create: [
-          { quantity: 100, siteId: assembly, skillId: skillByName.get('Сборка АКБ')! },
-          { quantity: 100, siteId: assembly, skillId: skillByName.get('Пайка')! },
-          { quantity: 100, siteId: assembly, skillId: skillByName.get('Тестирование')! },
+          { quantity: 100, siteId: assembly, operationTypeId: operationTypeByName.get('Сборка АКБ')! },
+          { quantity: 100, siteId: assembly, operationTypeId: operationTypeByName.get('Пайка шин')! },
+          { quantity: 100, siteId: assembly, operationTypeId: operationTypeByName.get('Тестирование АКБ')! },
         ],
       },
     },
@@ -252,7 +270,7 @@ async function main() {
       priority: 3,
       status: 'IN_PROGRESS',
       operations: {
-        create: [{ quantity: 60, siteId: assembly, skillId: skillByName.get('Сборка АКБ')! }],
+        create: [{ quantity: 60, siteId: assembly, operationTypeId: operationTypeByName.get('Сборка АКБ')! }],
       },
     },
     include: { operations: true },
@@ -267,16 +285,18 @@ async function main() {
       priority: 1,
       status: 'CREATED',
       operations: {
-        create: [{ quantity: 200, siteId: forming, skillId: skillByName.get('Сборка АКБ')! }],
+        create: [{ quantity: 200, siteId: forming, operationTypeId: operationTypeByName.get('Сортировка ячеек')! }],
       },
     },
   });
 
   // --- Assignments + completion records (backdated for the trend curve) ---
   const assemblyWorkers = ['worker', 'ivanov', 'petrov', 'sidorov'];
-  const opAssembleA = orderA.operations.find((o) => o.skillId === skillByName.get('Сборка АКБ'))!;
-  const opSolderA = orderA.operations.find((o) => o.skillId === skillByName.get('Пайка'))!;
-  const opTestA = orderA.operations.find((o) => o.skillId === skillByName.get('Тестирование'))!;
+  const byOperation = (name: string) =>
+    orderA.operations.find((o) => o.operationTypeId === operationTypeByName.get(name))!;
+  const opAssembleA = byOperation('Сборка АКБ');
+  const opSolderA = byOperation('Пайка шин');
+  const opTestA = byOperation('Тестирование АКБ');
   const opB = orderB.operations[0];
 
   // Each tuple: [operationId, workerUsername, doneQuantity, defectQuantity, daysAgo]
@@ -342,10 +362,10 @@ async function main() {
   // Расход материалов на 1 изделие (техкарта проекта АКБ-48В)
   await prisma.operationMaterial.createMany({
     data: [
-      { productOperationId: prodOpBySkill.get('Сборка АКБ')!, materialId: matByName.get('Корпус АКБ')!, quantityPerUnit: 1 },
-      { productOperationId: prodOpBySkill.get('Сборка АКБ')!, materialId: matByName.get('Литиевые ячейки')!, quantityPerUnit: 6 },
-      { productOperationId: prodOpBySkill.get('Сборка АКБ')!, materialId: matByName.get('Клеммы')!, quantityPerUnit: 2 },
-      { productOperationId: prodOpBySkill.get('Пайка')!, materialId: matByName.get('Припой')!, quantityPerUnit: 0.05 },
+      { productOperationId: prodOpByOperation.get('Сборка АКБ')!, materialId: matByName.get('Корпус АКБ')!, quantityPerUnit: 1 },
+      { productOperationId: prodOpByOperation.get('Сборка АКБ')!, materialId: matByName.get('Литиевые ячейки')!, quantityPerUnit: 6 },
+      { productOperationId: prodOpByOperation.get('Сборка АКБ')!, materialId: matByName.get('Клеммы')!, quantityPerUnit: 2 },
+      { productOperationId: prodOpByOperation.get('Пайка шин')!, materialId: matByName.get('Припой')!, quantityPerUnit: 0.05 },
     ],
   });
 

@@ -18,12 +18,10 @@ export function SkillsPage() {
   const [loading, setLoading] = useState(true);
 
   const [newName, setNewName] = useState('');
-  const [newNorm, setNewNorm] = useState('');
   const [creating, setCreating] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [editingNorm, setEditingNorm] = useState('');
 
   async function refresh() {
     if (!token) return;
@@ -47,12 +45,8 @@ export function SkillsPage() {
     if (!token || !newName.trim()) return;
     setCreating(true);
     try {
-      await api.createSkill(token, {
-        name: newName.trim(),
-        norm: newNorm.trim() ? Number(newNorm) : null,
-      });
+      await api.createSkill(token, { name: newName.trim() });
       setNewName('');
-      setNewNorm('');
       toast.success('Навык создан');
       await refresh();
     } catch (err) {
@@ -65,16 +59,12 @@ export function SkillsPage() {
   function startEdit(skill: Skill) {
     setEditingId(skill.id);
     setEditingName(skill.name);
-    setEditingNorm(skill.norm === null ? '' : String(skill.norm));
   }
 
   async function saveEdit(id: string) {
     if (!token || !editingName.trim()) return;
     try {
-      await api.updateSkill(token, id, {
-        name: editingName.trim(),
-        norm: editingNorm.trim() ? Number(editingNorm) : null,
-      });
+      await api.updateSkill(token, id, { name: editingName.trim() });
       setEditingId(null);
       toast.success('Сохранено');
       await refresh();
@@ -107,25 +97,19 @@ export function SkillsPage() {
     <PlannerLayout title="Навыки" breadcrumb="Планирование">
 
       <p style={styles.hint}>
-        Норма выработки — сколько годных единиц за смену. По ней объективно считается
-        производительность сотрудников, сопоставимая между разными операциями.
+        Навык — это квалификация человека: «Пайка», «Ручная сварка», «Гравер». Он
+        отвечает на вопрос «что сотрудник умеет» и отмечается в матрице компетенций.
+        Что именно делают на производстве, задаётся в разделе «Операции»: там же
+        живёт и норма выработки, потому что у одного навыка разные операции идут с
+        разной скоростью.
       </p>
 
       <form onSubmit={handleCreate} style={styles.createForm}>
         <input
           style={styles.input}
-          placeholder="Название навыка (например «Сварка шин»)"
+          placeholder="Название навыка (например «Пайка»)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-        />
-        <input
-          style={styles.normInput}
-          type="number"
-          step="any"
-          min="0"
-          placeholder="Норма/смена"
-          value={newNorm}
-          onChange={(e) => setNewNorm(e.target.value)}
         />
         <button style={styles.button} type="submit" disabled={creating || !newName.trim()}>
           Добавить
@@ -139,7 +123,7 @@ export function SkillsPage() {
       )}
 
       {loading ? (
-        <SkeletonTable rows={4} cols={3} />
+        <SkeletonTable rows={4} cols={2} />
       ) : skills.length === 0 ? (
         <EmptyState icon="star" title="Навыков пока нет" hint="Добавьте первый навык в форме выше." />
       ) : controls.result.length === 0 ? (
@@ -149,7 +133,6 @@ export function SkillsPage() {
           <thead>
             <tr>
               <th style={styles.th}>Название</th>
-              <th style={{ ...styles.th, textAlign: 'right' }}>Норма/смена</th>
               <th style={styles.th}></th>
             </tr>
           </thead>
@@ -166,23 +149,6 @@ export function SkillsPage() {
                     />
                   ) : (
                     skill.name
-                  )}
-                </td>
-                <td style={{ ...styles.td, textAlign: 'right' }}>
-                  {editingId === skill.id ? (
-                    <input
-                      style={styles.normInput}
-                      type="number"
-                      step="any"
-                      min="0"
-                      placeholder="—"
-                      value={editingNorm}
-                      onChange={(e) => setEditingNorm(e.target.value)}
-                    />
-                  ) : skill.norm === null ? (
-                    <span style={styles.muted}>—</span>
-                  ) : (
-                    skill.norm
                   )}
                 </td>
                 <td style={{ ...styles.td, textAlign: 'right' }}>

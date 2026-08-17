@@ -88,9 +88,11 @@ export class OrdersService {
         operations: {
           include: {
             site: { select: { id: true, name: true } },
-            skill: { select: { id: true, name: true } },
+            operationType: {
+              select: { id: true, name: true, norm: true, skill: { select: { id: true, name: true } } },
+            },
           },
-          orderBy: { skill: { name: 'asc' } },
+          orderBy: { operationType: { name: 'asc' } },
         },
       },
     });
@@ -140,7 +142,7 @@ export class OrdersService {
         operations: {
           create: product.operations.map((op) => ({
             quantity: dto.quantity,
-            skillId: op.skillId,
+            operationTypeId: op.operationTypeId,
             siteId: op.siteId,
             secondarySiteId: op.secondarySiteId,
             // По умолчанию операцию делают там же, где оформлен заказ. Если фактически

@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { OrdersModule } from './orders/orders.module';
 import { OperationsModule } from './operations/operations.module';
 import { SkillsModule } from './skills/skills.module';
+import { OperationTypesModule } from './operation-types/operation-types.module';
 import { CompetencyModule } from './competency/competency.module';
 import { DistributionModule } from './distribution/distribution.module';
 import { AttendanceModule } from './attendance/attendance.module';
@@ -45,6 +46,7 @@ import { ShiftsOrgModule } from './shifts-org/shifts-org.module';
     OrdersModule,
     OperationsModule,
     SkillsModule,
+    OperationTypesModule,
     CompetencyModule,
     DistributionModule,
     AttendanceModule,

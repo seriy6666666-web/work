@@ -1,7 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type Material, type Platform, type Product, type Site, type Skill } from '../../api/client';
+import {
+  api,
+  ApiError,
+  type Material,
+  type OperationType,
+  type Platform,
+  type Product,
+  type Site,
+} from '../../api/client';
 import { PlannerLayout } from './PlannerLayout';
 import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
@@ -12,12 +20,12 @@ import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 interface OpForm {
-  skillId: string;
+  operationTypeId: string;
   siteId: string;
   secondarySiteId: string;
 }
 
-const EMPTY_OP: OpForm = { skillId: '', siteId: '', secondarySiteId: '' };
+const EMPTY_OP: OpForm = { operationTypeId: '', siteId: '', secondarySiteId: '' };
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU');
@@ -28,7 +36,7 @@ export function ProductsPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const [products, setProducts] = useState<Product[]>([]);
-  const [skills, setSkills] = useState<Skill[]>([]);
+  const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -44,15 +52,15 @@ export function ProductsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const [productsData, skillsData, sitesData, platformsData, materialsData] = await Promise.all([
+      const [productsData, operationTypesData, sitesData, platformsData, materialsData] = await Promise.all([
         api.listProducts(token, showArchived),
-        api.listSkills(token),
+        api.listOperationTypes(token),
         api.listSites(token),
         api.listPlatforms(token),
         api.listMaterials(token),
       ]);
       setProducts(productsData);
-      setSkills(skillsData);
+      setOperationTypes(operationTypesData);
       setSites(sitesData);
       setPlatforms(platformsData);
       setMaterials(materialsData);
@@ -133,13 +141,13 @@ export function ProductsPage() {
     const form = opForms[productId] ?? EMPTY_OP;
     // Раньше на пустые поля ругался нативный required у <select>; у своего компонента
     // его нет, поэтому говорим прямо, а не выходим молча.
-    if (!form.skillId || !form.siteId) {
-      toast.error('Выберите навык и участок');
+    if (!form.operationTypeId || !form.siteId) {
+      toast.error('Выберите операцию и участок');
       return;
     }
     try {
       await api.addProductOperation(token, productId, {
-        skillId: form.skillId,
+        operationTypeId: form.operationTypeId,
         siteId: form.siteId,
         secondarySiteId: form.secondarySiteId || undefined,
       });
@@ -217,10 +225,10 @@ export function ProductsPage() {
         Показывать архивные
       </label>
 
-      {skills.length === 0 && (
+      {operationTypes.length === 0 && (
         <p style={styles.hint}>
-          Справочник навыков пуст. <Link to="/planner/skills">Создайте навыки</Link>, чтобы добавлять
-          операции в техкарту.
+          Справочник операций пуст. <Link to="/planner/operations">Заведите операции</Link>, чтобы
+          собирать из них техкарту изделия.
         </p>
       )}
 
@@ -284,7 +292,10 @@ export function ProductsPage() {
                       <li key={op.id} style={styles.opBlock}>
                         <div style={styles.opItem}>
                           <span>
-                            {op.skill.name} · {op.site.name}
+                            {op.operationType.name} · {op.site.name}
+                            {op.operationType.skill && (
+                              <span style={styles.opSkill}> · навык: {op.operationType.skill.name}</span>
+                            )}
                             {op.secondarySite && (
                               <>
                                 {' '}
@@ -346,11 +357,16 @@ export function ProductsPage() {
               <form onSubmit={(e) => handleAddOp(e, p.id)} style={styles.opForm}>
                 <Select
                   width="190px"
-                  ariaLabel="Навык"
-                  placeholder="Навык"
-                  value={form.skillId}
-                  onChange={(skillId) => setOpForms((prev) => ({ ...prev, [p.id]: { ...form, skillId } }))}
-                  options={skills.map((s) => ({ value: s.id, label: s.name }))}
+                  ariaLabel="Операция"
+                  placeholder="Операция"
+                  value={form.operationTypeId}
+                  onChange={(operationTypeId) =>
+                    setOpForms((prev) => ({ ...prev, [p.id]: { ...form, operationTypeId } }))
+                  }
+                  options={operationTypes.map((o) => ({
+                    value: o.id,
+                    label: o.skill ? `${o.name} — навык: ${o.skill.name}` : o.name,
+                  }))}
                 />
                 <Select
                   width="170px"
@@ -390,6 +406,10 @@ export function ProductsPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  opSkill: {
+    color: COLORS.mutedText,
+    fontSize: '13px',
+  },
   hint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0 },
   createForm: { display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' },
   archivedToggle: {

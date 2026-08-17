@@ -137,7 +137,7 @@ export function MyWorkPage() {
             return (
               <div key={t.id} style={styles.card}>
                 <div style={styles.cardHead}>
-                  <strong>{t.operation.skill.name}</strong>
+                  <strong>{t.operation.operationType.name}</strong>
                   {rec && <Badge variant="accent">{rec.doneQuantity ?? 0} шт записано</Badge>}
                 </div>
                 <p style={styles.sub}>

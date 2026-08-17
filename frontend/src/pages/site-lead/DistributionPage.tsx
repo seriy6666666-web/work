@@ -76,15 +76,21 @@ export function DistributionPage() {
    * владеющие шли с префиксом «✓», остальные с подписью «нет навыка» — одно и то же
    * помечалось дважды, а выбрать неподходящего человека было так же легко, как нужного.
    * Теперь по умолчанию видны только владеющие навыком, остальные — по ссылке.
+   *
+   * `skillId === null` — операция не требует квалификации, её умеют все. Делить
+   * людей в этом случае не на что: все идут одним списком как подходящие, иначе
+   * начальник участка искал бы «владеющих» там, где владеть нечем.
    */
-  function candidatesFor(skillId: string) {
+  function candidatesFor(skillId: string | null) {
     if (!matrix) return { skilled: [], unskilled: [] };
-    const competentIds = new Set(
-      matrix.competencies.filter((c) => c.skillId === skillId).map((c) => c.userId),
-    );
     const available = matrix.users
       .filter((u) => !u.isAbsentToday)
       .sort((a, b) => a.fullName.localeCompare(b.fullName, 'ru'));
+    if (skillId === null) return { skilled: available, unskilled: [] };
+
+    const competentIds = new Set(
+      matrix.competencies.filter((c) => c.skillId === skillId).map((c) => c.userId),
+    );
     return {
       skilled: available.filter((u) => competentIds.has(u.id)),
       unskilled: available.filter((u) => !competentIds.has(u.id)),
@@ -170,7 +176,7 @@ export function DistributionPage() {
     (r) => r.loadPercent !== null && r.loadPercent < UNDERPERFORMING_THRESHOLD,
   );
   const alertText = noExecutorOp
-    ? `Нет компетентного исполнителя на «${noExecutorOp.skill.name}» (заказ «${noExecutorOp.order.name}»)`
+    ? `Нет компетентного исполнителя на «${noExecutorOp.operationType.name}» (заказ «${noExecutorOp.order.name}»)`
     : underperformer
       ? `${underperformer.fullName} отстаёт — ${Math.round(underperformer.loadPercent! * 100)}% от нормы`
       : null;
@@ -243,8 +249,18 @@ export function DistributionPage() {
               <div key={op.id} style={styles.card}>
                 <div style={styles.cardHeader}>
                   <div>
-                    <strong>{op.skill.name}</strong>
+                    <strong>{op.operationType.name}</strong>
                     <span style={styles.muted}> — заказ «{op.order.name}»</span>
+                    {/*
+                      Требуемая квалификация — отдельной строкой, а не вместо названия.
+                      Раньше операция называлась именем навыка, и «что делаем» было
+                      неотличимо от «что человек умеет».
+                    */}
+                    <div style={styles.requirement}>
+                      {op.operationType.skill
+                        ? `Требуется навык: ${op.operationType.skill.name}`
+                        : 'Особый навык не требуется'}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     {op.order.priority >= 5 && <Badge variant="priority-high">Высокий приоритет</Badge>}
@@ -342,7 +358,7 @@ export function DistributionPage() {
                       setAssignForms((prev) => ({ ...prev, [op.id]: { ...form, userId } }))
                     }
                     options={(() => {
-                      const { skilled, unskilled } = candidatesFor(op.skillId);
+                      const { skilled, unskilled } = candidatesFor(op.operationType.skill?.id ?? null);
                       const list = showUnskilled[op.id] ? [...skilled, ...unskilled] : skilled;
                       return list.map((u) => ({ value: u.id, label: u.fullName }));
                     })()}
@@ -372,7 +388,7 @@ export function DistributionPage() {
                 </form>
 
                 {(() => {
-                  const { skilled, unskilled } = candidatesFor(op.skillId);
+                  const { skilled, unskilled } = candidatesFor(op.operationType.skill?.id ?? null);
                   if (unskilled.length === 0) return null;
                   const shown = showUnskilled[op.id];
                   return (
@@ -445,6 +461,11 @@ export function DistributionPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  requirement: {
+    marginTop: '4px',
+    fontSize: '13px',
+    color: COLORS.mutedText,
+  },
   offlineBanner: {
     padding: '10px 14px',
     marginBottom: '16px',
