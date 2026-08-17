@@ -256,8 +256,8 @@ export function OrderDetailPage() {
       <form onSubmit={handleAddOperation} style={styles.createForm}>
         <Select
           width="200px"
-          ariaLabel="Навык"
-          placeholder="Выберите навык"
+          ariaLabel="Операция"
+          placeholder="Выберите операцию"
           value={opForm.operationTypeId}
           onChange={(operationTypeId) => setOpForm({ ...opForm, operationTypeId })}
           options={operationTypes.map((o) => ({

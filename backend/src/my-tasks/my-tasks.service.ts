@@ -9,7 +9,9 @@ const MAX_CORRECTIONS = 2;
 const includeTaskDetails = {
   operation: {
     include: {
-      skill: { select: { id: true, name: true } },
+      operationType: {
+        select: { id: true, name: true, norm: true, skill: { select: { id: true, name: true } } },
+      },
       order: { select: { id: true, name: true, priority: true, dueDate: true } },
     },
   },
