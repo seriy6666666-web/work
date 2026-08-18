@@ -36,6 +36,15 @@ export function OrderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  /**
+   * Правка операции прямо в строке. Раньше поменять объём или участок было
+   * нельзя вовсе: обработчик на сервере есть, метод в клиенте есть, а кнопки на
+   * экране не было — оставалось удалить операцию и завести заново.
+   */
+  const [editingOpId, setEditingOpId] = useState<string | null>(null);
+  const [editOp, setEditOp] = useState({ operationTypeId: '', quantity: '', siteId: '', secondarySiteId: '' });
+  const [savingOp, setSavingOp] = useState(false);
+
   const [orderForm, setOrderForm] = useState({
     name: '',
     quantity: '',
@@ -143,6 +152,38 @@ export function OrderDetailPage() {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось добавить операцию');
     } finally {
       setAddingOp(false);
+    }
+  }
+
+  function startEditOperation(op: OrderDetail['operations'][number]) {
+    setEditingOpId(op.id);
+    setEditOp({
+      operationTypeId: op.operationTypeId,
+      quantity: String(op.quantity),
+      siteId: op.siteId,
+      secondarySiteId: op.secondarySiteId ?? '',
+    });
+  }
+
+  async function saveOperation(operationId: string) {
+    if (!token) return;
+    setSavingOp(true);
+    try {
+      await api.updateOperation(token, operationId, {
+        operationTypeId: editOp.operationTypeId,
+        quantity: Number(editOp.quantity),
+        siteId: editOp.siteId,
+        // Пустая строка — «второго участка нет». undefined сервер трактует как
+        // «не трогать», поэтому снять его этим способом было бы нельзя.
+        secondarySiteId: editOp.secondarySiteId || undefined,
+      });
+      setEditingOpId(null);
+      toast.success('Операция изменена');
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось изменить операцию');
+    } finally {
+      setSavingOp(false);
     }
   }
 
@@ -305,7 +346,7 @@ export function OrderDetailPage() {
       <table style={styles.table}>
         <thead>
           <tr>
-            <th style={styles.th}>Навык</th>
+            <th style={styles.th}>Операция</th>
             <th style={styles.th}>Количество</th>
             <th style={styles.th}>Участок</th>
             <th style={styles.th}>Второй участок</th>
@@ -313,26 +354,108 @@ export function OrderDetailPage() {
           </tr>
         </thead>
         <tbody>
-          {order.operations.map((op) => (
-            <tr key={op.id}>
-              <td style={styles.td}>
-                {op.operationType.name}
-                {op.operationType.skill && (
-                  <div style={styles.opSkill}>навык: {op.operationType.skill.name}</div>
-                )}
-              </td>
-              <td style={styles.td}>{op.quantity}</td>
-              <td style={styles.td}>{op.site.name}</td>
-              <td style={styles.td}>
-                {op.secondarySite ? <Badge variant="shared">{op.secondarySite.name}</Badge> : '—'}
-              </td>
-              <td style={{ ...styles.td, textAlign: 'right' }}>
-                <button style={styles.linkButtonDanger} onClick={() => handleDeleteOperation(op.id)}>
-                  Удалить
-                </button>
-              </td>
-            </tr>
-          ))}
+          {order.operations.map((op) => {
+            const editing = editingOpId === op.id;
+            return (
+              <tr key={op.id}>
+                <td style={styles.td}>
+                  {editing ? (
+                    <Select
+                      width="220px"
+                      ariaLabel="Операция строки"
+                      value={editOp.operationTypeId}
+                      onChange={(operationTypeId) => setEditOp({ ...editOp, operationTypeId })}
+                      options={operationTypes.map((o) => ({
+                        value: o.id,
+                        label: o.skill ? `${o.name} — навык: ${o.skill.name}` : o.name,
+                      }))}
+                    />
+                  ) : (
+                    <>
+                      {op.operationType.name}
+                      {op.operationType.skill && (
+                        <div style={styles.opSkill}>навык: {op.operationType.skill.name}</div>
+                      )}
+                    </>
+                  )}
+                </td>
+                <td style={styles.td}>
+                  {editing ? (
+                    <input
+                      style={styles.qtyInput}
+                      type="number"
+                      min={1}
+                      value={editOp.quantity}
+                      onChange={(e) => setEditOp({ ...editOp, quantity: e.target.value })}
+                      aria-label="Количество"
+                      autoFocus
+                    />
+                  ) : (
+                    op.quantity
+                  )}
+                </td>
+                <td style={styles.td}>
+                  {editing ? (
+                    <Select
+                      width="170px"
+                      ariaLabel="Участок строки"
+                      value={editOp.siteId}
+                      onChange={(siteId) => setEditOp({ ...editOp, siteId })}
+                      options={sites.map((st) => ({ value: st.id, label: st.name }))}
+                    />
+                  ) : (
+                    op.site.name
+                  )}
+                </td>
+                <td style={styles.td}>
+                  {editing ? (
+                    <Select
+                      width="170px"
+                      ariaLabel="Второй участок строки"
+                      placeholder="нет"
+                      value={editOp.secondarySiteId}
+                      onChange={(secondarySiteId) => setEditOp({ ...editOp, secondarySiteId })}
+                      options={[
+                        { value: '', label: 'нет' },
+                        ...sites
+                          .filter((st) => st.id !== editOp.siteId)
+                          .map((st) => ({ value: st.id, label: st.name })),
+                      ]}
+                    />
+                  ) : op.secondarySite ? (
+                    <Badge variant="shared">{op.secondarySite.name}</Badge>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td style={{ ...styles.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {editing ? (
+                    <>
+                      <button
+                        style={styles.linkButton}
+                        onClick={() => saveOperation(op.id)}
+                        disabled={savingOp || !editOp.quantity || !editOp.operationTypeId || !editOp.siteId}
+                      >
+                        Сохранить
+                      </button>
+                      <button style={styles.linkButton} onClick={() => setEditingOpId(null)}>
+                        Отмена
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button style={styles.linkButton} onClick={() => startEditOperation(op)}>
+                        Изменить
+                      </button>
+                      <button style={styles.linkButtonDanger} onClick={() => handleDeleteOperation(op.id)}>
+                        Удалить
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
           {order.operations.length === 0 && (
             <tr>
               <td style={styles.td} colSpan={5}>
@@ -429,12 +552,30 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 8px',
     borderBottom: `1px solid ${COLORS.lightGreenBg}`,
   },
+  linkButton: {
+    border: 'none',
+    background: 'none',
+    color: COLORS.accentDark,
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 600,
+    padding: '4px 8px',
+  },
+  qtyInput: {
+    width: '90px',
+    padding: '8px 10px',
+    borderRadius: RADIUS.sm,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    background: COLORS.lightGrayBg,
+    fontSize: '15px',
+  },
   linkButtonDanger: {
     border: 'none',
     background: 'none',
     color: COLORS.error,
     cursor: 'pointer',
     fontSize: '14px',
+    padding: '4px 8px',
   },
   error: {
     color: COLORS.error,

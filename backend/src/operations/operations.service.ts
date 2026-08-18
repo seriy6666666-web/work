@@ -58,6 +58,28 @@ export class OperationsService {
   }
 
   async update(id: string, dto: UpdateOperationDto) {
+    /**
+     * Объём нельзя опустить ниже того, что уже сделано.
+     *
+     * Иначе в отчётах появляется «сделано 40 из 20»: процент выполнения
+     * переваливает за сотню, а начальник производства видит участок,
+     * перевыполнивший план, которого не было. Уменьшать объём по ходу работы
+     * нормально — но не ниже фактически сданного.
+     */
+    if (dto.quantity !== undefined) {
+      const done = await this.prisma.completionRecord.aggregate({
+        where: { assignment: { operationId: id } },
+        _sum: { doneQuantity: true, defectQuantity: true },
+      });
+      const made = (done._sum.doneQuantity ?? 0) + (done._sum.defectQuantity ?? 0);
+      if (dto.quantity < made) {
+        throw new BadRequestException(
+          `По операции уже изготовлено ${made} шт (годных и брака) — ` +
+            `объём меньше этого числа поставить нельзя, иначе выполнение уйдёт за 100 %.`,
+        );
+      }
+    }
+
     try {
       return await this.prisma.operation.update({
         where: { id },
