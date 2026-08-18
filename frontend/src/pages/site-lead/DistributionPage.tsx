@@ -22,6 +22,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { SearchSelect } from '../../components/SearchSelect';
 import { Select } from '../../components/Select';
 import { useDistributionUpdates } from '../../realtime';
+import { useIsMobile } from '../../responsive';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 const UNDERPERFORMING_THRESHOLD = 0.7;
@@ -70,6 +71,19 @@ export function DistributionPage() {
   // silently refresh without a loading flash or a toast (avoids echoing the
   // site lead's own actions back as redundant notifications).
   const { connected: liveConnected } = useDistributionUpdates(user?.siteId, () => refresh(false));
+
+  /**
+   * На телефоне колонки идут друг под другом, а не рядом.
+   *
+   * Раньше раскладка была жёстко в две колонки: у панели состава смены минимум
+   * 260 точек, поэтому на экране 375 точек карточке операции оставалось 60 —
+   * название рассыпалось в столбик по букве, а панель наезжала на список.
+   * Горизонтальной прокрутки при этом не появлялось, то есть по формальным
+   * признакам всё было в порядке, и заметно это только глазами.
+   *
+   * Порядок важен: сначала операции — ради них экран и открывают.
+   */
+  const isMobile = useIsMobile();
 
   /**
    * Кандидаты на операцию, разделённые по владению навыком. Раньше список был общий:
@@ -236,7 +250,7 @@ export function DistributionPage() {
         </div>
       )}
 
-      <div style={styles.columns}>
+      <div style={{ ...styles.columns, ...(isMobile ? styles.columnsStacked : {}) }}>
         <div style={styles.leftColumn} ref={operationsRef}>
           <h3 style={styles.sectionTitle}>Операции участка</h3>
 
@@ -487,13 +501,18 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '20px',
     alignItems: 'flex-start',
   },
+  columnsStacked: {
+    flexDirection: 'column',
+  },
   leftColumn: {
     flex: 2,
     minWidth: 0,
   },
   rightColumn: {
     flex: 1,
-    minWidth: '260px',
+    // В колонку минимум не нужен: он и зажимал список операций до 60 точек.
+    minWidth: 0,
+    width: '100%',
     background: COLORS.lightGrayBg,
     borderRadius: RADIUS.md,
     padding: '16px',

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api, ApiError, type FeedbackType } from '../api/client';
 import { useToast } from './ToastProvider';
 import { Icon } from './Icon';
+import { useIsMobile } from '../responsive';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
 const TYPES: { value: FeedbackType; label: string }[] = [
@@ -21,6 +22,12 @@ export function FeedbackButton() {
   const { token } = useAuth();
   const toast = useToast();
   const location = useLocation();
+  /**
+   * На телефоне кнопка сжимается до одного значка: подпись «Сообщить» занимала
+   * заметную часть узкого экрана и накрывала содержимое под собой. Название
+   * остаётся в aria-label, поэтому для чтения с экрана ничего не теряется.
+   */
+  const isMobile = useIsMobile();
 
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>('PROBLEM');
@@ -54,9 +61,13 @@ export function FeedbackButton() {
 
   return (
     <>
-      <button style={styles.fab} onClick={() => setOpen(true)} aria-label="Сообщить о проблеме">
+      <button
+        style={{ ...styles.fab, ...(isMobile ? styles.fabMobile : {}) }}
+        onClick={() => setOpen(true)}
+        aria-label="Сообщить о проблеме"
+      >
         <Icon name="message" size={18} />
-        Сообщить
+        {!isMobile && 'Сообщить'}
       </button>
 
       {open && (
@@ -114,6 +125,11 @@ export function FeedbackButton() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  fabMobile: {
+    padding: '12px',
+    right: '16px',
+    bottom: '16px',
+  },
   fab: {
     position: 'fixed',
     right: '24px',

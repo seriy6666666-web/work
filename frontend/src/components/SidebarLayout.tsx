@@ -7,6 +7,7 @@ import { Icon, type IconName } from './Icon';
 import { NotificationBell } from './NotificationBell';
 import { FeedbackButton } from './FeedbackButton';
 import { useThemeMode } from '../theme-mode';
+import { useIsMobile } from '../responsive';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
 export interface SidebarTab {
@@ -14,21 +15,6 @@ export interface SidebarTab {
   label: string;
   icon: IconName;
   badge?: number;
-}
-
-const MOBILE_QUERY = '(max-width: 900px)';
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(MOBILE_QUERY);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return isMobile;
 }
 
 export function SidebarLayout({
@@ -131,7 +117,14 @@ export function SidebarLayout({
             </button>
           </div>
         </header>
-        <main style={styles.content}>{children}</main>
+        {/*
+          Снизу оставляем место под плавающую кнопку «Сообщить»: на телефоне она
+          накрывала последнюю кнопку экрана — например «Исправить» у рабочего, —
+          и до неё было не дотянуться.
+        */}
+        <main style={{ ...styles.content, ...(isMobile ? styles.contentMobile : {}) }}>
+          {children}
+        </main>
       </div>
       <FeedbackButton />
     </div>
@@ -311,6 +304,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px',
     borderRadius: RADIUS.sm,
     display: 'flex',
+  },
+  contentMobile: {
+    paddingBottom: '76px',
   },
   content: {
     margin: '0 16px 24px',
