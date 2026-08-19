@@ -943,20 +943,34 @@ export interface UpdateSkillPayload {
   name?: string;
 }
 
+/**
+ * Ступень допуска. Отсутствие записи означает «нет допуска» — отдельного
+ * значения для этого нет, иначе на каждого человека и каждый навык пришлось бы
+ * хранить строку.
+ */
+export type CompetencyLevel = 'LEARNING' | 'ALLOWED' | 'MENTOR';
+
 export interface CompetencyMatrix {
   skills: Skill[];
   users: { id: string; fullName: string; isAbsentToday: boolean }[];
-  competencies: { userId: string; skillId: string }[];
+  competencies: { userId: string; skillId: string; level: CompetencyLevel }[];
 }
 
 export interface SetCompetencyPayload {
   userId: string;
   skillId: string;
-  canDo: boolean;
+  /** Не указана — допуск снимается. */
+  level?: CompetencyLevel;
 }
 
 export interface Assignment {
   id: string;
+  /**
+   * Предупреждение о допуске, если он не в порядке. Приходит только в ответ на
+   * создание назначения: отказать нельзя — допуски проставлены не у всех, — а
+   * промолчать нельзя тем более.
+   */
+  competencyWarning?: string | null;
   assignedQuantity: number | null;
   createdAt: string;
   operationId: string;

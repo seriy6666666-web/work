@@ -24,7 +24,7 @@ export class CompetencyService {
       }),
       this.prisma.competency.findMany({
         where: { userId: { in: userIds } },
-        select: { userId: true, skillId: true },
+        select: { userId: true, skillId: true, level: true },
       }),
     ]);
 
@@ -44,18 +44,20 @@ export class CompetencyService {
       throw new ForbiddenException('Сотрудник не относится к вашему участку');
     }
 
-    if (dto.canDo) {
+    if (dto.level) {
       await this.prisma.competency.upsert({
         where: { userId_skillId: { userId: dto.userId, skillId: dto.skillId } },
-        create: { userId: dto.userId, skillId: dto.skillId },
-        update: {},
+        create: { userId: dto.userId, skillId: dto.skillId, level: dto.level },
+        update: { level: dto.level },
       });
     } else {
+      // Уровень не указан — допуска нет. Отдельного значения для этого не
+      // храним: иначе на каждого человека и каждый навык была бы строка.
       await this.prisma.competency.deleteMany({
         where: { userId: dto.userId, skillId: dto.skillId },
       });
     }
 
-    return { userId: dto.userId, skillId: dto.skillId, canDo: dto.canDo };
+    return { userId: dto.userId, skillId: dto.skillId, level: dto.level ?? null };
   }
 }

@@ -213,14 +213,17 @@ export function DistributionPage() {
     const form = assignForms[operationId];
     if (!form?.userId) return;
     try {
-      await api.createAssignment(token, {
+      const created = await api.createAssignment(token, {
         operationId,
         userId: form.userId,
         assignedQuantity: form.quantity ? Number(form.quantity) : undefined,
         date,
       });
       setAssignForms((prev) => ({ ...prev, [operationId]: { userId: '', quantity: '' } }));
-      toast.success('Сотрудник назначен');
+      // Назначение прошло, но о допуске надо сказать — иначе начальник узнает о нём
+      // от самого рабочего посреди смены.
+      if (created.competencyWarning) toast.error(created.competencyWarning);
+      else toast.success('Сотрудник назначен');
       await refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось назначить операцию');
@@ -232,14 +235,15 @@ export function DistributionPage() {
     if (!token || !user?.id) return;
     const form = assignForms[operationId];
     try {
-      await api.createAssignment(token, {
+      const created = await api.createAssignment(token, {
         operationId,
         userId: user.id,
         assignedQuantity: form?.quantity ? Number(form.quantity) : undefined,
         date,
       });
       setAssignForms((prev) => ({ ...prev, [operationId]: { userId: '', quantity: '' } }));
-      toast.success('Операция назначена вам');
+      if (created.competencyWarning) toast.error(created.competencyWarning);
+      else toast.success('Операция назначена вам');
       await refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось назначить операцию');

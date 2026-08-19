@@ -212,6 +212,41 @@ export class DistributionService {
     };
   }
 
+  /**
+   * Предупреждение о допуске.
+   *
+   * Именно предупреждение, а не запрет: допуски проставлены не у всех, и запрет
+   * остановил бы распределение в первый же день. Решение принимает начальник
+   * участка — он и отвечает за смену, — а система обязана сказать, чего он может
+   * не знать.
+   */
+  private async competencyWarning(operationId: string, userId: string): Promise<string | null> {
+    const operation = await this.prisma.operation.findUnique({
+      where: { id: operationId },
+      select: { operationType: { select: { skill: { select: { id: true, name: true } } } } },
+    });
+    const skill = operation?.operationType.skill;
+    // Операции без требуемого навыка выполняет кто угодно — предупреждать не о чем.
+    if (!skill) return null;
+
+    const [competency, user] = await Promise.all([
+      this.prisma.competency.findUnique({
+        where: { userId_skillId: { userId, skillId: skill.id } },
+        select: { level: true },
+      }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } }),
+    ]);
+    const who = user?.fullName ?? 'Сотрудник';
+    if (!competency) {
+      return `У «${who}» нет допуска к навыку «${skill.name}». Назначение сохранено — ` +
+        'отметьте допуск в матрице компетенций или поставьте другого.';
+    }
+    if (competency.level === 'LEARNING') {
+      return `«${who}» ещё учится навыку «${skill.name}» — работать может, но под присмотром.`;
+    }
+    return null;
+  }
+
   async createAssignment(siteId: string, viewerId: string, dto: CreateAssignmentDto) {
     const operation = await this.prisma.operation.findUnique({ where: { id: dto.operationId } });
     if (!operation) {
@@ -267,6 +302,8 @@ export class DistributionService {
       );
     }
 
+    const competencyWarning = await this.competencyWarning(dto.operationId, dto.userId);
+
     const assignment = await this.prisma.assignment.create({
       data: {
         operationId: dto.operationId,
@@ -285,7 +322,8 @@ export class DistributionService {
     });
     await this.ordersService.recomputeStatus(operation.orderId);
 
-    return assignment;
+    // Предупреждение едет вместе с назначением: отказать нельзя, а промолчать нельзя тем более.
+    return { ...assignment, competencyWarning };
   }
 
   async updateAssignment(siteId: string, id: string, dto: UpdateAssignmentDto) {
