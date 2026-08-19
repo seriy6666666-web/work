@@ -66,6 +66,12 @@ export class ShiftsOrgController {
     return this.service.listHandovers(requireSiteId(req));
   }
 
+  @Roles(Role.SITE_LEAD, Role.PRODUCTION_HEAD, Role.WORKER)
+  @Get('handovers/summary')
+  shiftSummary(@Req() req: AuthenticatedRequest) {
+    return this.service.shiftSummary(requireSiteId(req));
+  }
+
   @Roles(Role.SITE_LEAD, Role.WORKER)
   @Post('handovers')
   createHandover(@Req() req: AuthenticatedRequest, @Body() dto: CreateHandoverDto) {

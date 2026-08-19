@@ -377,6 +377,7 @@ export const api = {
     request<void>(`/shift-leads/${id}`, { method: 'DELETE' }, token),
 
   listHandovers: (token: string) => request<Handover[]>('/handovers', {}, token),
+  getShiftSummary: (token: string) => request<ShiftSummary>('/handovers/summary', {}, token),
   createHandover: (token: string, payload: { message: string; toUserId?: string }) =>
     request<Handover>('/handovers', { method: 'POST', body: JSON.stringify(payload) }, token),
 
@@ -742,6 +743,21 @@ export interface SetShiftLeadPayload {
   userId: string;
   date: string;
   type: ShiftType;
+}
+
+/**
+ * Что уходящая смена оставляет принимающей. Собирается из фактов в базе, чтобы
+ * пишущему оставалось дописать только то, чего система не знает.
+ */
+export interface ShiftSummary {
+  producedGood: number;
+  defects: number;
+  openOperations: { name: string; done: number; total: number }[];
+  equipmentDown: { name: string; status: string }[];
+  checkedIn: number;
+  peopleTotal: number;
+  /** Пока в системе нет материалов и остатков — всегда пусто. */
+  materialsShort: { name: string; left: number; unit: string }[];
 }
 
 export interface Handover {

@@ -4,6 +4,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { Role, ShiftType } from '../generated/prisma/enums';
 import { SetShiftLeadDto } from './dto/set-shift-lead.dto';
 import { CreateHandoverDto } from './dto/create-handover.dto';
+import { buildShiftSummary } from './shift-summary';
 
 function dayUtc(input: string): Date {
   return new Date(`${input.slice(0, 10)}T00:00:00.000Z`);
@@ -97,6 +98,52 @@ export class ShiftsOrgService {
   }
 
   // ---------- Пересменка: передача дел (ТЗ п.10) ----------
+
+
+  /**
+   * Что уходящая смена оставляет принимающей.
+   *
+   * Собирается из фактов: выработка и брак за день, незакрытые операции,
+   * оборудование не в работе, сколько людей отметилось. Пишущему остаётся
+   * дописать то, чего система не знает.
+   */
+  async shiftSummary(siteId: string) {
+    const today = new Date();
+    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const dateOnly = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+
+    const [operations, equipment, people, attendance] = await Promise.all([
+      this.prisma.operation.findMany({
+        where: {
+          OR: [{ siteId }, { secondarySiteId: siteId }],
+          order: { status: { notIn: ['ARCHIVED', 'DONE', 'SHIPPED'] } },
+        },
+        select: {
+          quantity: true,
+          operationType: { select: { name: true } },
+          assignments: {
+            where: { date: dateOnly },
+            select: { completionRecords: { select: { doneQuantity: true, defectQuantity: true } } },
+          },
+        },
+      }),
+      this.prisma.equipment.findMany({ where: { siteId }, select: { name: true, status: true } }),
+      this.prisma.user.count({ where: { siteId, archivedAt: null } }),
+      // Отметка прихода лежит в Shift — отдельной таблицы посещаемости нет.
+      this.prisma.shift.count({
+        where: { user: { siteId }, checkInAt: { gte: dayStart, lt: dayEnd } },
+      }),
+    ]);
+
+    return buildShiftSummary({
+      operations,
+      equipment,
+      checkedIn: attendance,
+      peopleTotal: people,
+    });
+  }
 
   listHandovers(siteId: string, limit = 30) {
     return this.prisma.shiftHandover.findMany({

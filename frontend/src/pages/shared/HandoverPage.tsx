@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type Handover } from '../../api/client';
+import { api, ApiError, type Handover, type ShiftSummary } from '../../api/client';
 import { ManagerLayout } from './ManagerLayout';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -59,12 +59,74 @@ export function HandoverPage() {
     }
   }
 
+  const [summary, setSummary] = useState<ShiftSummary | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    api
+      .getShiftSummary(token)
+      .then(setSummary)
+      // Сводка — подспорье, а не условие работы: не вышло собрать, передача дел
+      // всё равно должна отправляться.
+      .catch(() => setSummary(null));
+  }, [token]);
+
   return (
     <ManagerLayout title="Пересменка" breadcrumb="Работа">
       <p style={styles.hint}>
         Передача дел при смене: что важно знать следующей смене. Запись уходит старшему следующей
         смены и дублем начальнику производства.
       </p>
+
+      {summary && (
+        <div style={styles.summary}>
+          <span style={styles.summaryTitle}>Что оставляет смена</span>
+          <div style={styles.summaryRow}>
+            <span style={styles.summaryItem}>
+              Сделано: <b>{summary.producedGood}</b> шт
+            </span>
+            <span style={{ ...styles.summaryItem, ...(summary.defects > 0 ? styles.summaryBad : null) }}>
+              Брак: <b>{summary.defects}</b>
+            </span>
+            <span style={styles.summaryItem}>
+              На смене отметились: <b>{summary.checkedIn}</b> из {summary.peopleTotal}
+            </span>
+          </div>
+
+          {summary.openOperations.length > 0 && (
+            <div style={styles.summaryBlock}>
+              <span style={styles.summaryLabel}>Незакрытые операции</span>
+              {summary.openOperations.map((o) => (
+                <div key={o.name} style={styles.summaryLine}>
+                  {o.name} — <b>{o.done}</b> из {o.total}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {summary.equipmentDown.length > 0 && (
+            <div style={styles.summaryBlock}>
+              <span style={styles.summaryLabel}>Оборудование не в работе</span>
+              {summary.equipmentDown.map((e) => (
+                <div key={e.name} style={styles.summaryLine}>
+                  {e.name} — {e.status === 'BROKEN' ? 'поломка' : 'на обслуживании'}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/*
+            Про материалы говорим прямо. Промолчать было бы хуже: принимающий
+            решил бы, что дефицита нет, а система про них просто не знает.
+          */}
+          <div style={styles.summaryBlock}>
+            <span style={styles.summaryLabel}>Материалы</span>
+            <div style={styles.summaryMuted}>
+              Остатки в системе не ведутся — про материалы напишите словами.
+            </div>
+          </div>
+        </div>
+      )}
 
       {canSend && (
         <form onSubmit={handleSend} style={styles.form}>
@@ -118,6 +180,53 @@ export function HandoverPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  summary: {
+    padding: '14px 16px',
+    borderRadius: '14px',
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    boxShadow: 'var(--sh1)',
+    marginBottom: '16px',
+  },
+  summaryTitle: {
+    display: 'block',
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.16em',
+    textTransform: 'uppercase',
+    color: 'var(--tx3)',
+    marginBottom: '10px',
+  },
+  summaryRow: {
+    display: 'flex',
+    gap: '18px',
+    flexWrap: 'wrap',
+    fontSize: '14px',
+    color: 'var(--tx2)',
+  },
+  summaryItem: {
+    whiteSpace: 'nowrap',
+  },
+  summaryBad: {
+    color: 'var(--err)',
+  },
+  summaryBlock: {
+    marginTop: '12px',
+  },
+  summaryLabel: {
+    display: 'block',
+    fontSize: '12px',
+    color: 'var(--tx3)',
+    marginBottom: '4px',
+  },
+  summaryLine: {
+    fontSize: '14px',
+    color: 'var(--tx)',
+  },
+  summaryMuted: {
+    fontSize: '13px',
+    color: 'var(--tx3)',
+  },
   hint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0 },
   form: { display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px', alignItems: 'flex-start' },
   textarea: {

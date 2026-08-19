@@ -15,7 +15,7 @@ import { useTableControls, SortSelect, type SortChoice } from '../../components/
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
-import { Button, Input } from '../../components/ui';
+import { Button, Input, LinkButton } from '../../components/ui';
 
 const STATUS_META: Record<EquipmentStatus, { label: string; variant: BadgeVariant }> = {
   OPERATIONAL: { label: 'В работе', variant: 'accent' },
@@ -204,7 +204,21 @@ export function EquipmentPage() {
           {controls.result.map((item) => {
             const dueSoon = item.status !== 'BROKEN' && maintenanceDueSoon(item.nextMaintenanceAt);
             return (
-              <div key={item.id} style={styles.card}>
+              <div
+                key={item.id}
+                style={{
+                  ...styles.card,
+                  // Цвет слева несёт смысл: красное — стоит, янтарное — на
+                  // обслуживании. В цеху карточки просматривают, а не читают.
+                  borderLeft: `4px solid ${
+                    item.status === 'BROKEN'
+                      ? 'var(--err)'
+                      : item.status === 'MAINTENANCE'
+                        ? 'var(--warn)'
+                        : 'var(--acc)'
+                  }`,
+                }}
+              >
                 <div style={styles.cardMain}>
                   <div style={styles.nameRow}>
                     <strong>{item.name}</strong>
@@ -227,6 +241,22 @@ export function EquipmentPage() {
                   </div>
                 </div>
                 <div style={styles.actions}>
+                  {/*
+                    Заявка в ремонт — одной кнопкой, а не выбором в списке.
+                    Станок встаёт посреди смены, и в этот момент человек стоит у
+                    него с телефоном: чем меньше шагов, тем выше шанс, что о
+                    поломке вообще узнают. Начальнику производства уходит
+                    оповещение сразу.
+                  */}
+                  {item.status === 'BROKEN' ? (
+                    <Button variant="ghost" onClick={() => handleStatus(item, 'OPERATIONAL')}>
+                      Вернуть в работу
+                    </Button>
+                  ) : (
+                    <Button variant="danger" onClick={() => handleStatus(item, 'BROKEN')}>
+                      Заявка в ремонт
+                    </Button>
+                  )}
                   <Select
                     width="170px"
                     ariaLabel="Состояние оборудования"
@@ -234,9 +264,9 @@ export function EquipmentPage() {
                     onChange={(status) => handleStatus(item, status as EquipmentStatus)}
                     options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_META[s].label }))}
                   />
-                  <button style={styles.linkDanger} onClick={() => handleDelete(item)}>
+                  <LinkButton danger onClick={() => handleDelete(item)}>
                     Удалить
-                  </button>
+                  </LinkButton>
                 </div>
               </div>
             );
