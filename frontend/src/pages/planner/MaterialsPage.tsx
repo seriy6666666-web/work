@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Th, Td, Button, Input } from '../../components/ui';
 
 function isLow(s: MaterialStock): boolean {
   return s.quantity <= s.lowStockThreshold;
@@ -176,9 +177,9 @@ export function MaterialsPage() {
       <div style={styles.card}>
         <p style={styles.blockTitle}>Каталог материалов</p>
         <form onSubmit={handleCreateMaterial} style={styles.row}>
-          <input style={styles.input} placeholder="Название (например «Припой»)" value={matName} onChange={(e) => setMatName(e.target.value)} />
+          <Input style={{ flex: 1, minWidth: '140px' }} placeholder="Название (например «Припой»)" value={matName} onChange={(e) => setMatName(e.target.value)} />
           <input style={{ ...styles.input, maxWidth: '120px' }} placeholder="Ед. (кг)" value={matUnit} onChange={(e) => setMatUnit(e.target.value)} />
-          <button style={styles.button} type="submit" disabled={!matName.trim() || !matUnit.trim()}>Добавить</button>
+          <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit" disabled={!matName.trim() || !matUnit.trim()}>Добавить</Button>
         </form>
         {materials.length > 0 && (
           <div style={styles.chips}>
@@ -225,7 +226,7 @@ export function MaterialsPage() {
         />
         <input style={{ ...styles.input, maxWidth: '110px' }} type="number" step="any" placeholder="Остаток" value={stockForm.quantity} onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })} />
         <input style={{ ...styles.input, maxWidth: '100px' }} type="number" step="any" placeholder="Порог" value={stockForm.threshold} onChange={(e) => setStockForm({ ...stockForm, threshold: e.target.value })} />
-        <button style={styles.button} type="submit">Задать</button>
+        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">Задать</Button>
       </form>
 
       {loading ? (
@@ -234,7 +235,7 @@ export function MaterialsPage() {
         <EmptyState icon="layers" title="Остатков пока нет" hint="Задайте остаток материала на площадке под проект в форме выше." />
       ) : (
         <div style={styles.tableWrap}>
-          <table style={styles.table}>
+          <Table style={{ fontSize: '14px' }}>
             <thead>
               <tr>
                 <SortHeader label="Материал" sortKey="material" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -242,8 +243,8 @@ export function MaterialsPage() {
                 <SortHeader label="Проект" sortKey="project" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Остаток" sortKey="quantity" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
                 <SortHeader label="Порог" sortKey="threshold" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
-                <th style={styles.th}>Приход / расход</th>
-                <th style={styles.th}></th>
+                <Th style={{ fontWeight: 600, borderBottom: `1px solid ${COLORS.lightGreenBg}`, whiteSpace: 'nowrap' }}>Приход / расход</Th>
+                <Th style={{ fontWeight: 600, borderBottom: `1px solid ${COLORS.lightGreenBg}`, whiteSpace: 'nowrap' }}></Th>
               </tr>
             </thead>
             <tbody>
@@ -251,15 +252,15 @@ export function MaterialsPage() {
                 const low = isLow(s);
                 return (
                   <tr key={s.id} style={low ? styles.rowLow : undefined}>
-                    <td style={styles.td}>{s.material.name}</td>
-                    <td style={styles.td}>{s.platform.name}</td>
-                    <td style={styles.td}>{s.project.name}</td>
+                    <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>{s.material.name}</Td>
+                    <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>{s.platform.name}</Td>
+                    <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>{s.project.name}</Td>
                     <td style={{ ...styles.td, textAlign: 'right', fontWeight: 700, ...(low ? { color: COLORS.error } : {}) }}>
                       {fmt(s.quantity)} {s.material.unit}
                       {low && <> <Badge variant="danger">мало</Badge></>}
                     </td>
                     <td style={{ ...styles.td, textAlign: 'right', color: COLORS.mutedText }}>{fmt(s.lowStockThreshold)}</td>
-                    <td style={styles.td}>
+                    <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>
                       <div style={styles.adjustCell}>
                         <input
                           style={styles.adjustInput}
@@ -273,15 +274,15 @@ export function MaterialsPage() {
                         <button style={styles.plus} onClick={() => handleAdjust(s, 1)}>+</button>
                         <button style={styles.minus} onClick={() => handleAdjust(s, -1)}>−</button>
                       </div>
-                    </td>
-                    <td style={{ ...styles.td, textAlign: 'right' }}>
+                    </Td>
+                    <Td align="right" style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>
                       <button style={styles.linkDanger} onClick={() => handleDeleteStock(s)}>Удалить</button>
-                    </td>
+                    </Td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+          </Table>
         </div>
       )}
     </PlannerLayout>
@@ -310,16 +311,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: COLORS.lightGrayBg,
     fontSize: '15px',
   },
-  button: {
-    padding: '10px 18px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   chips: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
   chip: {
     display: 'inline-flex',
@@ -340,8 +331,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 12px',
     overflowX: 'auto',
   },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
-  th: { textAlign: 'left', padding: '10px 8px', color: COLORS.mutedText, fontWeight: 600, fontSize: '13px', borderBottom: `1px solid ${COLORS.lightGreenBg}`, whiteSpace: 'nowrap' },
   td: { padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' },
   rowLow: { background: COLORS.errorBg },
   adjustCell: { display: 'flex', gap: '6px', alignItems: 'center' },

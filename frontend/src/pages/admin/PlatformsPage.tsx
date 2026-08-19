@@ -8,7 +8,8 @@ import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
-import { COLORS, RADIUS } from '../../theme';
+import { COLORS } from '../../theme';
+import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
 
 export function PlatformsPage() {
   const { token } = useAuth();
@@ -117,21 +118,19 @@ export function PlatformsPage() {
       </p>
 
       <form onSubmit={handleCreate} style={styles.createForm}>
-        <input
-          style={styles.input}
+        <Input style={{ flex: 1, minWidth: '180px' }}
           placeholder="Название (например «Площадка Минск»)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
-        <input
-          style={styles.input}
+        <Input style={{ flex: 1, minWidth: '180px' }}
           placeholder="Адрес (необязательно)"
           value={newAddress}
           onChange={(e) => setNewAddress(e.target.value)}
         />
-        <button style={styles.button} type="submit" disabled={creating || !newName.trim()}>
+        <Button type="submit" disabled={creating || !newName.trim()}>
           Добавить
-        </button>
+        </Button>
       </form>
 
       {!loading && platforms.length > 0 && (
@@ -147,21 +146,20 @@ export function PlatformsPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <table style={styles.table}>
+        <Table>
           <thead>
             <tr>
               <SortHeader label="Название" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Адрес" sortKey="address" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <th style={styles.th}></th>
+              <Th></Th>
             </tr>
           </thead>
           <tbody>
             {controls.result.map((p) => (
               <tr key={p.id}>
-                <td style={styles.td}>
+                <Td>
                   {editingId === p.id ? (
-                    <input
-                      style={styles.input}
+                    <Input style={{ flex: 1, minWidth: '180px' }}
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       autoFocus
@@ -169,11 +167,10 @@ export function PlatformsPage() {
                   ) : (
                     p.name
                   )}
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {editingId === p.id ? (
-                    <input
-                      style={styles.input}
+                    <Input style={{ flex: 1, minWidth: '180px' }}
                       value={editingAddress}
                       onChange={(e) => setEditingAddress(e.target.value)}
                       placeholder="Адрес"
@@ -181,16 +178,16 @@ export function PlatformsPage() {
                   ) : (
                     p.address || <span style={styles.muted}>—</span>
                   )}
-                </td>
-                <td style={{ ...styles.td, textAlign: 'right' }}>
+                </Td>
+                <Td align="right">
                   {editingId === p.id ? (
                     <>
-                      <button style={styles.linkButton} onClick={() => saveEdit(p.id)}>
+                      <LinkButton onClick={() => saveEdit(p.id)}>
                         Сохранить
-                      </button>
-                      <button style={styles.linkButton} onClick={() => setEditingId(null)}>
+                      </LinkButton>
+                      <LinkButton onClick={() => setEditingId(null)}>
                         Отмена
-                      </button>
+                      </LinkButton>
                     </>
                   ) : (
                     <>
@@ -200,11 +197,11 @@ export function PlatformsPage() {
                       />
                     </>
                   )}
-                </td>
+                </Td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </AdminLayout>
   );
@@ -215,48 +212,4 @@ const styles: Record<string, React.CSSProperties> = {
   muted: { color: COLORS.mutedText },
   createForm: { display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' },
   toolbar: { marginBottom: '16px' },
-  input: {
-    flex: 1,
-    minWidth: '180px',
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  td: { padding: '10px 8px', borderBottom: `1px solid ${COLORS.lightGreenBg}` },
-  linkButton: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.accentDark,
-    cursor: 'pointer',
-    fontSize: '14px',
-    marginLeft: '12px',
-  },
-  linkButtonDanger: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.error,
-    cursor: 'pointer',
-    fontSize: '14px',
-    marginLeft: '12px',
-  },
 };

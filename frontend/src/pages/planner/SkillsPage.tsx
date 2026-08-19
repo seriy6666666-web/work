@@ -8,7 +8,8 @@ import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
-import { COLORS, RADIUS } from '../../theme';
+import { COLORS } from '../../theme';
+import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
 
 export function SkillsPage() {
   const { token } = useAuth();
@@ -110,15 +111,14 @@ export function SkillsPage() {
       </p>
 
       <form onSubmit={handleCreate} style={styles.createForm}>
-        <input
-          style={styles.input}
+        <Input style={{ flex: 1 }}
           placeholder="Название навыка (например «Пайка»)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
-        <button style={styles.button} type="submit" disabled={creating || !newName.trim()}>
+        <Button type="submit" disabled={creating || !newName.trim()}>
           Добавить
-        </button>
+        </Button>
       </form>
 
       {!loading && skills.length > 0 && (
@@ -134,20 +134,19 @@ export function SkillsPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <table style={styles.table}>
+        <Table>
           <thead>
             <tr>
               <SortHeader label="Название" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <th style={styles.th}></th>
+              <Th></Th>
             </tr>
           </thead>
           <tbody>
             {controls.result.map((skill) => (
               <tr key={skill.id}>
-                <td style={styles.td}>
+                <Td>
                   {editingId === skill.id ? (
-                    <input
-                      style={styles.input}
+                    <Input style={{ flex: 1 }}
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       autoFocus
@@ -155,16 +154,16 @@ export function SkillsPage() {
                   ) : (
                     skill.name
                   )}
-                </td>
-                <td style={{ ...styles.td, textAlign: 'right' }}>
+                </Td>
+                <Td align="right">
                   {editingId === skill.id ? (
                     <>
-                      <button style={styles.linkButton} onClick={() => saveEdit(skill.id)}>
+                      <LinkButton onClick={() => saveEdit(skill.id)}>
                         Сохранить
-                      </button>
-                      <button style={styles.linkButton} onClick={() => setEditingId(null)}>
+                      </LinkButton>
+                      <LinkButton onClick={() => setEditingId(null)}>
                         Отмена
-                      </button>
+                      </LinkButton>
                     </>
                   ) : (
                     <>
@@ -174,11 +173,11 @@ export function SkillsPage() {
                       />
                     </>
                   )}
-                </td>
+                </Td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </PlannerLayout>
   );
@@ -191,17 +190,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: 0,
     marginBottom: '16px',
   },
-  muted: {
-    color: COLORS.mutedText,
-  },
-  normInput: {
-    width: '130px',
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
   createForm: {
     display: 'flex',
     gap: '12px',
@@ -209,54 +197,5 @@ const styles: Record<string, React.CSSProperties> = {
   },
   toolbar: {
     marginBottom: '16px',
-  },
-  input: {
-    flex: 1,
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  td: {
-    padding: '10px 8px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
-  },
-  linkButton: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.accentDark,
-    cursor: 'pointer',
-    fontSize: '14px',
-    marginLeft: '12px',
-  },
-  linkButtonDanger: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.error,
-    cursor: 'pointer',
-    fontSize: '14px',
-    marginLeft: '12px',
   },
 };

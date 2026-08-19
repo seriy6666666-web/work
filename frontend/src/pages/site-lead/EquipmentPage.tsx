@@ -15,6 +15,7 @@ import { useTableControls, SortSelect, type SortChoice } from '../../components/
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { Button, Input } from '../../components/ui';
 
 const STATUS_META: Record<EquipmentStatus, { label: string; variant: BadgeVariant }> = {
   OPERATIONAL: { label: 'В работе', variant: 'accent' },
@@ -164,24 +165,22 @@ export function EquipmentPage() {
       </p>
 
       <form onSubmit={handleCreate} style={styles.createForm}>
-        <input
-          style={styles.input}
+        <Input
           placeholder="Название (например «Линия сборки №2»)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
         <label style={styles.dateLabel}>
           <span style={styles.dateCaption}>След. обслуживание</span>
-          <input
-            style={styles.input}
+          <Input
             type="date"
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
           />
         </label>
-        <button style={styles.button} type="submit" disabled={creating || !newName.trim()}>
+        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit" disabled={creating || !newName.trim()}>
           Добавить
-        </button>
+        </Button>
       </form>
 
       {loading ? (
@@ -251,25 +250,8 @@ export function EquipmentPage() {
 const styles: Record<string, React.CSSProperties> = {
   hint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0 },
   createForm: { display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'flex-end' },
-  input: {
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
   dateLabel: { display: 'flex', flexDirection: 'column', gap: '4px' },
   dateCaption: { fontSize: '12px', color: COLORS.mutedText },
-  button: {
-    padding: '10px 18px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   list: { display: 'flex', flexDirection: 'column', gap: '12px' },
   /** Выбор порядка прижат вправо, чтобы не спорить с карточками. */
   listControls: { display: 'flex', justifyContent: 'flex-end' },
@@ -298,12 +280,5 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '13px',
   },
   actions: { display: 'flex', alignItems: 'center', gap: '12px' },
-  statusSelect: {
-    padding: '8px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '14px',
-  },
   linkDanger: { border: 'none', background: 'none', color: COLORS.error, cursor: 'pointer', fontSize: '13px' },
 };

@@ -7,8 +7,9 @@ import { Badge, type BadgeVariant } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { Select } from '../../components/Select';
-import { COLORS, RADIUS } from '../../theme';
+import { COLORS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
 
 const STATUS_LABELS: Record<Transfer['status'], string> = {
   PENDING: 'Ожидает решения',
@@ -136,23 +137,21 @@ export function TransfersPage() {
             hint: u.site.name,
           }))}
         />
-        <input
-          style={styles.input}
+        <Input
           type="date"
           value={form.startDate}
           onChange={(e) => setForm({ ...form, startDate: e.target.value })}
           required
         />
-        <input
-          style={styles.input}
+        <Input
           type="date"
           value={form.endDate}
           onChange={(e) => setForm({ ...form, endDate: e.target.value })}
           required
         />
-        <button style={styles.button} type="submit" disabled={creating}>
+        <Button type="submit" disabled={creating}>
           Запросить перевод
-        </button>
+        </Button>
       </form>
 
       {loading ? (
@@ -160,37 +159,37 @@ export function TransfersPage() {
       ) : (
         <>
           <h3 style={styles.subheading}>Ожидают вашего решения (ваши сотрудники)</h3>
-          <table style={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <SortHeader label="Сотрудник" sortKey="user" activeKey={outControls.sortKey} dir={outControls.sortDir} onSort={outControls.toggleSort} />
                 <SortHeader label="Запросил участок" sortKey="site" activeKey={outControls.sortKey} dir={outControls.sortDir} onSort={outControls.toggleSort} />
                 <SortHeader label="Период" sortKey="period" activeKey={outControls.sortKey} dir={outControls.sortDir} onSort={outControls.toggleSort} />
-                <th style={styles.th}></th>
+                <Th></Th>
               </tr>
             </thead>
             <tbody>
               {outControls.result.map((t) => (
                 <tr key={t.id}>
-                  <td style={styles.td}>
+                  <Td>
                     <div style={styles.nameCell}>
                       <Avatar name={t.user.fullName} size={26} />
                       {t.user.fullName}
                     </div>
-                  </td>
-                  <td style={styles.td}>{t.toSite.name}</td>
-                  <td style={styles.td}>
+                  </Td>
+                  <Td>{t.toSite.name}</Td>
+                  <Td>
                     {new Date(t.startDate).toLocaleDateString('ru-RU')} –{' '}
                     {new Date(t.endDate).toLocaleDateString('ru-RU')}
-                  </td>
-                  <td style={{ ...styles.td, textAlign: 'right' }}>
-                    <button style={styles.linkButton} onClick={() => handleRespond(t.id, true)}>
+                  </Td>
+                  <Td align="right">
+                    <LinkButton onClick={() => handleRespond(t.id, true)}>
                       Подтвердить
-                    </button>
-                    <button style={styles.linkButtonDanger} onClick={() => handleRespond(t.id, false)}>
+                    </LinkButton>
+                    <LinkButton danger onClick={() => handleRespond(t.id, false)}>
                       Отклонить
-                    </button>
-                  </td>
+                    </LinkButton>
+                  </Td>
                 </tr>
               ))}
               {outgoing.length === 0 && (
@@ -201,10 +200,10 @@ export function TransfersPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </Table>
 
           <h3 style={styles.subheading}>Ваши запросы</h3>
-          <table style={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <SortHeader label="Сотрудник" sortKey="user" activeKey={inControls.sortKey} dir={inControls.sortDir} onSort={inControls.toggleSort} />
@@ -216,20 +215,20 @@ export function TransfersPage() {
             <tbody>
               {inControls.result.map((t) => (
                 <tr key={t.id}>
-                  <td style={styles.td}>
+                  <Td>
                     <div style={styles.nameCell}>
                       <Avatar name={t.user.fullName} size={26} />
                       {t.user.fullName}
                     </div>
-                  </td>
-                  <td style={styles.td}>{t.fromSite.name}</td>
-                  <td style={styles.td}>
+                  </Td>
+                  <Td>{t.fromSite.name}</Td>
+                  <Td>
                     {new Date(t.startDate).toLocaleDateString('ru-RU')} –{' '}
                     {new Date(t.endDate).toLocaleDateString('ru-RU')}
-                  </td>
-                  <td style={styles.td}>
+                  </Td>
+                  <Td>
                     <Badge variant={STATUS_BADGE[t.status]}>{STATUS_LABELS[t.status]}</Badge>
-                  </td>
+                  </Td>
                 </tr>
               ))}
               {incoming.length === 0 && (
@@ -240,7 +239,7 @@ export function TransfersPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </Table>
         </>
       )}
     </SiteLeadLayout>
@@ -258,34 +257,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '24px',
     alignItems: 'center',
   },
-  input: {
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
   td: {
     padding: '10px 8px',
     borderBottom: `1px solid ${COLORS.lightGreenBg}`,
@@ -294,21 +265,5 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-  },
-  linkButton: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.accentDark,
-    cursor: 'pointer',
-    fontSize: '14px',
-    marginLeft: '12px',
-  },
-  linkButtonDanger: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.error,
-    cursor: 'pointer',
-    fontSize: '14px',
-    marginLeft: '12px',
   },
 };

@@ -8,6 +8,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useSortState, sortWith, SortHeader } from '../../components/TableControls';
+import { Table, Td } from '../../components/ui';
 
 const STATUS_META: Record<EquipmentStatus, { label: string; variant: BadgeVariant }> = {
   OPERATIONAL: { label: 'В работе', variant: 'accent' },
@@ -123,7 +124,7 @@ export function EquipmentOverviewPage() {
                 {g.broken > 0 && <Badge variant="danger">Поломки: {g.broken}</Badge>}
               </div>
             </div>
-            <table style={styles.table}>
+            <Table style={{ fontSize: '14px' }}>
               <thead>
                 <tr>
                   <SortHeader label="Оборудование" sortKey="name" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
@@ -134,17 +135,17 @@ export function EquipmentOverviewPage() {
               <tbody>
                 {sortWith(g.items, ACCESSORS[sort.sortKey] ?? ACCESSORS.name, sort.sortDir).map((item) => (
                   <tr key={item.id}>
-                    <td style={styles.td}>{item.name}</td>
-                    <td style={styles.td}>
+                    <Td style={{ padding: '8px 10px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>{item.name}</Td>
+                    <Td style={{ padding: '8px 10px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>
                       <Badge variant={STATUS_META[item.status].variant}>
                         {STATUS_META[item.status].label}
                       </Badge>
-                    </td>
-                    <td style={styles.td}>{formatDate(item.nextMaintenanceAt)}</td>
+                    </Td>
+                    <Td style={{ padding: '8px 10px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>{formatDate(item.nextMaintenanceAt)}</Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           </div>
         ))
       )}
@@ -172,14 +173,4 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '8px',
   },
   headerBadges: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
-  th: {
-    textAlign: 'left',
-    padding: '8px 10px',
-    color: COLORS.mutedText,
-    fontWeight: 600,
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
-    fontSize: '13px',
-  },
-  td: { padding: '8px 10px', borderBottom: `1px solid ${COLORS.lightGrayBg}` },
 };

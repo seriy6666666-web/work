@@ -12,6 +12,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table } from '../../components/ui';
 
 function ymd(d: Date): string {
   const y = d.getFullYear();
@@ -134,7 +135,7 @@ export function ShiftPlanningPage() {
         />
       ) : (
         <div style={styles.tableWrap}>
-          <table style={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -179,7 +180,7 @@ export function ShiftPlanningPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         </div>
       )}
     </SiteLeadLayout>
@@ -232,7 +233,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px',
     overflowX: 'auto',
   },
-  table: { borderCollapse: 'collapse', width: '100%' },
   th: {
     padding: '8px',
     textAlign: 'center',

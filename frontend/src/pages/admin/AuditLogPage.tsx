@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS } from '../../theme';
 import { SortHeader } from '../../components/TableControls';
+import { Table, Th, Td, Button, Input } from '../../components/ui';
 
 const METHOD_BADGE: Record<string, BadgeVariant> = {
   POST: 'accent',
@@ -90,8 +91,7 @@ export function AuditLogPage() {
     <AdminLayout title="Журнал действий" breadcrumb="Администрирование">
 
       <div style={styles.filters}>
-        <input
-          style={styles.input}
+        <Input style={{ borderRadius: '8px' }}
           placeholder="ID пользователя"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
@@ -107,11 +107,11 @@ export function AuditLogPage() {
             ...METHODS.map((m) => ({ value: m, label: m })),
           ]}
         />
-        <input style={styles.input} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        <input style={styles.input} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-        <button style={styles.button} onClick={applyFilters}>
+        <Input style={{ borderRadius: '8px' }} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <Input style={{ borderRadius: '8px' }} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        <Button style={{ borderRadius: '8px' }} onClick={applyFilters}>
           Применить
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -120,12 +120,12 @@ export function AuditLogPage() {
         <EmptyState icon="list" title="Записей нет" hint="Под выбранные фильтры ничего не найдено." />
       ) : (
         <>
-          <table style={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <SortHeader label="Время" sortKey="createdAt" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
                 <SortHeader label="Пользователь" sortKey="username" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
-                <th style={styles.th}>Роль</th>
+                <Th>Роль</Th>
                 <SortHeader label="Метод" sortKey="method" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
                 <SortHeader label="Путь" sortKey="path" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
                 <SortHeader label="Код" sortKey="statusCode" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
@@ -134,18 +134,18 @@ export function AuditLogPage() {
             <tbody>
               {data?.entries.map((entry: AuditLogEntry) => (
                 <tr key={entry.id}>
-                  <td style={styles.td}>{new Date(entry.createdAt).toLocaleString('ru-RU')}</td>
-                  <td style={styles.td}>{entry.username ?? '—'}</td>
-                  <td style={styles.td}>{entry.role ?? '—'}</td>
-                  <td style={styles.td}>
+                  <Td>{new Date(entry.createdAt).toLocaleString('ru-RU')}</Td>
+                  <Td>{entry.username ?? '—'}</Td>
+                  <Td>{entry.role ?? '—'}</Td>
+                  <Td>
                     <Badge variant={METHOD_BADGE[entry.method] ?? 'muted'}>{entry.method}</Badge>
-                  </td>
-                  <td style={styles.td}>{entry.path}</td>
-                  <td style={styles.td}>{entry.statusCode}</td>
+                  </Td>
+                  <Td>{entry.path}</Td>
+                  <Td>{entry.statusCode}</Td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
 
           <div style={styles.pagination}>
             <button
@@ -173,22 +173,12 @@ export function AuditLogPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  heading: {
-    marginTop: 0,
-  },
   filters: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: '12px',
     marginBottom: '24px',
     alignItems: 'center',
-  },
-  input: {
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
   },
   button: {
     padding: '10px 20px',
@@ -199,21 +189,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '15px',
     fontWeight: 600,
     cursor: 'pointer',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  td: {
-    padding: '10px 8px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
   },
   pagination: {
     display: 'flex',

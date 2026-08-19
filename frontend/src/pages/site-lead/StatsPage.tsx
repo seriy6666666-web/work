@@ -10,6 +10,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { Icon } from '../../components/Icon';
 import { COLORS, RADIUS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Th, Td, Button } from '../../components/ui';
 
 /** Colour the norm-rate cell: red below 85% of norm, green when at/above norm. */
 function normStyle(rate: number | null): React.CSSProperties {
@@ -95,10 +96,10 @@ export function StatsPage() {
             </button>
           ))}
         </div>
-        <button style={styles.button} onClick={handleExport} disabled={exporting}>
+        <Button style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleExport} disabled={exporting}>
           <Icon name="download" size={16} />
           Скачать CSV
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -144,7 +145,7 @@ export function StatsPage() {
             </div>
           ) : null}
 
-          <table style={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -153,30 +154,30 @@ export function StatsPage() {
                 <SortHeader label="Брак" sortKey="defects" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Исключено (уважительная причина)" sortKey="excused" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Всего назначений" sortKey="total" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-                <th style={styles.th}>Причины невыполнения</th>
+                <Th>Причины невыполнения</Th>
               </tr>
             </thead>
             <tbody>
               {controls.result.map((e) => (
                 <tr key={e.userId}>
-                  <td style={styles.td}>
+                  <Td>
                     <div style={styles.nameCell}>
                       <Avatar name={e.fullName} size={26} />
                       {e.fullName}
                     </div>
-                  </td>
+                  </Td>
                   <td style={{ ...styles.td, ...normStyle(e.normRate) }}>
                     {e.normRate === null ? '—' : `${Math.round(e.normRate * 100)}%`}
                   </td>
-                  <td style={styles.td}>
+                  <Td>
                     {e.completionRate === null ? '—' : `${Math.round(e.completionRate * 100)}%`}
-                  </td>
+                  </Td>
                   <td style={{ ...styles.td, ...(e.defectRate && e.defectRate > 0 ? styles.defectValue : {}) }}>
                     {e.defectRate === null ? '—' : `${Math.round(e.defectRate * 100)}% (${e.defectCount})`}
                   </td>
-                  <td style={styles.td}>{e.excusedCount}</td>
-                  <td style={styles.td}>{e.totalCount}</td>
-                  <td style={styles.td}>
+                  <Td>{e.excusedCount}</Td>
+                  <Td>{e.totalCount}</Td>
+                  <Td>
                     {e.reasons.length === 0 ? (
                       <span style={styles.muted}>—</span>
                     ) : (
@@ -186,7 +187,7 @@ export function StatsPage() {
                         ))}
                       </ul>
                     )}
-                  </td>
+                  </Td>
                 </tr>
               ))}
               {ranking.entries.length === 0 && (
@@ -197,7 +198,7 @@ export function StatsPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </Table>
         </>
       ) : null}
     </SiteLeadLayout>
@@ -232,19 +233,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: COLORS.white,
     fontWeight: 600,
   },
-  button: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   muted: {
     color: COLORS.mutedText,
     fontSize: '14px',
@@ -252,17 +240,6 @@ const styles: Record<string, React.CSSProperties> = {
   defectValue: {
     color: COLORS.error,
     fontWeight: 700,
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
   },
   td: {
     padding: '10px 8px',

@@ -10,6 +10,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { Button } from '../../components/ui';
 
 interface Assignable {
   id: string;
@@ -148,9 +149,9 @@ export function TasksPage() {
           value={form.dueDate}
           onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
         />
-        <button style={styles.button} type="submit" disabled={creating || !form.title.trim()}>
+        <Button style={{ fontSize: '14px' }} type="submit" disabled={creating || !form.title.trim()}>
           Добавить
-        </button>
+        </Button>
       </form>
 
       <div style={styles.toolbar}>
@@ -234,16 +235,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${COLORS.lightGreenBg}`,
     background: COLORS.lightGrayBg,
     fontSize: '15px',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
   },
   toolbar: { display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px' },
   counter: { fontSize: '14px', color: COLORS.mutedText },

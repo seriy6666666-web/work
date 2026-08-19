@@ -8,6 +8,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { Button, Input } from '../../components/ui';
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -97,9 +98,9 @@ export function MyWorkPage() {
         {!shift ? (
           <>
             <span style={styles.attText}>Смена не начата</span>
-            <button style={styles.button} disabled={busy} onClick={() => handleAttendance('in')}>
+            <Button style={{ padding: '10px 18px', fontSize: '14px' }} disabled={busy} onClick={() => handleAttendance('in')}>
               Отметить приход
-            </button>
+            </Button>
           </>
         ) : (
           <>
@@ -146,8 +147,7 @@ export function MyWorkPage() {
                 <div style={styles.inputs}>
                   <label style={styles.field}>
                     <span style={styles.fieldLabel}>Годных, шт</span>
-                    <input
-                      style={styles.input}
+                    <Input style={{ width: '110px', padding: '9px 12px' }}
                       type="number"
                       min="0"
                       value={form.done}
@@ -156,17 +156,16 @@ export function MyWorkPage() {
                   </label>
                   <label style={styles.field}>
                     <span style={styles.fieldLabel}>Брак, шт</span>
-                    <input
-                      style={styles.input}
+                    <Input style={{ width: '110px', padding: '9px 12px' }}
                       type="number"
                       min="0"
                       value={form.defect}
                       onChange={(e) => setInputs((p) => ({ ...p, [t.id]: { ...form, defect: e.target.value } }))}
                     />
                   </label>
-                  <button style={styles.button} disabled={!t.canCorrect} onClick={() => submit(t)}>
+                  <Button style={{ padding: '10px 18px', fontSize: '14px' }} disabled={!t.canCorrect} onClick={() => submit(t)}>
                     {rec ? 'Исправить' : 'Записать'}
-                  </button>
+                  </Button>
                 </div>
                 {!t.canCorrect && <p style={styles.limit}>Лимит исправлений исчерпан</p>}
               </div>
@@ -193,16 +192,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '18px',
   },
   attText: { fontSize: '15px', color: COLORS.darkText },
-  button: {
-    padding: '10px 18px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   buttonOutline: {
     padding: '10px 18px',
     borderRadius: RADIUS.sm,
@@ -226,13 +215,5 @@ const styles: Record<string, React.CSSProperties> = {
   inputs: { display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' },
   field: { display: 'flex', flexDirection: 'column', gap: '4px' },
   fieldLabel: { fontSize: '12px', color: COLORS.mutedText },
-  input: {
-    width: '110px',
-    padding: '9px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
   limit: { margin: '10px 0 0', fontSize: '13px', color: COLORS.error },
 };

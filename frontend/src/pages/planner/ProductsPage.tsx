@@ -19,6 +19,7 @@ import { useTableControls, SortSelect, type SortChoice } from '../../components/
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { Button, Input } from '../../components/ui';
 
 interface OpForm {
   operationTypeId: string;
@@ -253,15 +254,14 @@ export function ProductsPage() {
       </p>
 
       <form onSubmit={handleCreate} style={styles.createForm}>
-        <input
-          style={styles.input}
+        <Input
           placeholder="Название проекта (например «АКБ 24В 100Ач»)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
-        <button style={styles.button} type="submit" disabled={creating || !newName.trim()}>
+        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit" disabled={creating || !newName.trim()}>
           Добавить проект
-        </button>
+        </Button>
       </form>
 
       <div style={styles.listControls}>
@@ -465,9 +465,9 @@ export function ProductsPage() {
                       .map((s) => ({ value: s.id, label: s.name })),
                   ]}
                 />
-                <button style={styles.button} type="submit">
+                <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">
                   + Операция
-                </button>
+                </Button>
               </form>
                 </>
               )}
@@ -515,23 +515,6 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '8px',
     fontSize: '14px',
     color: COLORS.mutedText,
-    cursor: 'pointer',
-  },
-  input: {
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
-  button: {
-    padding: '10px 18px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
     cursor: 'pointer',
   },
   card: {

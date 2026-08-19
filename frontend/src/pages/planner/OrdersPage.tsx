@@ -11,6 +11,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
+import { Table, Th, Td, Button, Input } from '../../components/ui';
 
 const STATUS_BADGE: Record<Order['status'], BadgeVariant> = {
   CREATED: 'muted',
@@ -125,15 +126,13 @@ export function OrdersPage() {
     <PlannerLayout title="Заказы" breadcrumb="Планирование">
 
       <form onSubmit={handleCreate} style={styles.createForm}>
-        <input
-          style={styles.input}
+        <Input
           placeholder="Наименование (например «1000 батарей»)"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
         />
-        <input
-          style={styles.input}
+        <Input
           placeholder="Количество"
           type="number"
           min={1}
@@ -141,23 +140,21 @@ export function OrdersPage() {
           onChange={(e) => setForm({ ...form, quantity: e.target.value })}
           required
         />
-        <input
-          style={styles.input}
+        <Input
           type="date"
           value={form.dueDate}
           onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
           required
         />
-        <input
-          style={styles.input}
+        <Input
           placeholder="Приоритет"
           type="number"
           value={form.priority}
           onChange={(e) => setForm({ ...form, priority: e.target.value })}
         />
-        <button style={styles.button} type="submit" disabled={creating}>
+        <Button type="submit" disabled={creating}>
           Создать
-        </button>
+        </Button>
       </form>
 
       {products.length > 0 && (
@@ -188,8 +185,7 @@ export function OrdersPage() {
               (pl) => ({ value: pl.id, label: pl.name }),
             )}
           />
-          <input
-            style={styles.input}
+          <Input
             placeholder="Количество"
             type="number"
             min={1}
@@ -197,8 +193,7 @@ export function OrdersPage() {
             onChange={(e) => setFromProduct({ ...fromProduct, quantity: e.target.value })}
             required
           />
-          <input
-            style={styles.input}
+          <Input
             type="date"
             value={fromProduct.dueDate}
             onChange={(e) => setFromProduct({ ...fromProduct, dueDate: e.target.value })}
@@ -223,7 +218,7 @@ export function OrdersPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <table style={styles.table}>
+        <Table>
           <thead>
             <tr>
               <SortHeader label="Наименование" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -231,35 +226,35 @@ export function OrdersPage() {
               <SortHeader label="Срок" sortKey="dueDate" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Приоритет" sortKey="priority" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Статус" sortKey="status" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <th style={styles.th}>Операции</th>
-              <th style={styles.th}></th>
+              <Th>Операции</Th>
+              <Th></Th>
             </tr>
           </thead>
           <tbody>
             {controls.result.map((o) => (
               <tr key={o.id}>
-                <td style={styles.td}>{o.name}</td>
-                <td style={styles.td}>{o.quantity}</td>
-                <td style={styles.td}>{new Date(o.dueDate).toLocaleDateString('ru-RU')}</td>
-                <td style={styles.td}>{o.priority}</td>
-                <td style={styles.td}>
+                <Td>{o.name}</Td>
+                <Td>{o.quantity}</Td>
+                <Td>{new Date(o.dueDate).toLocaleDateString('ru-RU')}</Td>
+                <Td>{o.priority}</Td>
+                <Td>
                   <Badge variant={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Badge>
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {o.operationsQuantity} / {o.quantity} ({o.operationsCount})
                   <div style={styles.readyLine}>
                     готово изделий: {o.readyUnits} из {o.quantity}
                   </div>
-                </td>
-                <td style={{ ...styles.td, textAlign: 'right' }}>
+                </Td>
+                <Td align="right">
                   <Link to={`/planner/orders/${o.id}`} style={styles.linkButton}>
                     Открыть →
                   </Link>
-                </td>
+                </Td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </PlannerLayout>
   );
@@ -276,23 +271,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '24px',
     alignItems: 'center',
   },
-  input: {
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   buttonSecondary: {
     padding: '10px 20px',
     borderRadius: RADIUS.sm,
@@ -302,21 +280,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '15px',
     fontWeight: 600,
     cursor: 'pointer',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  td: {
-    padding: '10px 8px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
   },
   linkButton: {
     color: COLORS.accentDark,

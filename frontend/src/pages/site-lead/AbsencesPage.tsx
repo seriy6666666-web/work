@@ -10,8 +10,8 @@ import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
-import { COLORS, RADIUS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
 
 const TYPE_BADGE: Record<AbsenceType, BadgeVariant> = {
   SICK_LEAVE: 'danger',
@@ -123,23 +123,21 @@ export function AbsencesPage() {
           onChange={(type) => setForm({ ...form, type: type as AbsenceType })}
           options={ABSENCE_TYPES.map((t) => ({ value: t, label: ABSENCE_TYPE_LABELS[t] }))}
         />
-        <input
-          style={styles.input}
+        <Input
           type="date"
           value={form.startDate}
           onChange={(e) => setForm({ ...form, startDate: e.target.value })}
           required
         />
-        <input
-          style={styles.input}
+        <Input
           type="date"
           value={form.endDate}
           onChange={(e) => setForm({ ...form, endDate: e.target.value })}
           required
         />
-        <button style={styles.button} type="submit" disabled={creating}>
+        <Button type="submit" disabled={creating}>
           Добавить
-        </button>
+        </Button>
       </form>
 
       {loading ? (
@@ -147,19 +145,19 @@ export function AbsencesPage() {
       ) : absences.length === 0 ? (
         <EmptyState icon="calendar-x" title="Отсутствий пока нет" hint="Отметьте отсутствие сотрудника в форме выше." />
       ) : (
-        <table style={styles.table}>
+        <Table>
           <thead>
             <tr>
               <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Тип" sortKey="type" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Период" sortKey="period" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <th style={styles.th}></th>
+              <Th></Th>
             </tr>
           </thead>
           <tbody>
             {controls.result.map((a) => (
               <tr key={a.id}>
-                <td style={styles.td}>
+                <Td>
                   {a.user ? (
                     <div style={styles.nameCell}>
                       <Avatar name={a.user.fullName} size={26} />
@@ -168,23 +166,23 @@ export function AbsencesPage() {
                   ) : (
                     '—'
                   )}
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   <Badge variant={TYPE_BADGE[a.type]}>{ABSENCE_TYPE_LABELS[a.type]}</Badge>
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {new Date(a.startDate).toLocaleDateString('ru-RU')} –{' '}
                   {new Date(a.endDate).toLocaleDateString('ru-RU')}
-                </td>
-                <td style={{ ...styles.td, textAlign: 'right' }}>
-                  <button style={styles.linkButtonDanger} onClick={() => handleDelete(a.id)}>
+                </Td>
+                <Td align="right">
+                  <LinkButton danger onClick={() => handleDelete(a.id)}>
                     Удалить
-                  </button>
-                </td>
+                  </LinkButton>
+                </Td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </SiteLeadLayout>
   );
@@ -198,48 +196,9 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '24px',
     alignItems: 'center',
   },
-  input: {
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  td: {
-    padding: '10px 8px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
-  },
   nameCell: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-  },
-  linkButtonDanger: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.error,
-    cursor: 'pointer',
-    fontSize: '14px',
   },
 };

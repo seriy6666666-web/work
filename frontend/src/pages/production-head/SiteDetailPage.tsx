@@ -9,6 +9,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { COLORS, RADIUS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Td } from '../../components/ui';
 
 /** Colour the norm-rate cell: red below 85% of norm, green when at/above norm. */
 function normStyle(rate: number | null): React.CSSProperties {
@@ -89,7 +90,7 @@ export function SiteDetailPage() {
             {' · '}Выполнение назначенного:{' '}
             {ranking.siteCompletionRate === null ? '—' : `${Math.round(ranking.siteCompletionRate * 100)}%`}
           </p>
-          <table style={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -102,20 +103,20 @@ export function SiteDetailPage() {
             <tbody>
               {controls.result.map((e) => (
                 <tr key={e.userId}>
-                  <td style={styles.td}>
+                  <Td>
                     <div style={styles.nameCell}>
                       <Avatar name={e.fullName} size={26} />
                       {e.fullName}
                     </div>
-                  </td>
+                  </Td>
                   <td style={{ ...styles.td, ...normStyle(e.normRate) }}>
                     {e.normRate === null ? '—' : `${Math.round(e.normRate * 100)}%`}
                   </td>
-                  <td style={styles.td}>
+                  <Td>
                     {e.completionRate === null ? '—' : `${Math.round(e.completionRate * 100)}%`}
-                  </td>
-                  <td style={styles.td}>{e.excusedCount}</td>
-                  <td style={styles.td}>{e.totalCount}</td>
+                  </Td>
+                  <Td>{e.excusedCount}</Td>
+                  <Td>{e.totalCount}</Td>
                 </tr>
               ))}
               {ranking.entries.length === 0 && (
@@ -126,7 +127,7 @@ export function SiteDetailPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </Table>
         </>
       ) : null}
     </ProductionHeadLayout>
@@ -162,17 +163,6 @@ const styles: Record<string, React.CSSProperties> = {
   muted: {
     color: COLORS.mutedText,
     fontSize: '14px',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
   },
   td: {
     padding: '10px 8px',

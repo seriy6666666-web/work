@@ -8,6 +8,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { Button } from '../../components/ui';
 
 function when(iso: string): string {
   const d = new Date(iso);
@@ -74,9 +75,9 @@ export function HandoverPage() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
           />
-          <button style={styles.button} type="submit" disabled={sending || !message.trim()}>
+          <Button style={{ fontSize: '14px' }} type="submit" disabled={sending || !message.trim()}>
             {sending ? 'Отправляем...' : 'Передать дела'}
-          </button>
+          </Button>
         </form>
       )}
 
@@ -128,16 +129,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '15px',
     fontFamily: 'inherit',
     resize: 'vertical',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
   },
   list: { display: 'flex', flexDirection: 'column', gap: '12px' },
   card: {

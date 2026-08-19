@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Icon } from '../../components/Icon';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Td, Button, Input } from '../../components/ui';
 
 function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -100,16 +101,16 @@ export function AttendanceJournalPage() {
       <div style={styles.toolbar}>
         <label style={styles.dateLabel}>
           <span style={styles.dateCaption}>С</span>
-          <input style={styles.input} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </label>
         <label style={styles.dateLabel}>
           <span style={styles.dateCaption}>По</span>
-          <input style={styles.input} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
-        <button style={styles.button} onClick={handleExport} disabled={exporting || entries.length === 0}>
+        <Button style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '14px' }} onClick={handleExport} disabled={exporting || entries.length === 0}>
           <Icon name="download" size={16} />
           Скачать CSV
-        </button>
+        </Button>
       </div>
 
       {!loading && entries.length > 0 && (
@@ -134,7 +135,7 @@ export function AttendanceJournalPage() {
         />
       ) : (
         <div style={styles.tableWrap}>
-          <table style={styles.table}>
+          <Table style={{ fontSize: '14px' }}>
             <thead>
               <tr>
                 <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -147,28 +148,28 @@ export function AttendanceJournalPage() {
             <tbody>
               {controls.result.map((e, i) => (
                 <tr key={`${e.userId}-${e.checkInAt}-${i}`}>
-                  <td style={styles.td}>
+                  <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>
                     <div style={styles.nameCell}>
                       <Avatar name={e.fullName} size={26} />
                       {e.fullName}
                     </div>
-                  </td>
-                  <td style={styles.td}>{e.date.split('-').reverse().join('.')}</td>
-                  <td style={styles.td}>{timeOf(e.checkInAt)}</td>
-                  <td style={styles.td}>
+                  </Td>
+                  <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>{e.date.split('-').reverse().join('.')}</Td>
+                  <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>{timeOf(e.checkInAt)}</Td>
+                  <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>
                     {e.checkOutAt ? (
                       timeOf(e.checkOutAt)
                     ) : (
                       <span style={styles.open}>не отмечен</span>
                     )}
-                  </td>
+                  </Td>
                   <td style={{ ...styles.td, textAlign: 'right', fontWeight: 600 }}>
                     {e.hours === null ? '—' : `${e.hours} ч`}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         </div>
       )}
     </SiteLeadLayout>
@@ -180,26 +181,6 @@ const styles: Record<string, React.CSSProperties> = {
   toolbar: { display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '16px' },
   dateLabel: { display: 'flex', flexDirection: 'column', gap: '4px' },
   dateCaption: { fontSize: '12px', color: COLORS.mutedText },
-  input: {
-    padding: '9px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '14px',
-  },
-  button: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '10px 18px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   summary: { display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '14px', fontSize: '14px', color: COLORS.mutedText },
   tableWrap: {
     background: COLORS.white,
@@ -208,16 +189,6 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: SHADOW.card,
     padding: '8px 12px',
     overflowX: 'auto',
-  },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    color: COLORS.mutedText,
-    fontWeight: 600,
-    fontSize: '13px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
-    whiteSpace: 'nowrap',
   },
   td: { padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' },
   nameCell: { display: 'flex', alignItems: 'center', gap: '10px' },

@@ -11,6 +11,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
 import { COLORS, RADIUS } from '../../theme';
+import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
 
 /** Значение «навык не требуется» в выпадающем списке. Пустая строка = не выбрано. */
 const NO_SKILL = 'none';
@@ -179,8 +180,7 @@ export function OperationTypesPage() {
       </p>
 
       <form onSubmit={handleCreate} style={styles.createForm}>
-        <input
-          style={styles.input}
+        <Input style={{ flex: 1, minWidth: '220px' }}
           placeholder="Название операции (например «Пайка шин»)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
@@ -196,9 +196,9 @@ export function OperationTypesPage() {
           value={newNorm}
           onChange={(e) => setNewNorm(e.target.value)}
         />
-        <button style={styles.button} type="submit" disabled={creating || !newName.trim()}>
+        <Button type="submit" disabled={creating || !newName.trim()}>
           Добавить
-        </button>
+        </Button>
       </form>
 
       {!loading && (
@@ -230,14 +230,14 @@ export function OperationTypesPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <table style={styles.table}>
+        <Table>
           <thead>
             <tr>
               <SortHeader label="Операция" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Требуемый навык" sortKey="skill" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Норма/смена" sortKey="norm" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
               <SortHeader label="Где используется" sortKey="usage" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <th style={styles.th}></th>
+              <Th></Th>
             </tr>
           </thead>
           <tbody>
@@ -246,10 +246,9 @@ export function OperationTypesPage() {
               const used = (item.usedInOrders ?? 0) + (item.usedInProducts ?? 0);
               return (
                 <tr key={item.id} style={item.archivedAt ? styles.archivedRow : undefined}>
-                  <td style={styles.td}>
+                  <Td style={{ fontSize: '15px' }}>
                     {editing ? (
-                      <input
-                        style={styles.input}
+                      <Input style={{ flex: 1, minWidth: '220px' }}
                         value={editingName}
                         onChange={(e) => setEditingName(e.target.value)}
                         autoFocus
@@ -264,8 +263,8 @@ export function OperationTypesPage() {
                         )}
                       </>
                     )}
-                  </td>
-                  <td style={styles.td}>
+                  </Td>
+                  <Td style={{ fontSize: '15px' }}>
                     {editing ? (
                       <Select
                         value={editingSkillId}
@@ -277,8 +276,8 @@ export function OperationTypesPage() {
                     ) : (
                       <span style={styles.muted}>не требуется</span>
                     )}
-                  </td>
-                  <td style={{ ...styles.td, textAlign: 'right' }}>
+                  </Td>
+                  <Td align="right" style={{ fontSize: '15px' }}>
                     {editing ? (
                       <input
                         style={styles.normInput}
@@ -293,8 +292,8 @@ export function OperationTypesPage() {
                     ) : (
                       item.norm
                     )}
-                  </td>
-                  <td style={styles.td}>
+                  </Td>
+                  <Td style={{ fontSize: '15px' }}>
                     {used === 0 ? (
                       <span style={styles.muted}>нигде</span>
                     ) : (
@@ -302,16 +301,16 @@ export function OperationTypesPage() {
                         заказов: {item.usedInOrders ?? 0} · изделий: {item.usedInProducts ?? 0}
                       </span>
                     )}
-                  </td>
-                  <td style={{ ...styles.td, textAlign: 'right' }}>
+                  </Td>
+                  <Td align="right" style={{ fontSize: '15px' }}>
                     {editing ? (
                       <>
-                        <button style={styles.linkButton} onClick={() => saveEdit(item.id)}>
+                        <LinkButton style={{ fontWeight: 600, padding: '4px 8px' }} onClick={() => saveEdit(item.id)}>
                           Сохранить
-                        </button>
-                        <button style={styles.linkButton} onClick={() => setEditingId(null)}>
+                        </LinkButton>
+                        <LinkButton style={{ fontWeight: 600, padding: '4px 8px' }} onClick={() => setEditingId(null)}>
                           Отмена
-                        </button>
+                        </LinkButton>
                       </>
                     ) : item.archivedAt ? (
                       <RowActions
@@ -333,12 +332,12 @@ export function OperationTypesPage() {
                         ]}
                       />
                     )}
-                  </td>
+                  </Td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </Table>
       )}
     </PlannerLayout>
   );
@@ -357,15 +356,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '20px',
     flexWrap: 'wrap',
   },
-  input: {
-    flex: 1,
-    minWidth: '220px',
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
   skillPicker: {
     minWidth: '200px',
   },
@@ -376,16 +366,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${COLORS.lightGreenBg}`,
     background: COLORS.lightGrayBg,
     fontSize: '15px',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
   },
   toolbar: {
     display: 'flex',
@@ -402,35 +382,10 @@ const styles: Record<string, React.CSSProperties> = {
     color: COLORS.mutedText,
     cursor: 'pointer',
   },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  td: {
-    padding: '10px 8px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
-    fontSize: '15px',
-  },
   archivedRow: {
     opacity: 0.6,
   },
   muted: {
     color: COLORS.mutedText,
-  },
-  linkButton: {
-    background: 'none',
-    border: 'none',
-    color: COLORS.accentDark,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    padding: '4px 8px',
   },
 };

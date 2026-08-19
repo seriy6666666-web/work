@@ -8,6 +8,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { COLORS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Td } from '../../components/ui';
 
 export function WarningsPage() {
   const { token } = useAuth();
@@ -59,7 +60,7 @@ export function WarningsPage() {
         <>
           <h3 style={styles.subheading}>Заказы в зоне риска</h3>
           {warnings && warnings.orderWarnings.length > 0 ? (
-            <table style={styles.table}>
+            <Table>
               <thead>
                 <tr>
                   <SortHeader label="Заказ" sortKey="order" activeKey={orderControls.sortKey} dir={orderControls.sortDir} onSort={orderControls.toggleSort} />
@@ -71,23 +72,23 @@ export function WarningsPage() {
               <tbody>
                 {orderControls.result.map((w) => (
                   <tr key={w.orderId}>
-                    <td style={styles.td}>
+                    <Td>
                       {w.orderName} <Badge variant="danger">риск</Badge>
-                    </td>
-                    <td style={styles.td}>{new Date(w.dueDate).toLocaleDateString('ru-RU')}</td>
-                    <td style={styles.td}>{Math.round(w.progressRatio * 100)}%</td>
-                    <td style={styles.td}>{Math.round(w.timeRatio * 100)}%</td>
+                    </Td>
+                    <Td>{new Date(w.dueDate).toLocaleDateString('ru-RU')}</Td>
+                    <Td>{Math.round(w.progressRatio * 100)}%</Td>
+                    <Td>{Math.round(w.timeRatio * 100)}%</Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           ) : (
             <p style={styles.muted}>Отстающих заказов нет.</p>
           )}
 
           <h3 style={styles.subheading}>Отстающие сотрудники (за неделю)</h3>
           {warnings && warnings.workerWarnings.length > 0 ? (
-            <table style={styles.table}>
+            <Table>
               <thead>
                 <tr>
                   <SortHeader label="Сотрудник" sortKey="user" activeKey={workerControls.sortKey} dir={workerControls.sortDir} onSort={workerControls.toggleSort} />
@@ -99,23 +100,23 @@ export function WarningsPage() {
               <tbody>
                 {workerControls.result.map((w) => (
                   <tr key={w.userId}>
-                    <td style={styles.td}>
+                    <Td>
                       <div style={styles.nameCell}>
                         <Avatar name={w.fullName} size={26} />
                         {w.fullName}
                       </div>
-                    </td>
-                    <td style={styles.td}>{w.siteName}</td>
+                    </Td>
+                    <Td>{w.siteName}</Td>
                     <td style={{ ...styles.td, color: COLORS.error, fontWeight: 700 }}>
                       {w.normRate === null ? '—' : `${Math.round(w.normRate * 100)}%`}
                     </td>
-                    <td style={styles.td}>
+                    <Td>
                       {w.completionRate === null ? '—' : `${Math.round(w.completionRate * 100)}%`}
-                    </td>
+                    </Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           ) : (
             <p style={styles.muted}>Отстающих сотрудников нет.</p>
           )}
@@ -128,17 +129,6 @@ export function WarningsPage() {
 const styles: Record<string, React.CSSProperties> = {
   subheading: {
     marginTop: '24px',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
   },
   td: {
     padding: '10px 8px',

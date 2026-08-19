@@ -8,6 +8,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useSortState, sortWith, SortHeader } from '../../components/TableControls';
+import { Table, Td } from '../../components/ui';
 
 function isLow(s: MaterialStock): boolean {
   return s.quantity <= s.lowStockThreshold;
@@ -99,7 +100,7 @@ export function MaterialsOverviewPage() {
               <strong>{g.platformName}</strong>
               {g.low > 0 && <Badge variant="danger">Не хватает: {g.low}</Badge>}
             </div>
-            <table style={styles.table}>
+            <Table style={{ fontSize: '14px' }}>
               <thead>
                 <tr>
                   <SortHeader label="Материал" sortKey="material" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
@@ -114,20 +115,20 @@ export function MaterialsOverviewPage() {
                   const low = isLow(s);
                   return (
                     <tr key={s.id} style={low ? styles.rowLow : undefined}>
-                      <td style={styles.td}>{s.material.name}</td>
-                      <td style={styles.td}>{s.project.name}</td>
+                      <Td style={{ padding: '8px 10px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>{s.material.name}</Td>
+                      <Td style={{ padding: '8px 10px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>{s.project.name}</Td>
                       <td style={{ ...styles.td, textAlign: 'right', fontWeight: 600, ...(low ? { color: COLORS.error } : {}) }}>
                         {fmt(s.quantity)} {s.material.unit}
                       </td>
                       <td style={{ ...styles.td, textAlign: 'right', color: COLORS.mutedText }}>{fmt(s.lowStockThreshold)}</td>
-                      <td style={styles.td}>
+                      <Td style={{ padding: '8px 10px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>
                         {low ? <Badge variant="danger">Не хватает</Badge> : <Badge variant="accent">В норме</Badge>}
-                      </td>
+                      </Td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
+            </Table>
           </div>
         ))
       )}
@@ -148,8 +149,6 @@ const styles: Record<string, React.CSSProperties> = {
     overflowX: 'auto',
   },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '8px', flexWrap: 'wrap' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
-  th: { textAlign: 'left', padding: '8px 10px', color: COLORS.mutedText, fontWeight: 600, borderBottom: `1px solid ${COLORS.lightGreenBg}`, fontSize: '13px' },
   td: { padding: '8px 10px', borderBottom: `1px solid ${COLORS.lightGrayBg}` },
   rowLow: { background: COLORS.errorBg },
 };

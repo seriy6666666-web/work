@@ -19,6 +19,7 @@ import { useTableControls, SortSelect, type SortChoice } from '../../components/
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { Input } from '../../components/ui';
 
 const TYPE_LABELS: Record<string, string> = {
   PROBLEM: 'Проблема',
@@ -250,8 +251,8 @@ export function FeedbackPage() {
             ...sites.map((s) => ({ value: s.id, label: s.name })),
           ]}
         />
-        <input style={styles.input} type="date" value={filters.from ?? ''} onChange={(e) => patch({ from: e.target.value || undefined })} />
-        <input style={styles.input} type="date" value={filters.to ?? ''} onChange={(e) => patch({ to: e.target.value || undefined })} />
+        <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={filters.from ?? ''} onChange={(e) => patch({ from: e.target.value || undefined })} />
+        <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={filters.to ?? ''} onChange={(e) => patch({ to: e.target.value || undefined })} />
       </div>
 
       {loading ? (

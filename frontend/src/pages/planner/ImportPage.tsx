@@ -3,7 +3,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { api } from '../../api/client';
 import { PlannerLayout } from './PlannerLayout';
 import { ImportBlock } from '../../components/ImportBlock';
-import { COLORS, RADIUS } from '../../theme';
+import { COLORS } from '../../theme';
+import { Input } from '../../components/ui';
 
 export function ImportPage() {
   const { token } = useAuth();
@@ -34,8 +35,7 @@ export function ImportPage() {
         onRun={(file, dryRun) => api.importNorms(token!, file, dryRun, defaultSite || undefined)}
         extra={
           <div style={styles.row}>
-            <input
-              style={styles.input}
+            <Input style={{ flex: 1, minWidth: '240px', padding: '9px 12px' }}
               placeholder="Участок по умолчанию (для строк без участка)"
               value={defaultSite}
               onChange={(e) => setDefaultSite(e.target.value)}
@@ -50,13 +50,4 @@ export function ImportPage() {
 const styles: Record<string, React.CSSProperties> = {
   pageHint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0, marginBottom: '20px' },
   row: { display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '10px' },
-  input: {
-    flex: 1,
-    minWidth: '240px',
-    padding: '9px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '15px',
-  },
 };

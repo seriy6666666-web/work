@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { SearchSelect } from '../../components/SearchSelect';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Th, Td, Button, Input } from '../../components/ui';
 
 function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -115,7 +116,7 @@ export function GoalsPage() {
       <form onSubmit={handleSet} style={styles.form}>
         <label style={styles.dateLabel}>
           <span style={styles.caption}>Дата</span>
-          <input style={styles.input} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <SearchSelect
           width="240px"
@@ -133,9 +134,9 @@ export function GoalsPage() {
           onChange={(e) => setForm({ ...form, target: e.target.value })}
           required
         />
-        <button style={styles.button} type="submit">
+        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">
           Задать цель
-        </button>
+        </Button>
       </form>
 
       {!loading && goals.length > 0 && (
@@ -153,15 +154,15 @@ export function GoalsPage() {
         <EmptyState icon="checklist" title="Целей на эту дату нет" hint="Задайте цель в форме выше." />
       ) : (
         <div style={styles.tableWrap}>
-          <table style={styles.table}>
+          <Table style={{ fontSize: '14px' }}>
             <thead>
               <tr>
                 <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="План" sortKey="plan" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
                 <SortHeader label="Факт" sortKey="fact" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
                 <SortHeader label="Выполнение" sortKey="rate" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
-                <th style={styles.th}>Причина невыполнения</th>
-                <th style={styles.th}></th>
+                <Th style={{ fontWeight: 600, borderBottom: `1px solid ${COLORS.lightGreenBg}`, whiteSpace: 'nowrap' }}>Причина невыполнения</Th>
+                <Th style={{ fontWeight: 600, borderBottom: `1px solid ${COLORS.lightGreenBg}`, whiteSpace: 'nowrap' }}></Th>
               </tr>
             </thead>
             <tbody>
@@ -169,18 +170,18 @@ export function GoalsPage() {
                 const notMet = g.rate !== null && g.rate < 1;
                 return (
                   <tr key={g.id}>
-                    <td style={styles.td}>
+                    <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>
                       <div style={styles.nameCell}>
                         <Avatar name={g.fullName} size={26} />
                         {g.fullName}
                       </div>
-                    </td>
-                    <td style={{ ...styles.td, textAlign: 'right' }}>{g.targetQuantity}</td>
-                    <td style={{ ...styles.td, textAlign: 'right' }}>{g.fact}</td>
+                    </Td>
+                    <Td align="right" style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>{g.targetQuantity}</Td>
+                    <Td align="right" style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>{g.fact}</Td>
                     <td style={{ ...styles.td, textAlign: 'right', ...rateStyle(g.rate) }}>
                       {g.rate === null ? '—' : `${Math.round(g.rate * 100)}%`}
                     </td>
-                    <td style={styles.td}>
+                    <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>
                       {notMet || g.missReason ? (
                         <input
                           style={styles.reasonInput}
@@ -194,17 +195,17 @@ export function GoalsPage() {
                       ) : (
                         <span style={styles.muted}>—</span>
                       )}
-                    </td>
-                    <td style={{ ...styles.td, textAlign: 'right' }}>
+                    </Td>
+                    <Td align="right" style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}` }}>
                       <button style={styles.linkDanger} onClick={() => handleDelete(g.id)}>
                         Удалить
                       </button>
-                    </td>
+                    </Td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+          </Table>
         </div>
       )}
     </SiteLeadLayout>
@@ -223,16 +224,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: COLORS.lightGrayBg,
     fontSize: '14px',
   },
-  button: {
-    padding: '10px 18px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   summary: { display: 'flex', gap: '14px', alignItems: 'center', marginBottom: '12px', fontSize: '14px', color: COLORS.mutedText },
   tableWrap: {
     background: COLORS.white,
@@ -241,16 +232,6 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: SHADOW.card,
     padding: '8px 12px',
     overflowX: 'auto',
-  },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    color: COLORS.mutedText,
-    fontWeight: 600,
-    fontSize: '13px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
-    whiteSpace: 'nowrap',
   },
   td: { padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}` },
   nameCell: { display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap' },

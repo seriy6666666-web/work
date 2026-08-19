@@ -27,6 +27,7 @@ import { useIsMobile } from '../../responsive';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { deadlineLook, deadlineShort, worstDeadline } from '../../deadline-label';
 import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
+import { Button, LinkButton, Input } from '../../components/ui';
 
 const UNDERPERFORMING_THRESHOLD = 0.7;
 
@@ -635,12 +636,12 @@ export function DistributionPage() {
                               </div>
                             )}
                           </div>
-                          <button style={styles.linkButton} onClick={() => handleCarryOver(a)}>
+                          <LinkButton style={{ fontSize: '13px' }} onClick={() => handleCarryOver(a)}>
                             Перенести остаток
-                          </button>
-                          <button style={styles.linkButtonDanger} onClick={() => handleRemoveAssignment(a.id)}>
+                          </LinkButton>
+                          <LinkButton danger style={{ fontSize: '13px', alignSelf: 'flex-start' }} onClick={() => handleRemoveAssignment(a.id)}>
                             Снять
-                          </button>
+                          </LinkButton>
                         </div>
                       );
                     })}
@@ -661,8 +662,7 @@ export function DistributionPage() {
                     })()}
                     placeholder="Назначить сотрудника"
                   />
-                  <input
-                    style={styles.input}
+                  <Input style={{ padding: '8px 10px', fontSize: '14px' }}
                     type="number"
                     min={1}
                     placeholder="Кол-во (по умолчанию — вся операция)"
@@ -671,9 +671,9 @@ export function DistributionPage() {
                       setAssignForms((prev) => ({ ...prev, [op.id]: { ...form, quantity: e.target.value } }))
                     }
                   />
-                  <button style={styles.button} type="submit">
+                  <Button style={{ padding: '8px 16px', fontSize: '14px' }} type="submit">
                     Назначить
-                  </button>
+                  </Button>
                   <button
                     style={styles.buttonSelf}
                     type="button"
@@ -972,26 +972,12 @@ const styles: Record<string, React.CSSProperties> = {
     marginLeft: '6px',
     alignItems: 'center',
   },
-  smallInput: {
-    padding: '4px 8px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    fontSize: '13px',
-  },
   linkButton: {
     border: 'none',
     background: 'none',
     color: COLORS.accentDark,
     cursor: 'pointer',
     fontSize: '13px',
-  },
-  linkButtonDanger: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.error,
-    cursor: 'pointer',
-    fontSize: '13px',
-    alignSelf: 'flex-start',
   },
   assignForm: {
     display: 'flex',
@@ -1015,23 +1001,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'inherit',
     color: COLORS.mutedText,
     textDecoration: 'underline',
-    cursor: 'pointer',
-  },
-  input: {
-    padding: '8px 10px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '14px',
-  },
-  button: {
-    padding: '8px 16px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
     cursor: 'pointer',
   },
   buttonSelf: {

@@ -15,6 +15,7 @@ import { RowActions } from '../../components/RowActions';
 import { SearchSelect } from '../../components/SearchSelect';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
+import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
 
 interface UserFormState {
   username: string;
@@ -261,9 +262,9 @@ export function UsersPage() {
     <AdminLayout title="Пользователи" breadcrumb="Администрирование">
 
       <div style={styles.topBar}>
-        <button style={styles.button} onClick={() => setShowCreate((v) => !v)}>
+        <Button onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? 'Свернуть' : '+ Добавить сотрудника'}
-        </button>
+        </Button>
       </div>
 
       {showCreate && (
@@ -271,8 +272,7 @@ export function UsersPage() {
           <div style={styles.formGrid}>
             <label style={styles.field}>
               <span style={styles.fieldLabel}>ФИО</span>
-              <input
-                style={styles.input}
+              <Input
                 placeholder="Иванов Иван"
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
@@ -281,8 +281,7 @@ export function UsersPage() {
             </label>
             <label style={styles.field}>
               <span style={styles.fieldLabel}>Логин</span>
-              <input
-                style={styles.input}
+              <Input
                 placeholder="ivanov"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
@@ -291,8 +290,7 @@ export function UsersPage() {
             </label>
             <label style={styles.field}>
               <span style={styles.fieldLabel}>Пароль</span>
-              <input
-                style={styles.input}
+              <Input
                 placeholder="belmy-7413"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -347,9 +345,9 @@ export function UsersPage() {
             <button type="button" style={styles.ghostButton} onClick={() => setShowCreate(false)}>
               Отмена
             </button>
-            <button style={styles.button} type="submit" disabled={creating}>
+            <Button type="submit" disabled={creating}>
               Добавить
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -387,9 +385,9 @@ export function UsersPage() {
             >
               Скачать CSV
             </button>
-            <button style={styles.linkButton} onClick={() => setIssued([])}>
+            <LinkButton onClick={() => setIssued([])}>
               Скрыть
-            </button>
+            </LinkButton>
           </div>
         </div>
       )}
@@ -415,7 +413,7 @@ export function UsersPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <table style={styles.table}>
+        <Table>
           <thead>
             <tr>
               <SortHeader label="Логин" sortKey="username" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -423,7 +421,7 @@ export function UsersPage() {
               <SortHeader label="Роль" sortKey="role" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Участок" sortKey="site" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <SortHeader label="Руководитель" sortKey="manager" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <th style={styles.th}></th>
+              <Th></Th>
             </tr>
           </thead>
           <tbody>
@@ -432,23 +430,22 @@ export function UsersPage() {
               <tr>
                 {editingId === u.id ? (
                   <>
-                    <td style={styles.td}>{u.username}</td>
-                    <td style={styles.td}>
-                      <input
-                        style={styles.input}
+                    <Td>{u.username}</Td>
+                    <Td>
+                      <Input
                         value={editForm.fullName}
                         onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
                       />
-                    </td>
-                    <td style={styles.td}>
+                    </Td>
+                    <Td>
                       <Select
                         ariaLabel="Роль"
                         value={editForm.role}
                         onChange={(role) => setEditForm({ ...editForm, role: role as Role })}
                         options={ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }))}
                       />
-                    </td>
-                    <td style={styles.td}>
+                    </Td>
+                    <Td>
                       {SITE_BOUND_ROLES.includes(editForm.role) ? (
                         <Select
                           ariaLabel="Участок"
@@ -460,8 +457,8 @@ export function UsersPage() {
                       ) : (
                         '—'
                       )}
-                    </td>
-                    <td style={styles.td}>
+                    </Td>
+                    <Td>
                       <Select
                         ariaLabel="Руководитель"
                         value={editForm.managerId}
@@ -479,34 +476,34 @@ export function UsersPage() {
                             })),
                         ]}
                       />
-                    </td>
-                    <td style={{ ...styles.td, textAlign: 'right' }}>
-                      <button style={styles.linkButton} onClick={() => saveEdit(u.id)}>
+                    </Td>
+                    <Td align="right">
+                      <LinkButton onClick={() => saveEdit(u.id)}>
                         Сохранить
-                      </button>
-                      <button style={styles.linkButton} onClick={() => setEditingId(null)}>
+                      </LinkButton>
+                      <LinkButton onClick={() => setEditingId(null)}>
                         Отмена
-                      </button>
-                    </td>
+                      </LinkButton>
+                    </Td>
                   </>
                 ) : (
                   <>
-                    <td style={styles.td}>{u.username}</td>
-                    <td style={styles.td}>
+                    <Td>{u.username}</Td>
+                    <Td>
                       <div style={styles.nameCell}>
                         <Avatar name={u.fullName} size={28} />
                         {u.fullName}
                       </div>
-                    </td>
-                    <td style={styles.td}>
+                    </Td>
+                    <Td>
                       <Badge variant={u.archivedAt ? 'muted' : 'accent'}>{ROLE_LABELS[u.role]}</Badge>
                       {u.archivedAt && (
                         <span style={styles.archivedMark}>в архиве</span>
                       )}
-                    </td>
-                    <td style={styles.td}>{u.siteName ?? '—'}</td>
-                    <td style={styles.td}>{u.managerName ?? '—'}</td>
-                    <td style={{ ...styles.td, textAlign: 'right' }}>
+                    </Td>
+                    <Td>{u.siteName ?? '—'}</Td>
+                    <Td>{u.managerName ?? '—'}</Td>
+                    <Td align="right">
                       {u.archivedAt ? (
                         <RowActions
                           primary={{ label: 'Вернуть в работу', onClick: () => handleRestore(u) }}
@@ -522,7 +519,7 @@ export function UsersPage() {
                           ]}
                         />
                       )}
-                    </td>
+                    </Td>
                   </>
                 )}
               </tr>
@@ -551,9 +548,9 @@ export function UsersPage() {
                       >
                         Сохранить
                       </button>
-                      <button style={styles.linkButton} onClick={() => setPwdForId(null)}>
+                      <LinkButton onClick={() => setPwdForId(null)}>
                         Отмена
-                      </button>
+                      </LinkButton>
                       {pwdValue.length < 6 && (
                         <span style={styles.pwdWarn}>минимум 6 символов</span>
                       )}
@@ -564,7 +561,7 @@ export function UsersPage() {
               </Fragment>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </AdminLayout>
   );
@@ -662,21 +659,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     cursor: 'pointer',
   },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  td: {
-    padding: '10px 8px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
-  },
   nameCell: {
     display: 'flex',
     alignItems: 'center',
@@ -686,14 +668,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     background: 'none',
     color: COLORS.accentDark,
-    cursor: 'pointer',
-    fontSize: '14px',
-    marginLeft: '12px',
-  },
-  linkButtonDanger: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.error,
     cursor: 'pointer',
     fontSize: '14px',
     marginLeft: '12px',

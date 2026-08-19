@@ -18,6 +18,7 @@ import { FeedbackButton } from '../../components/FeedbackButton';
 import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
 import { Select } from '../../components/Select';
 import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
+import { Input } from '../../components/ui';
 
 /**
  * Порядок заданий у рабочего.
@@ -375,8 +376,7 @@ export function TasksPage() {
                     <div style={styles.form}>
                       <label style={styles.fieldLabel}>
                         Годных, шт
-                        <input
-                          style={styles.input}
+                        <Input style={{ width: '100%', padding: '16px', borderRadius: '12px', border: '2px solid #e8f5ee', background: '#f4f7f6', fontSize: '20px', textAlign: 'center' }}
                           type="number"
                           min={0}
                           inputMode="numeric"
@@ -603,15 +603,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '13px',
     color: '#8fa8b0',
     flex: '1 1 120px',
-  },
-  input: {
-    width: '100%',
-    padding: '16px',
-    borderRadius: '12px',
-    border: '2px solid #e8f5ee',
-    background: '#f4f7f6',
-    fontSize: '20px',
-    textAlign: 'center',
   },
   defectInput: {
     width: '100%',

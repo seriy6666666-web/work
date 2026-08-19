@@ -18,6 +18,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
 
 function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
@@ -279,8 +280,7 @@ export function OrderDetailPage() {
       <form onSubmit={handleSaveOrder} style={styles.orderForm}>
         <label style={styles.label}>
           Наименование
-          <input
-            style={styles.input}
+          <Input style={{ background: COLORS.white }}
             value={orderForm.name}
             onChange={(e) => setOrderForm({ ...orderForm, name: e.target.value })}
             required
@@ -288,8 +288,7 @@ export function OrderDetailPage() {
         </label>
         <label style={styles.label}>
           Количество
-          <input
-            style={styles.input}
+          <Input style={{ background: COLORS.white }}
             type="number"
             min={1}
             value={orderForm.quantity}
@@ -299,8 +298,7 @@ export function OrderDetailPage() {
         </label>
         <label style={styles.label}>
           Срок
-          <input
-            style={styles.input}
+          <Input style={{ background: COLORS.white }}
             type="date"
             value={orderForm.dueDate}
             onChange={(e) => setOrderForm({ ...orderForm, dueDate: e.target.value })}
@@ -309,8 +307,7 @@ export function OrderDetailPage() {
         </label>
         <label style={styles.label}>
           Приоритет
-          <input
-            style={styles.input}
+          <Input style={{ background: COLORS.white }}
             type="number"
             value={orderForm.priority}
             onChange={(e) => setOrderForm({ ...orderForm, priority: e.target.value })}
@@ -326,9 +323,9 @@ export function OrderDetailPage() {
           />
         </label>
         <div style={styles.orderFormActions}>
-          <button style={styles.button} type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving}>
             Сохранить
-          </button>
+          </Button>
           <button style={styles.dangerButton} type="button" onClick={handleDeleteOrder}>
             Удалить заказ
           </button>
@@ -336,9 +333,9 @@ export function OrderDetailPage() {
             Архив — для заказов с выработкой: удалять их нельзя, иначе история
             производства пропадёт из отчётов задним числом.
           */}
-          <button style={styles.linkButton} type="button" onClick={handleArchive}>
+          <LinkButton style={{ fontWeight: 600, padding: '4px 8px' }} type="button" onClick={handleArchive}>
             В архив
-          </button>
+          </LinkButton>
         </div>
       </form>
 
@@ -375,8 +372,7 @@ export function OrderDetailPage() {
             label: o.skill ? `${o.name} — навык: ${o.skill.name}` : o.name,
           }))}
         />
-        <input
-          style={styles.input}
+        <Input style={{ background: COLORS.white }}
           placeholder="Всего"
           type="number"
           min={1}
@@ -385,8 +381,7 @@ export function OrderDetailPage() {
           required
         />
         {/* План на смену: начальник участка по нему понимает, сколько закрыть сегодня. */}
-        <input
-          style={styles.input}
+        <Input style={{ background: COLORS.white }}
           placeholder="В день"
           type="number"
           min={1}
@@ -394,8 +389,7 @@ export function OrderDetailPage() {
           onChange={(e) => setOpForm({ ...opForm, dailyQuantity: e.target.value })}
         />
         {/* Дата сдачи участком — она же и есть дедлайн, который видит начальник участка. */}
-        <input
-          style={styles.input}
+        <Input style={{ background: COLORS.white }}
           type="date"
           aria-label="Сдать до"
           title="К какому дню участок должен сдать операцию"
@@ -425,12 +419,12 @@ export function OrderDetailPage() {
               .map((site) => ({ value: site.id, label: site.name })),
           ]}
         />
-        <button style={styles.button} type="submit" disabled={addingOp}>
+        <Button type="submit" disabled={addingOp}>
           Добавить
-        </button>
+        </Button>
       </form>
 
-      <table style={styles.table}>
+      <Table>
         <thead>
           <tr>
             <SortHeader label="Операция" sortKey="operation" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -441,7 +435,7 @@ export function OrderDetailPage() {
             <SortHeader label="На изделие" sortKey="perUnit" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
             <SortHeader label="Участок" sortKey="site" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
             <SortHeader label="Второй участок" sortKey="secondary" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-            <th style={styles.th}></th>
+            <Th></Th>
           </tr>
         </thead>
         <tbody>
@@ -449,7 +443,7 @@ export function OrderDetailPage() {
             const editing = editingOpId === op.id;
             return (
               <tr key={op.id}>
-                <td style={styles.td}>
+                <Td>
                   {editing ? (
                     <Select
                       width="220px"
@@ -469,8 +463,8 @@ export function OrderDetailPage() {
                       )}
                     </>
                   )}
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {editing ? (
                     <input
                       style={styles.qtyInput}
@@ -484,14 +478,14 @@ export function OrderDetailPage() {
                   ) : (
                     op.quantity
                   )}
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   <strong>{op.doneQuantity}</strong>
                   <div style={styles.opSkill}>
                     {op.quantity > 0 ? Math.round((op.doneQuantity / op.quantity) * 100) : 0}%
                   </div>
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {editing ? (
                     <input
                       style={styles.qtyInput}
@@ -507,8 +501,8 @@ export function OrderDetailPage() {
                   ) : (
                     op.dailyQuantity
                   )}
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {editing ? (
                     <input
                       style={styles.qtyInput}
@@ -522,8 +516,8 @@ export function OrderDetailPage() {
                   ) : (
                     new Date(op.dueDate).toLocaleDateString('ru-RU')
                   )}
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {editing ? (
                     <input
                       style={styles.qtyInput}
@@ -536,8 +530,8 @@ export function OrderDetailPage() {
                   ) : (
                     op.perUnit
                   )}
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {editing ? (
                     <Select
                       width="170px"
@@ -549,8 +543,8 @@ export function OrderDetailPage() {
                   ) : (
                     op.site.name
                   )}
-                </td>
-                <td style={styles.td}>
+                </Td>
+                <Td>
                   {editing ? (
                     <Select
                       width="170px"
@@ -570,7 +564,7 @@ export function OrderDetailPage() {
                   ) : (
                     '—'
                   )}
-                </td>
+                </Td>
                 <td style={{ ...styles.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
                   {editing ? (
                     <>
@@ -581,18 +575,18 @@ export function OrderDetailPage() {
                       >
                         Сохранить
                       </button>
-                      <button style={styles.linkButton} onClick={() => setEditingOpId(null)}>
+                      <LinkButton style={{ fontWeight: 600, padding: '4px 8px' }} onClick={() => setEditingOpId(null)}>
                         Отмена
-                      </button>
+                      </LinkButton>
                     </>
                   ) : (
                     <>
-                      <button style={styles.linkButton} onClick={() => startEditOperation(op)}>
+                      <LinkButton style={{ fontWeight: 600, padding: '4px 8px' }} onClick={() => startEditOperation(op)}>
                         Изменить
-                      </button>
-                      <button style={styles.linkButtonDanger} onClick={() => handleDeleteOperation(op.id)}>
+                      </LinkButton>
+                      <LinkButton danger style={{ padding: '4px 8px' }} onClick={() => handleDeleteOperation(op.id)}>
                         Удалить
-                      </button>
+                      </LinkButton>
                     </>
                   )}
                 </td>
@@ -607,7 +601,7 @@ export function OrderDetailPage() {
             </tr>
           )}
         </tbody>
-      </table>
+      </Table>
     </PlannerLayout>
   );
 }
@@ -653,23 +647,6 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '16px 0',
     alignItems: 'center',
   },
-  input: {
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.white,
-    fontSize: '15px',
-  },
-  button: {
-    padding: '10px 20px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   dangerButton: {
     padding: '10px 20px',
     borderRadius: RADIUS.sm,
@@ -679,17 +656,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '15px',
     fontWeight: 600,
     cursor: 'pointer',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
   },
   td: {
     padding: '10px 8px',
@@ -718,14 +684,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${COLORS.lightGreenBg}`,
     background: COLORS.lightGrayBg,
     fontSize: '15px',
-  },
-  linkButtonDanger: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.error,
-    cursor: 'pointer',
-    fontSize: '14px',
-    padding: '4px 8px',
   },
   error: {
     color: COLORS.error,

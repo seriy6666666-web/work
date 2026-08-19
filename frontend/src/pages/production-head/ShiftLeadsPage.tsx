@@ -11,6 +11,7 @@ import { SearchSelect } from '../../components/SearchSelect';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Th, Td, Button, Input } from '../../components/ui';
 
 function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -142,8 +143,7 @@ export function ShiftLeadsPage() {
           placeholder={form.siteId ? 'Найти сотрудника' : 'Сначала выберите участок'}
           disabled={!form.siteId}
         />
-        <input
-          style={styles.input}
+        <Input style={{ padding: '9px 12px', fontSize: '14px' }}
           type="date"
           value={form.date}
           onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -159,20 +159,20 @@ export function ShiftLeadsPage() {
             { value: 'DAY', label: 'Дневная' },
           ]}
         />
-        <button style={styles.button} type="submit">
+        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">
           Назначить
-        </button>
+        </Button>
       </form>
 
       <div style={styles.period}>
         <span style={styles.periodTitle}>Показать назначения</span>
         <label style={styles.dateLabel}>
           <span style={styles.caption}>с</span>
-          <input style={styles.input} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </label>
         <label style={styles.dateLabel}>
           <span style={styles.caption}>по</span>
-          <input style={styles.input} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
       </div>
 
@@ -182,41 +182,41 @@ export function ShiftLeadsPage() {
         <EmptyState icon="calendar" title="Назначений нет" hint="Назначьте старшего смены в форме выше." />
       ) : (
         <div style={styles.tableWrap}>
-          <table style={styles.table}>
+          <Table style={{ fontSize: '14px' }}>
             <thead>
               <tr>
                 <SortHeader label="Дата" sortKey="date" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Смена" sortKey="type" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Участок" sortKey="site" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Старший" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-                <th style={styles.th}></th>
+                <Th style={{ fontWeight: 600, borderBottom: `1px solid ${COLORS.lightGreenBg}`, whiteSpace: 'nowrap' }}></Th>
               </tr>
             </thead>
             <tbody>
               {controls.result.map((l) => (
                 <tr key={l.id}>
-                  <td style={styles.td}>{new Date(l.date).toLocaleDateString('ru-RU', { timeZone: 'UTC' })}</td>
-                  <td style={styles.td}>
+                  <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>{new Date(l.date).toLocaleDateString('ru-RU', { timeZone: 'UTC' })}</Td>
+                  <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>
                     <Badge variant={l.type === 'NIGHT' ? 'shared' : 'accent'}>
                       {l.type === 'NIGHT' ? 'Ночная' : 'Дневная'}
                     </Badge>
-                  </td>
-                  <td style={styles.td}>{l.site.name}</td>
-                  <td style={styles.td}>
+                  </Td>
+                  <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>{l.site.name}</Td>
+                  <Td style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>
                     <div style={styles.nameCell}>
                       <Avatar name={l.user.fullName} size={26} />
                       {l.user.fullName}
                     </div>
-                  </td>
-                  <td style={{ ...styles.td, textAlign: 'right' }}>
+                  </Td>
+                  <Td align="right" style={{ padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' }}>
                     <button style={styles.linkDanger} onClick={() => handleDelete(l.id)}>
                       Снять
                     </button>
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         </div>
       )}
     </ProductionHeadLayout>
@@ -237,23 +237,6 @@ const styles: Record<string, React.CSSProperties> = {
   periodTitle: { fontSize: '13px', color: COLORS.mutedText, alignSelf: 'center' },
   dateLabel: { display: 'flex', flexDirection: 'column', gap: '4px' },
   caption: { fontSize: '12px', color: COLORS.mutedText },
-  input: {
-    padding: '9px 12px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.lightGrayBg,
-    fontSize: '14px',
-  },
-  button: {
-    padding: '10px 18px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accent,
-    color: COLORS.white,
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
   tableWrap: {
     background: COLORS.white,
     border: `1px solid ${COLORS.lightGreenBg}`,
@@ -262,17 +245,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 12px',
     overflowX: 'auto',
   },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    color: COLORS.mutedText,
-    fontWeight: 600,
-    fontSize: '13px',
-    borderBottom: `1px solid ${COLORS.lightGreenBg}`,
-    whiteSpace: 'nowrap',
-  },
-  td: { padding: '8px', borderBottom: `1px solid ${COLORS.lightGrayBg}`, whiteSpace: 'nowrap' },
   nameCell: { display: 'flex', alignItems: 'center', gap: '10px' },
   linkDanger: { border: 'none', background: 'none', color: COLORS.error, cursor: 'pointer', fontSize: '13px' },
 };

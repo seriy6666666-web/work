@@ -1,0 +1,127 @@
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
+
+/**
+ * Общий слой интерфейса.
+ *
+ * Смысл ровно один: чтобы вид системы задавался в одном месте, а не в тридцати
+ * пяти файлах страниц. Сами детали намеренно тонкие — они не берут на себя
+ * поведение, только внешний вид и отклик на нажатие.
+ *
+ * Оформление живёт в ui.css классами, а не встроенными стилями: встроенные не
+ * умеют ни наведения, ни фокуса, ни нажатого состояния — а без них в цеху
+ * непонятно, сработало или нет.
+ */
+
+type Div = { children?: ReactNode; className?: string; style?: React.CSSProperties };
+
+function cls(...parts: (string | false | undefined)[]): string {
+  return parts.filter(Boolean).join(' ');
+}
+
+export function Card({ children, className, style }: Div) {
+  return (
+    <div className={cls('ui-card', className)} style={style}>
+      {children}
+    </div>
+  );
+}
+
+export function Table({ children, className, style }: Div) {
+  return (
+    <table className={cls('ui-table', className)} style={style}>
+      {children}
+    </table>
+  );
+}
+
+export function Th({
+  align,
+  className,
+  ...rest
+}: ThHTMLAttributes<HTMLTableCellElement> & { align?: 'left' | 'right' }) {
+  return <th className={cls('ui-th', align === 'right' && 'ui-th--right', className)} {...rest} />;
+}
+
+export function Td({
+  align,
+  className,
+  ...rest
+}: TdHTMLAttributes<HTMLTableCellElement> & { align?: 'left' | 'right' }) {
+  return <td className={cls('ui-td', align === 'right' && 'ui-td--right', className)} {...rest} />;
+}
+
+/**
+ * Кнопка.
+ *
+ * `primary` — основное действие на экране, «Добавить», «Назначить».
+ * `ghost` — второстепенное рядом с основным.
+ * `danger` — удаление и прочее необратимое.
+ */
+export function Button({
+  variant = 'primary',
+  className,
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'danger' }) {
+  return (
+    <button
+      type={rest.type ?? 'button'}
+      className={cls('ui-btn', variant !== 'primary' && `ui-btn--${variant}`, className)}
+      {...rest}
+    />
+  );
+}
+
+/** Действие внутри строки таблицы: «Изменить», «Удалить». */
+export function LinkButton({
+  danger,
+  className,
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & { danger?: boolean }) {
+  return (
+    <button
+      type={rest.type ?? 'button'}
+      className={cls('ui-link', danger && 'ui-link--danger', className)}
+      {...rest}
+    />
+  );
+}
+
+export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={cls('ui-input', className)} {...rest} />;
+}
+
+/** Пояснение под заголовком страницы. */
+export function Hint({ children, className, style }: Div) {
+  return (
+    <p className={cls('ui-hint', className)} style={style}>
+      {children}
+    </p>
+  );
+}
+
+/** Приглушённый текст: подписи, вторичные числа. */
+export function Muted({ children, className, style }: Div) {
+  return (
+    <span className={cls('ui-muted', className)} style={style}>
+      {children}
+    </span>
+  );
+}
+
+/** Строка полей над списком: форма добавления, набор фильтров. */
+export function FormRow({ children, className, style }: Div) {
+  return (
+    <div className={cls('ui-form-row', className)} style={style}>
+      {children}
+    </div>
+  );
+}
+
+/** Имя с кружком инициалов в ячейке таблицы. */
+export function NameCell({ children, className, style }: Div) {
+  return (
+    <div className={cls('ui-name-cell', className)} style={style}>
+      {children}
+    </div>
+  );
+}

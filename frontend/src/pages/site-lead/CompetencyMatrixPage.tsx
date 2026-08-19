@@ -7,6 +7,7 @@ import { useToast } from '../../components/ToastProvider';
 import { Skeleton } from '../../components/Skeleton';
 import { COLORS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Td } from '../../components/ui';
 
 function key(userId: string, skillId: string) {
   return `${userId}:${skillId}`;
@@ -95,7 +96,7 @@ export function CompetencyMatrixPage() {
       ) : matrix.users.length === 0 ? (
         <p>На вашем участке пока нет сотрудников.</p>
       ) : (
-        <table style={styles.table}>
+        <Table>
           <thead>
             <tr>
               <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
@@ -109,12 +110,12 @@ export function CompetencyMatrixPage() {
           <tbody>
             {controls.result.map((user) => (
               <tr key={user.id}>
-                <td style={styles.td}>
+                <Td>
                   <div style={styles.nameCell}>
                     <Avatar name={user.fullName} size={26} />
                     {user.fullName}
                   </div>
-                </td>
+                </Td>
                 {matrix.skills.map((skill) => {
                   const k = key(user.id, skill.id);
                   const canDo = competentSet.has(k);
@@ -132,17 +133,13 @@ export function CompetencyMatrixPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </SiteLeadLayout>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
   th: {
     textAlign: 'left',
     padding: '10px 8px',

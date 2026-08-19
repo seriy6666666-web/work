@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { BarChart } from '../../components/BarChart';
 import { COLORS, RADIUS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
+import { Table, Th, Td } from '../../components/ui';
 
 export function PlantSummaryPage() {
   const { token } = useAuth();
@@ -104,36 +105,36 @@ export function PlantSummaryPage() {
             );
           })()}
 
-          <table style={styles.table}>
+          <Table>
             <thead>
               <tr>
                 <SortHeader label="Участок" sortKey="site" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Выработка по норме" sortKey="norm" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Выполнение плана" sortKey="completion" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <SortHeader label="Сотрудников с данными" sortKey="people" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-                <th style={styles.th}></th>
+                <Th></Th>
               </tr>
             </thead>
             <tbody>
               {controls.result.map((s) => (
                 <tr key={s.siteId}>
-                  <td style={styles.td}>{s.siteName}</td>
+                  <Td>{s.siteName}</Td>
                   <td style={{ ...styles.td, fontWeight: 600 }}>
                     {s.normRate === null ? '—' : `${Math.round(s.normRate * 100)}%`}
                   </td>
-                  <td style={styles.td}>
+                  <Td>
                     {s.completionRate === null ? '—' : `${Math.round(s.completionRate * 100)}%`}
-                  </td>
-                  <td style={styles.td}>{s.workersCount}</td>
-                  <td style={{ ...styles.td, textAlign: 'right' }}>
+                  </Td>
+                  <Td>{s.workersCount}</Td>
+                  <Td align="right">
                     <Link to={`/production-head/sites/${s.siteId}`} style={styles.link}>
                       Подробнее →
                     </Link>
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         </>
       )}
     </ProductionHeadLayout>
@@ -166,17 +167,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderColor: COLORS.accent,
     color: COLORS.white,
     fontWeight: 600,
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px 8px',
-    borderBottom: `2px solid ${COLORS.lightGreenBg}`,
-    color: COLORS.mutedText,
-    fontSize: '13px',
   },
   td: {
     padding: '10px 8px',
