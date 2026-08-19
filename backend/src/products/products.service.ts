@@ -5,6 +5,7 @@ import { ProjectStatus } from '../generated/prisma/enums';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductOperationDto } from './dto/create-product-operation.dto';
 import { SetPlatformsDto } from './dto/set-platforms.dto';
+import { computeProductProgress } from './product-progress';
 
 const includeOps = {
   operations: {
@@ -25,12 +26,55 @@ const includeOps = {
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
-  list(includeArchived = false) {
-    return this.prisma.product.findMany({
+  /**
+   * Список проектов со сводкой хода работ.
+   *
+   * Сводка считается по заказам проекта: сколько изделий заказано и готово, к
+   * какому сроку, сколько операций закрыто, в работе и без исполнителя. Раньше
+   * планировщик видел техкарту и не видел, как проект идёт, — данные лежали в
+   * базе, но до его экрана не доходили.
+   */
+  async list(includeArchived = false) {
+    const products = await this.prisma.product.findMany({
       where: includeArchived ? undefined : { status: ProjectStatus.ACTIVE },
       include: includeOps,
       orderBy: { name: 'asc' },
     });
+
+    // Заказы всех проектов одним запросом: по штуке на проект дало бы пять
+    // запросов сейчас и столько же, сколько проектов, потом.
+    const orders = await this.prisma.order.findMany({
+      where: { projectId: { in: products.map((p) => p.id) }, status: { not: 'ARCHIVED' } },
+      select: {
+        projectId: true,
+        quantity: true,
+        dueDate: true,
+        status: true,
+        operations: {
+          select: {
+            quantity: true,
+            perUnit: true,
+            dailyQuantity: true,
+            dueDate: true,
+            assignments: { select: { completionRecords: { select: { doneQuantity: true } } } },
+          },
+        },
+      },
+    });
+
+    const byProduct = new Map<string, typeof orders>();
+    for (const o of orders) {
+      if (!o.projectId) continue;
+      const list = byProduct.get(o.projectId) ?? [];
+      list.push(o);
+      byProduct.set(o.projectId, list);
+    }
+
+    const today = new Date();
+    return products.map((p) => ({
+      ...p,
+      progress: computeProductProgress(byProduct.get(p.id) ?? [], p.operations.length, today),
+    }));
   }
 
   async create(dto: CreateProductDto) {

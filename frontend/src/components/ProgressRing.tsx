@@ -1,6 +1,15 @@
 import { COLORS } from '../theme';
 
-export function ProgressRing({ ratio, size = 64 }: { ratio: number; size?: number }) {
+export function ProgressRing({
+  ratio,
+  size = 64,
+  /** Цвет дуги. Красный — когда проект не успевает: цвет тут несёт смысл. */
+  color = COLORS.accent,
+}: {
+  ratio: number;
+  size?: number;
+  color?: string;
+}) {
   const stroke = size * 0.12;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -22,7 +31,7 @@ export function ProgressRing({ ratio, size = 64 }: { ratio: number; size?: numbe
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke={COLORS.accent}
+        stroke={color}
         strokeWidth={stroke}
         strokeDasharray={circumference}
         strokeDashoffset={offset}

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import {
@@ -15,11 +15,12 @@ import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
-import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
+import { useTableControls, SortSelect, SearchInput, type SortChoice } from '../../components/TableControls';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
-import { Button, Input } from '../../components/ui';
+import { COLORS } from '../../theme';
+import { Button, Input, LinkButton, Hint, Muted } from '../../components/ui';
+import { ProgressRing } from '../../components/ProgressRing';
 
 interface OpForm {
   operationTypeId: string;
@@ -45,6 +46,43 @@ const SORT_CHOICES: SortChoice[] = [
   { key: 'operations', dir: 'desc', label: 'больше операций сверху' },
 ];
 
+/** Фильтры над списком — как в макете, со счётчиками. */
+const FILTERS: { key: 'all' | 'inWork' | 'atRisk' | 'notStarted'; label: string }[] = [
+  { key: 'all', label: 'Все' },
+  { key: 'inWork', label: 'В работе' },
+  { key: 'atRisk', label: 'Риск' },
+  { key: 'notStarted', label: 'Не начаты' },
+];
+
+/** Метка состояния проекта. Цвет несёт смысл и только его. */
+const STATE_META: Record<Product['progress']['state'], { label: string; variant: 'accent' | 'danger' | 'muted' | 'shared' }> = {
+  draft: { label: 'Черновик', variant: 'muted' },
+  notStarted: { label: 'Не начат', variant: 'muted' },
+  inWork: { label: 'В работе', variant: 'accent' },
+  atRisk: { label: 'Риск срыва', variant: 'danger' },
+  done: { label: 'Готов', variant: 'accent' },
+};
+
+function formatIso(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+/**
+ * Отрезки полосы — по одному на операцию.
+ *
+ * Когда операций в заказах нет, показываем шаги техкарты серым: полоса не должна
+ * исчезать у проекта, который просто ещё не запускали.
+ */
+function segments(g: Product['progress'], techCardSize: number): string[] {
+  const total = g.operationsTotal || techCardSize;
+  return Array.from({ length: total }, (_, i) => {
+    if (i < g.operationsDone) return 'var(--acc)';
+    if (i < g.operationsDone + g.operationsInWork) return 'var(--info)';
+    return 'var(--queue)';
+  });
+}
+
 export function ProductsPage() {
   const { token } = useAuth();
   const toast = useToast();
@@ -65,24 +103,15 @@ export function ProductsPage() {
    * Свёрнутость держим в localStorage, а не в памяти: страница перезагружается
    * после каждого действия со списком, и иначе всё распахивалось бы заново.
    */
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('belmy_collapsed_products') ?? '{}');
-    } catch {
-      return {};
-    }
-  });
-
-  function toggleProduct(productId: string) {
-    setCollapsed((prev) => {
-      const next = { ...prev, [productId]: !prev[productId] };
-      localStorage.setItem('belmy_collapsed_products', JSON.stringify(next));
-      return next;
-    });
-  }
+  /** Открытый проект. Раскрытие внутри списка заменено отдельным видом: у верхних
+   * проектов техкарта на пятнадцать операций отодвигала все остальные вниз. */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const listScrollRef = useRef(0);
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]['key']>('all');
+  const [createOpen, setCreateOpen] = useState(false);
 
   const controls = useTableControls(products, {
-    searchText: (p) => p.name,
+    searchText: (p) => `${p.name} ${p.operations.map((o) => o.operationType.name).join(' ')}`,
     sortAccessors: {
       name: (p) => p.name,
       created: (p) => p.createdAt,
@@ -246,383 +275,682 @@ export function ProductsPage() {
     }
   }
 
-  return (
-    <PlannerLayout title="Проекты" breadcrumb="Планирование">
-      <p style={styles.hint}>
-        Проект — готовый шаблон изделия с техкартой (операции по участкам). При создании заказа «из
-        проекта» операции подставляются автоматически. Площадки — где проект производится.
-      </p>
+  const openProduct = openId ? (products.find((p) => p.id === openId) ?? null) : null;
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <Input
-          placeholder="Название проекта (например «АКБ 24В 100Ач»)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit" disabled={creating || !newName.trim()}>
-          Добавить проект
-        </Button>
-      </form>
+  /**
+   * Счётчики у фильтров считаем по всем проектам, а не по отфильтрованным: иначе
+   * «Риск 2» пропадал бы, стоило выбрать другой фильтр, и понять, есть ли вообще
+   * риск, было бы нельзя.
+   */
+  const counts = {
+    all: controls.result.length,
+    inWork: products.filter((p) => p.progress.state === 'inWork').length,
+    atRisk: products.filter((p) => p.progress.state === 'atRisk').length,
+    notStarted: products.filter((p) => p.progress.state === 'notStarted' || p.progress.state === 'draft')
+      .length,
+  };
+  const visible = controls.result.filter((p) => {
+    if (filter === 'all') return true;
+    if (filter === 'inWork') return p.progress.state === 'inWork';
+    if (filter === 'atRisk') return p.progress.state === 'atRisk';
+    return p.progress.state === 'notStarted' || p.progress.state === 'draft';
+  });
 
-      <div style={styles.listControls}>
-        <label style={styles.archivedToggle}>
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-          />
-          Показывать архивные
-        </label>
-        <SortSelect
-          choices={SORT_CHOICES}
-          sortKey={controls.sortKey}
-          dir={controls.sortDir}
-          onSelect={controls.setSort}
-        />
-      </div>
+  function openProject(id: string) {
+    // Возврат должен вернуть список туда, где его оставили: планировщик идёт
+    // сверху вниз, и прокрутка к началу заставляла бы искать место заново.
+    listScrollRef.current = window.scrollY;
+    setOpenId(id);
+    window.scrollTo({ top: 0 });
+  }
 
-      {operationTypes.length === 0 && (
-        <p style={styles.hint}>
-          Справочник операций пуст. <Link to="/planner/operations">Заведите операции</Link>, чтобы
-          собирать из них техкарту изделия.
-        </p>
-      )}
+  function closeProject() {
+    setOpenId(null);
+    requestAnimationFrame(() => window.scrollTo({ top: listScrollRef.current }));
+  }
 
-      {loading ? (
-        <SkeletonCards count={3} />
-      ) : products.length === 0 ? (
-        <EmptyState icon="box" title="Проектов пока нет" hint="Добавьте первый проект в форме выше." />
-      ) : (
-        controls.result.map((p) => {
-          const form = opForms[p.id] ?? EMPTY_OP;
-          const archived = p.status === 'ARCHIVED';
-          const platformIds = new Set(p.platforms.map((pl) => pl.id));
-          const isCollapsed = Boolean(collapsed[p.id]);
-          return (
-            <div key={p.id} style={{ ...styles.card, ...(archived ? styles.cardArchived : null) }}>
-              <div style={styles.cardHeader}>
-                <div style={styles.titleRow}>
-                  {/* Раскрывает техкарту. Сводка в заголовке — чтобы понять состав, не разворачивая. */}
-                  <button
-                    style={styles.caret}
-                    onClick={() => toggleProduct(p.id)}
-                    aria-label={isCollapsed ? 'Раскрыть техкарту' : 'Свернуть техкарту'}
-                  >
-                    {isCollapsed ? '▸' : '▾'}
-                  </button>
-                  <strong style={styles.clickableName} onClick={() => toggleProduct(p.id)}>
-                    {p.name}
-                  </strong>
-                  <span style={styles.opsCount}>
-                    {p.operations.length === 0 ? 'техкарта пуста' : `${p.operations.length} оп.`}
-                  </span>
-                  {archived ? <Badge variant="muted">Архив</Badge> : <Badge variant="accent">Активен</Badge>}
-                  <span style={styles.date}>от {formatDate(p.createdAt)}</span>
-                </div>
-                <div style={styles.headerActions}>
-                  <button style={styles.link} onClick={() => handleArchive(p)}>
-                    {archived ? 'Восстановить' : 'В архив'}
-                  </button>
-                  <button style={styles.linkDanger} onClick={() => handleDeleteProduct(p)}>
-                    Удалить
-                  </button>
-                </div>
-              </div>
-
-              {!isCollapsed && (
-                <>
-              {/* Площадки */}
-              <div style={styles.platformsRow}>
-                <span style={styles.blockLabel}>Площадки:</span>
-                {platforms.length === 0 ? (
-                  <span style={styles.muted}>
-                    нет площадок — <Link to="/admin/platforms">добавьте в администрировании</Link>
-                  </span>
-                ) : (
-                  platforms.map((pl) => (
-                    <label key={pl.id} style={styles.platformChip}>
-                      <input
-                        type="checkbox"
-                        checked={platformIds.has(pl.id)}
-                        onChange={() => handleTogglePlatform(p, pl.id)}
-                      />
-                      {pl.name}
-                    </label>
-                  ))
-                )}
-              </div>
-
-              {/* Техкарта */}
-              <span style={styles.blockLabel}>Техкарта (операции):</span>
-              {p.operations.length === 0 ? (
-                <p style={styles.muted}>Операции ещё не заданы.</p>
+  /** Плитка проекта: состояние одним взглядом, без раскрытия. */
+  function renderTile(p: Product) {
+    const g = p.progress;
+    const archived = p.status === 'ARCHIVED';
+    const ratio = g.planUnits > 0 ? g.doneUnits / g.planUnits : 0;
+    const meta = STATE_META[g.state];
+    const site = p.operations[0]?.site.name;
+    return (
+      <button key={p.id} style={styles.tile} onClick={() => openProject(p.id)}>
+        <div style={styles.tileTop}>
+          <ProgressRing ratio={ratio} size={56} color={g.atRisk ? COLORS.error : COLORS.accent} />
+          <div style={styles.tileMain}>
+            <div style={styles.tileTitle}>
+              <strong style={styles.tileName}>{p.name}</strong>
+              {archived ? (
+                <Badge variant="muted">Архив</Badge>
               ) : (
-                <ol style={styles.opList}>
-                  {p.operations.map((op) => {
-                    const mf = opMatForms[op.id] ?? { materialId: '', qty: '' };
-                    return (
-                      <li key={op.id} style={styles.opBlock}>
-                        <div style={styles.opItem}>
-                          <span>
-                            {op.operationType.name} · {op.site.name}
-                            {op.operationType.skill && (
-                              <span style={styles.opSkill}> · навык: {op.operationType.skill.name}</span>
-                            )}
-                            {op.secondarySite && (
-                              <>
-                                {' '}
-                                <Badge variant="shared">+ {op.secondarySite.name}</Badge>
-                              </>
-                            )}
-                          </span>
-                          <button style={styles.linkDanger} onClick={() => handleDeleteOp(op.id)}>
-                            Удалить
-                          </button>
-                        </div>
-                        {/* Расход материалов на 1 изделие */}
-                        <div style={styles.matRow}>
-                          <span style={styles.matLabel}>Материалы/шт:</span>
-                          {op.materials.length === 0 && <span style={styles.muted}>не заданы</span>}
-                          {op.materials.map((m) => (
-                            <span key={m.id} style={styles.matChip}>
-                              {m.material.name} — {m.quantityPerUnit} {m.material.unit}
-                              <button style={styles.chipX} onClick={() => handleRemoveOpMaterial(m.id)} title="Убрать">
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                        <div style={styles.matForm}>
-                          <Select
-                            width="200px"
-                            ariaLabel="Материал"
-                            placeholder="Материал"
-                            value={mf.materialId}
-                            onChange={(materialId) =>
-                              setOpMatForms((prev) => ({ ...prev, [op.id]: { ...mf, materialId } }))
-                            }
-                            options={materials.map((mat) => ({
-                              value: mat.id,
-                              label: mat.name,
-                              hint: mat.unit,
-                            }))}
-                          />
-                          <input
-                            style={{ ...styles.matInput, maxWidth: '110px' }}
-                            type="number"
-                            step="any"
-                            min="0"
-                            placeholder="на 1 шт"
-                            value={mf.qty}
-                            onChange={(e) => setOpMatForms((prev) => ({ ...prev, [op.id]: { ...mf, qty: e.target.value } }))}
-                          />
-                          <button style={styles.smallBtn} onClick={() => handleAddOpMaterial(op.id)}>
-                            + расход
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-
-              <form onSubmit={(e) => handleAddOp(e, p.id)} style={styles.opForm}>
-                <Select
-                  width="190px"
-                  ariaLabel="Операция"
-                  placeholder="Операция"
-                  value={form.operationTypeId}
-                  onChange={(operationTypeId) =>
-                    setOpForms((prev) => ({ ...prev, [p.id]: { ...form, operationTypeId } }))
-                  }
-                  options={operationTypes.map((o) => ({
-                    value: o.id,
-                    label: o.skill ? `${o.name} — навык: ${o.skill.name}` : o.name,
-                  }))}
-                />
-                <Select
-                  width="170px"
-                  ariaLabel="Участок"
-                  placeholder="Участок"
-                  value={form.siteId}
-                  onChange={(siteId) => setOpForms((prev) => ({ ...prev, [p.id]: { ...form, siteId } }))}
-                  options={sites.map((s) => ({ value: s.id, label: s.name }))}
-                />
-                <Select
-                  width="200px"
-                  ariaLabel="Второй участок"
-                  placeholder="Второй участок (опц.)"
-                  value={form.secondarySiteId}
-                  onChange={(secondarySiteId) =>
-                    setOpForms((prev) => ({ ...prev, [p.id]: { ...form, secondarySiteId } }))
-                  }
-                  // Второй участок необязателен, поэтому пустой вариант нужен как выбор:
-                  // раз выставленный, он должен сниматься.
-                  options={[
-                    { value: '', label: 'Без второго участка' },
-                    ...sites
-                      .filter((s) => s.id !== form.siteId)
-                      .map((s) => ({ value: s.id, label: s.name })),
-                  ]}
-                />
-                <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">
-                  + Операция
-                </Button>
-              </form>
-                </>
+                <Badge variant={meta.variant}>{meta.label}</Badge>
               )}
             </div>
-          );
-        })
+            <div style={styles.tileMeta}>
+              {p.platforms.map((pl) => pl.name).join(', ') || 'площадка не выбрана'}
+              {site ? ` · ${site}` : ''}
+            </div>
+            {g.dueDate && (
+              <div style={{ ...styles.tileDue, ...(g.atRisk ? styles.tileDueRisk : null) }}>
+                срок {formatIso(g.dueDate)}
+              </div>
+            )}
+          </div>
+          <div style={styles.tileNumbers}>
+            <div style={styles.tileDone}>{g.doneUnits.toLocaleString('ru-RU')}</div>
+            <div style={styles.tilePlan}>из {g.planUnits.toLocaleString('ru-RU')} шт</div>
+          </div>
+        </div>
+
+        <div style={styles.tileCounters}>
+          <span style={styles.counter}>
+            <i style={{ ...styles.dot, background: 'var(--acc)' }} />
+            готово {g.operationsDone}
+          </span>
+          <span style={styles.counter}>
+            <i style={{ ...styles.dot, background: 'var(--info)' }} />в работе {g.operationsInWork}
+          </span>
+          <span style={styles.counter}>
+            <i style={{ ...styles.dot, background: 'var(--queue)' }} />
+            без исполнителя {g.operationsUnassigned}
+          </span>
+          <span style={styles.counterMuted}>операций {g.operationsTotal || p.operations.length}</span>
+        </div>
+
+        {/*
+          Полоса по одному отрезку на операцию: видно не только «сколько сделано»,
+          но и из скольких шагов это набрано. Пять закрытых из пятнадцати и пять из
+          шести выглядят по-разному, а процент у них может совпасть.
+        */}
+        <div style={styles.segments}>
+          {segments(g, p.operations.length).map((c, i) => (
+            <span key={i} style={{ ...styles.segment, background: c }} />
+          ))}
+        </div>
+      </button>
+    );
+  }
+
+  /** Открытый проект: техкарта во всю ширину и всё, что с ней делают. */
+  function renderProject(p: Product) {
+    const form = opForms[p.id] ?? EMPTY_OP;
+    const archived = p.status === 'ARCHIVED';
+    const platformIds = new Set(p.platforms.map((pl) => pl.id));
+    const g = p.progress;
+    const meta = STATE_META[g.state];
+    return (
+      <>
+        <button style={styles.back} onClick={closeProject}>
+          ← Все проекты
+        </button>
+
+        <div style={styles.projectHead}>
+          <div style={styles.titleRow}>
+            <ProgressRing
+              ratio={g.planUnits > 0 ? g.doneUnits / g.planUnits : 0}
+              size={52}
+              color={g.atRisk ? COLORS.error : COLORS.accent}
+            />
+            <div>
+              <div style={styles.tileTitle}>
+                <strong style={styles.projectName}>{p.name}</strong>
+                {archived ? (
+                  <Badge variant="muted">Архив</Badge>
+                ) : (
+                  <Badge variant={meta.variant}>{meta.label}</Badge>
+                )}
+              </div>
+              <div style={styles.tileMeta}>
+                {g.doneUnits.toLocaleString('ru-RU')} из {g.planUnits.toLocaleString('ru-RU')} шт
+                {g.dueDate ? ` · срок ${formatIso(g.dueDate)}` : ''} · от {formatDate(p.createdAt)}
+              </div>
+            </div>
+          </div>
+          <div style={styles.headerActions}>
+            <LinkButton onClick={() => handleArchive(p)}>
+              {archived ? 'Восстановить' : 'В архив'}
+            </LinkButton>
+            <LinkButton danger onClick={() => handleDeleteProduct(p)}>
+              Удалить
+            </LinkButton>
+          </div>
+        </div>
+
+        <div style={styles.platformsRow}>
+          <span style={styles.blockLabel}>Площадки:</span>
+          {platforms.length === 0 ? (
+            <Muted>
+              нет площадок — <Link to="/admin/platforms">добавьте в администрировании</Link>
+            </Muted>
+          ) : (
+            platforms.map((pl) => (
+              <label key={pl.id} style={styles.platformChip}>
+                <input
+                  type="checkbox"
+                  checked={platformIds.has(pl.id)}
+                  onChange={() => handleTogglePlatform(p, pl.id)}
+                />
+                {pl.name}
+              </label>
+            ))
+          )}
+        </div>
+
+        <span style={styles.blockLabel}>Технологическая карта</span>
+        {p.operations.length === 0 ? (
+          <EmptyState
+            icon="box"
+            title="Техкарта не заполнена"
+            hint="Пока в ней нет операций, проект нельзя отдать в распределение."
+          />
+        ) : (
+          <ol style={styles.opList}>
+            {p.operations.map((op, i) => {
+              const mf = opMatForms[op.id] ?? { materialId: '', qty: '' };
+              return (
+                <li key={op.id} style={styles.opBlock}>
+                  <div style={styles.opItem}>
+                    <span style={styles.opNum}>{i + 1}</span>
+                    <span style={styles.opName}>
+                      {op.operationType.name}
+                      <span style={styles.opSkill}>
+                        {' · '}
+                        {op.site.name}
+                        {op.operationType.skill
+                          ? ` · навык: ${op.operationType.skill.name}`
+                          : ' · особый навык не требуется'}
+                      </span>
+                      {op.secondarySite && (
+                        <>
+                          {' '}
+                          <Badge variant="shared">+ {op.secondarySite.name}</Badge>
+                        </>
+                      )}
+                    </span>
+                    <LinkButton danger onClick={() => handleDeleteOp(op.id)}>
+                      Удалить
+                    </LinkButton>
+                  </div>
+                  <div style={styles.matRow}>
+                    <span style={styles.matLabel}>Материалы/шт:</span>
+                    {op.materials.length === 0 && <Muted>не заданы</Muted>}
+                    {op.materials.map((m) => (
+                      <span key={m.id} style={styles.matChip}>
+                        {m.material.name} — {m.quantityPerUnit} {m.material.unit}
+                        <button
+                          style={styles.chipX}
+                          onClick={() => handleRemoveOpMaterial(m.id)}
+                          title="Убрать"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={styles.matForm}>
+                    <Select
+                      width="200px"
+                      ariaLabel="Материал"
+                      placeholder="Материал"
+                      value={mf.materialId}
+                      onChange={(materialId) =>
+                        setOpMatForms((prev) => ({ ...prev, [op.id]: { ...mf, materialId } }))
+                      }
+                      options={materials.map((mat) => ({ value: mat.id, label: mat.name, hint: mat.unit }))}
+                    />
+                    <Input
+                      style={{ maxWidth: '110px' }}
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="на 1 шт"
+                      value={mf.qty}
+                      onChange={(e) =>
+                        setOpMatForms((prev) => ({ ...prev, [op.id]: { ...mf, qty: e.target.value } }))
+                      }
+                    />
+                    <Button variant="ghost" onClick={() => handleAddOpMaterial(op.id)}>
+                      + расход
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+
+        <form onSubmit={(e) => handleAddOp(e, p.id)} style={styles.opForm}>
+          <Select
+            width="220px"
+            ariaLabel="Операция"
+            placeholder="Операция"
+            value={form.operationTypeId}
+            onChange={(operationTypeId) =>
+              setOpForms((prev) => ({ ...prev, [p.id]: { ...form, operationTypeId } }))
+            }
+            options={operationTypes.map((o) => ({
+              value: o.id,
+              label: o.skill ? `${o.name} — навык: ${o.skill.name}` : o.name,
+            }))}
+          />
+          <Select
+            width="180px"
+            ariaLabel="Участок"
+            placeholder="Участок"
+            value={form.siteId}
+            onChange={(siteId) => setOpForms((prev) => ({ ...prev, [p.id]: { ...form, siteId } }))}
+            options={sites.map((s) => ({ value: s.id, label: s.name }))}
+          />
+          <Select
+            width="210px"
+            ariaLabel="Второй участок"
+            placeholder="Второй участок (опц.)"
+            value={form.secondarySiteId}
+            onChange={(secondarySiteId) =>
+              setOpForms((prev) => ({ ...prev, [p.id]: { ...form, secondarySiteId } }))
+            }
+            // Второй участок необязателен, поэтому пустой вариант нужен как выбор:
+            // раз выставленный, он должен сниматься.
+            options={[
+              { value: '', label: 'Без второго участка' },
+              ...sites.filter((s) => s.id !== form.siteId).map((s) => ({ value: s.id, label: s.name })),
+            ]}
+          />
+          <Button type="submit">+ Операция</Button>
+        </form>
+      </>
+    );
+  }
+
+  return (
+    <PlannerLayout title="Проекты" breadcrumb="Планирование">
+      {openProduct ? (
+        renderProject(openProduct)
+      ) : (
+        <>
+          <Hint>
+            Проект — готовый шаблон изделия с техкартой (операции по участкам). При создании заказа
+            «из проекта» операции подставляются автоматически. Площадки — где проект производится.
+          </Hint>
+
+          <div style={styles.toolbar}>
+            <SearchInput
+              value={controls.query}
+              onChange={controls.setQuery}
+              placeholder="Проект, операция"
+            />
+            <div style={styles.filters}>
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  style={{ ...styles.filter, ...(filter === f.key ? styles.filterActive : null) }}
+                  onClick={() => setFilter(f.key)}
+                >
+                  {f.label} <span style={styles.filterCount}>{counts[f.key]}</span>
+                </button>
+              ))}
+            </div>
+            <div style={styles.toolbarRight}>
+              <SortSelect
+                choices={SORT_CHOICES}
+                sortKey={controls.sortKey}
+                dir={controls.sortDir}
+                onSelect={controls.setSort}
+              />
+              <Button onClick={() => setCreateOpen((v) => !v)}>+ Проект</Button>
+            </div>
+          </div>
+
+          {createOpen && (
+            <form onSubmit={handleCreate} style={styles.createForm}>
+              <Input
+                style={{ flex: 1, minWidth: '240px' }}
+                placeholder="Название проекта (например «АКБ 24В 100Ач»)"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                autoFocus
+              />
+              <Button type="submit" disabled={creating || !newName.trim()}>
+                Добавить
+              </Button>
+              <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+                Отмена
+              </Button>
+            </form>
+          )}
+
+          <label style={styles.archivedToggle}>
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
+            Показывать архивные
+          </label>
+
+          {operationTypes.length === 0 && (
+            <Hint>
+              Справочник операций пуст. <Link to="/planner/operations">Заведите операции</Link>, чтобы
+              собирать из них техкарту изделия.
+            </Hint>
+          )}
+
+          {loading ? (
+            <SkeletonCards count={4} />
+          ) : products.length === 0 ? (
+            <EmptyState
+              icon="box"
+              title="Проектов пока нет"
+              hint="Добавьте первый проект кнопкой «+ Проект»."
+            />
+          ) : visible.length === 0 ? (
+            <EmptyState icon="search" title="Ничего не найдено" hint="Измените поиск или фильтр." />
+          ) : (
+            <div style={styles.tiles}>{visible.map((p) => renderTile(p))}</div>
+          )}
+        </>
       )}
     </PlannerLayout>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  caret: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.mutedText,
-    cursor: 'pointer',
-    fontSize: '13px',
-    padding: '0 2px',
-  },
-  clickableName: {
-    cursor: 'pointer',
-  },
-  opsCount: {
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  opSkill: {
-    color: COLORS.mutedText,
-    fontSize: '13px',
-  },
-  hint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0 },
-  createForm: { display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' },
-  /** Строка над списком: что показывать и в каком порядке. */
-  listControls: {
+  /* --- Панель над списком --- */
+  toolbar: {
     display: 'flex',
     alignItems: 'center',
-    gap: '20px',
+    gap: '12px',
     flexWrap: 'wrap',
-    marginBottom: '20px',
+    marginBottom: '14px',
+  },
+  toolbarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginLeft: 'auto',
+  },
+  filters: {
+    display: 'flex',
+    gap: '6px',
+    flexWrap: 'wrap',
+  },
+  filter: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    minHeight: '40px',
+    borderRadius: '999px',
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    color: 'var(--tx2)',
+    fontSize: '14px',
+    cursor: 'pointer',
+  },
+  filterActive: {
+    background: 'var(--accsoft)',
+    borderColor: 'var(--acc)',
+    color: 'var(--accd)',
+    fontWeight: 600,
+  },
+  filterCount: {
+    color: 'var(--tx3)',
+    fontSize: '13px',
+  },
+  createForm: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    marginBottom: '14px',
   },
   archivedToggle: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
     fontSize: '14px',
-    color: COLORS.mutedText,
+    color: 'var(--tx2)',
+    marginBottom: '18px',
+  },
+
+  /* --- Плитки --- */
+  tiles: {
+    display: 'grid',
+    // Две колонки на компьютере и планшете, одна на телефоне — порог задан
+    // самой сеткой, поэтому поворот не меняет вид скачком.
+    gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))',
+    gap: '14px',
+  },
+  tile: {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    padding: '16px 18px',
+    borderRadius: '14px',
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    boxShadow: 'var(--sh1)',
     cursor: 'pointer',
+    font: 'inherit',
+    color: 'var(--tx)',
   },
-  card: {
-    padding: '16px',
-    background: COLORS.white,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    borderRadius: RADIUS.md,
-    boxShadow: SHADOW.card,
-    marginBottom: '16px',
-  },
-  cardArchived: { opacity: 0.7 },
-  cardHeader: {
+  tileTop: {
     display: 'flex',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '14px',
+  },
+  tileMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tileTitle: {
+    display: 'flex',
     alignItems: 'center',
-    marginBottom: '12px',
-    gap: '10px',
+    gap: '8px',
     flexWrap: 'wrap',
   },
-  titleRow: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
-  date: { fontSize: '13px', color: COLORS.mutedText },
-  headerActions: { display: 'flex', gap: '14px' },
-  blockLabel: { fontSize: '13px', fontWeight: 600, color: COLORS.mutedText },
+  tileName: {
+    fontSize: '19px',
+    fontWeight: 600,
+  },
+  projectName: {
+    fontSize: '21px',
+    fontWeight: 600,
+  },
+  tileMeta: {
+    marginTop: '4px',
+    color: 'var(--tx2)',
+    fontSize: '13px',
+  },
+  tileDue: {
+    marginTop: '4px',
+    color: 'var(--tx2)',
+    fontSize: '13px',
+  },
+  tileDueRisk: {
+    color: 'var(--err)',
+    fontWeight: 600,
+  },
+  tileNumbers: {
+    textAlign: 'right',
+    whiteSpace: 'nowrap',
+  },
+  tileDone: {
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    fontSize: '24px',
+    fontWeight: 600,
+    // Числа в столбце не должны «плясать» от разной ширины цифр.
+    fontVariantNumeric: 'tabular-nums',
+  },
+  tilePlan: {
+    color: 'var(--tx3)',
+    fontSize: '12px',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  tileCounters: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    flexWrap: 'wrap',
+    margin: '12px 0 8px',
+    fontSize: '13px',
+    color: 'var(--tx2)',
+  },
+  counter: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  counterMuted: {
+    color: 'var(--tx3)',
+    marginLeft: 'auto',
+  },
+  dot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '999px',
+    display: 'inline-block',
+  },
+  segments: {
+    display: 'flex',
+    gap: '2px',
+  },
+  segment: {
+    flex: 1,
+    height: '8px',
+    borderRadius: '999px',
+  },
+
+  /* --- Открытый проект --- */
+  back: {
+    border: 'none',
+    background: 'none',
+    color: 'var(--accd)',
+    cursor: 'pointer',
+    fontSize: '14px',
+    padding: '4px 0',
+    marginBottom: '10px',
+  },
+  projectHead: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '16px',
+    flexWrap: 'wrap',
+    marginBottom: '16px',
+  },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '4px',
+  },
+  blockLabel: {
+    display: 'block',
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.16em',
+    textTransform: 'uppercase',
+    color: 'var(--tx3)',
+    margin: '18px 0 8px',
+  },
   platformsRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
     flexWrap: 'wrap',
-    marginBottom: '12px',
   },
   platformChip: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '6px',
-    fontSize: '14px',
-    padding: '4px 10px',
-    borderRadius: RADIUS.pill,
-    background: COLORS.lightGrayBg,
+    padding: '6px 12px',
+    borderRadius: '999px',
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    fontSize: '13px',
     cursor: 'pointer',
   },
-  muted: { color: COLORS.mutedText, fontSize: '13px' },
   opList: {
-    margin: '6px 0 12px',
-    paddingLeft: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  opBlock: {
     listStyle: 'none',
-    padding: '10px 12px',
-    borderRadius: RADIUS.sm,
-    background: COLORS.lightGrayBg,
+    margin: 0,
+    padding: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
   },
+  opBlock: {
+    padding: '12px 14px',
+    borderRadius: '12px',
+    border: '1px solid var(--line2)',
+    background: 'var(--surf2)',
+  },
   opItem: {
     display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '10px',
-    fontSize: '14px',
   },
-  matRow: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
-  matLabel: { fontSize: '12px', fontWeight: 600, color: COLORS.mutedText },
+  opNum: {
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    color: 'var(--tx3)',
+    fontSize: '13px',
+    minWidth: '20px',
+  },
+  opName: {
+    flex: 1,
+    fontSize: '14px',
+    lineHeight: 1.4,
+  },
+  opSkill: {
+    color: 'var(--tx3)',
+    fontSize: '13px',
+  },
+  matRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    margin: '8px 0 6px 30px',
+    fontSize: '13px',
+  },
+  matLabel: {
+    color: 'var(--tx3)',
+    fontSize: '12px',
+  },
   matChip: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '6px',
-    fontSize: '13px',
+    gap: '4px',
     padding: '3px 8px',
-    borderRadius: RADIUS.pill,
-    background: COLORS.white,
-    border: `1px solid ${COLORS.lightGreenBg}`,
+    borderRadius: '999px',
+    background: 'var(--accsoft)',
+    fontSize: '12px',
   },
-  chipX: { border: 'none', background: 'none', color: COLORS.error, cursor: 'pointer', fontSize: '15px', lineHeight: 1 },
-  matForm: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
-  matInput: {
-    padding: '7px 10px',
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.white,
-    fontSize: '13px',
-  },
-  smallBtn: {
-    padding: '7px 12px',
-    borderRadius: RADIUS.sm,
-    border: 'none',
-    background: COLORS.accentDark,
-    color: COLORS.white,
-    fontSize: '13px',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  opForm: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' },
-  link: {
+  chipX: {
     border: 'none',
     background: 'none',
-    color: COLORS.accentDark,
+    color: 'var(--tx3)',
     cursor: 'pointer',
-    fontSize: '13px',
+    fontSize: '14px',
+    lineHeight: 1,
+    padding: 0,
   },
-  linkDanger: {
-    border: 'none',
-    background: 'none',
-    color: COLORS.error,
-    cursor: 'pointer',
-    fontSize: '13px',
+  matForm: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    marginLeft: '30px',
+  },
+  opForm: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: '14px',
   },
 };

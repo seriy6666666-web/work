@@ -804,6 +804,28 @@ export interface Platform {
   createdAt: string;
 }
 
+/**
+ * Ход работ по проекту: считается на сервере по заказам проекта.
+ *
+ * Раньше планировщик видел техкарту и не видел, как проект идёт, — данные лежали
+ * в базе, но до его экрана не доходили.
+ */
+export interface ProductProgress {
+  /** Изделий заказано по всем незакрытым заказам. */
+  planUnits: number;
+  /** Изделий готово — по самому отстающему шагу, а не по сумме операций. */
+  doneUnits: number;
+  /** Ближайший срок отгрузки; null — заказов нет. */
+  dueDate: string | null;
+  operationsTotal: number;
+  operationsDone: number;
+  operationsInWork: number;
+  operationsUnassigned: number;
+  /** Есть операция, которую уже не успеть, или срок прошёл. */
+  atRisk: boolean;
+  state: 'draft' | 'notStarted' | 'inWork' | 'atRisk' | 'done';
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -811,6 +833,7 @@ export interface Product {
   createdAt: string;
   operations: ProductOperation[];
   platforms: { id: string; name: string }[];
+  progress: ProductProgress;
 }
 
 export interface CreateProductOperationPayload {
