@@ -24,7 +24,7 @@ import { SearchSelect } from '../../components/SearchSelect';
 import { Select } from '../../components/Select';
 import { useDistributionUpdates } from '../../realtime';
 import { useIsPhone } from '../../responsive';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { COLORS, RADIUS } from '../../theme';
 import { deadlineLook, deadlineShort, worstDeadline } from '../../deadline-label';
 import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
 import { Button, LinkButton, Input } from '../../components/ui';
@@ -78,9 +78,9 @@ function dayLabel(iso: string): string {
  * разбирает, где вообще некого поставить.
  */
 const SORT_CHOICES: SortChoice[] = [
+  { key: 'uncovered', dir: 'desc', label: 'сначала без исполнителя' },
   { key: 'deadline', dir: 'asc', label: 'сначала срочные' },
   { key: 'name', dir: 'asc', label: 'по названию заказа' },
-  { key: 'uncovered', dir: 'desc', label: 'сначала без исполнителя' },
   { key: 'progress', dir: 'asc', label: 'сначала отстающие' },
 ];
 
@@ -332,7 +332,8 @@ export function DistributionPage() {
         return total > 0 ? g.ops.reduce((sum, o) => sum + o.doneAllTime, 0) / total : 1;
       },
     },
-    defaultSortKey: 'deadline',
+    defaultSortKey: 'uncovered',
+    defaultSortDir: 'desc',
     storageKey: 'site-lead-distribution',
   });
   const byOrder = orderControls.result;
@@ -354,6 +355,19 @@ export function DistributionPage() {
     : underperformer
       ? `${underperformer.fullName} отстаёт — ${Math.round(underperformer.loadPercent! * 100)}% от нормы`
       : null;
+
+  /**
+   * Сколько операций на человеке в выбранный день.
+   *
+   * Ради распределения это полезнее процента выполнения: «свободен» и «уже на
+   * трёх» — то, что нужно решить прямо сейчас, а процент говорит о прошлом.
+   */
+  const loadByUser = new Map<string, number>();
+  for (const op of operations) {
+    for (const a of op.assignments) {
+      loadByUser.set(a.userId, (loadByUser.get(a.userId) ?? 0) + 1);
+    }
+  }
 
   const present = summary?.roster.filter((r) => !r.absent) ?? [];
   const absent = summary?.roster.filter((r) => r.absent) ?? [];
@@ -422,7 +436,11 @@ export function DistributionPage() {
         <StatCard
           label="Риск отставания"
           value={summary?.atRiskCount ?? 0}
-          hint="операции, которые не успеваете сдать"
+          hint={
+            summary?.atRiskOrders?.length
+              ? summary.atRiskOrders.join(', ')
+              : 'операции, которые не успеваете сдать'
+          }
           alert
         />
       </div>
@@ -522,19 +540,23 @@ export function DistributionPage() {
                       по заказу. Раньше было только «всего по заказу», и понять,
                       что делать сегодня, было не по чему.
                     */}
-                    <div style={styles.dayPlan}>
+                    <div style={styles.chips}>
+                      <span style={styles.chip}>
+                        всего <b style={styles.chipNum}>{op.quantity}</b>
+                      </span>
+                      <span style={styles.chip}>
+                        сделано <b style={styles.chipNum}>{op.doneAllTime}</b>
+                      </span>
                       {op.dailyQuantity !== null && (
-                        <span>
-                          План на смену: <strong>{op.dailyQuantity}</strong> шт ·{' '}
+                        <span style={styles.chip}>
+                          в день <b style={styles.chipNum}>{op.dailyQuantity}</b>
                         </span>
                       )}
-                      <span>
-                        сделано за день: <strong>{op.totalDoneQuantity}</strong>
+                      <span style={styles.chip}>
+                        за день <b style={styles.chipNum}>{op.totalDoneQuantity}</b>
                       </span>
-                      <span style={styles.muted}>
-                        {' '}
-                        · всего по заказу {op.doneAllTime} из {op.quantity}, осталось{' '}
-                        {Math.max(0, op.quantity - op.doneAllTime)}
+                      <span style={styles.chipMuted}>
+                        осталось {Math.max(0, op.quantity - op.doneAllTime)}
                       </span>
                     </div>
                   </div>
@@ -727,17 +749,16 @@ export function DistributionPage() {
                   {r.invited && ' · приглашён'}
                 </div>
               </div>
-              {r.loadPercent !== null && (
-                <span
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    color: r.loadPercent < UNDERPERFORMING_THRESHOLD ? COLORS.error : COLORS.accentDark,
-                  }}
-                >
-                  {Math.round(r.loadPercent * 100)}%
-                </span>
-              )}
+              <span
+                style={styles.staffLoad}
+                title={
+                  r.loadPercent !== null
+                    ? `Выполнение назначенного: ${Math.round(r.loadPercent * 100)}%`
+                    : undefined
+                }
+              >
+                {loadByUser.get(r.userId) ? `${loadByUser.get(r.userId)} оп.` : '—'}
+              </span>
             </div>
           ))}
           {present.length === 0 && <p style={styles.muted}>Нет сотрудников на участке.</p>}
@@ -923,12 +944,41 @@ const styles: Record<string, React.CSSProperties> = {
     color: COLORS.mutedText,
     textTransform: 'uppercase',
   },
+  /** Чипы с числами: их читают взглядом, а не фразой. */
+  chips: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    flexWrap: 'wrap',
+    marginTop: '8px',
+  },
+  chip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    padding: '3px 9px',
+    borderRadius: '999px',
+    background: 'var(--surf2)',
+    border: '1px solid var(--line2)',
+    color: 'var(--tx2)',
+    fontSize: '12px',
+  },
+  chipNum: {
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    fontVariantNumeric: 'tabular-nums',
+    color: 'var(--tx)',
+    fontSize: '13px',
+  },
+  chipMuted: {
+    color: 'var(--tx3)',
+    fontSize: '12px',
+  },
   card: {
     padding: '16px',
-    background: COLORS.white,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    borderRadius: RADIUS.md,
-    boxShadow: SHADOW.card,
+    background: 'var(--surf)',
+    border: '1px solid var(--line)',
+    borderRadius: '14px',
+    boxShadow: 'var(--sh1)',
     marginBottom: '16px',
   },
   cardHeader: {
@@ -1012,6 +1062,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontWeight: 600,
     cursor: 'pointer',
+  },
+  /** Загрузка человека на день: «2 оп.» или прочерк у свободного. */
+  staffLoad: {
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    fontVariantNumeric: 'tabular-nums',
+    fontSize: '13px',
+    color: 'var(--tx2)',
+    whiteSpace: 'nowrap',
   },
   staffRow: {
     display: 'flex',

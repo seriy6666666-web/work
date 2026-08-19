@@ -1038,6 +1038,8 @@ export interface DistributionSummary {
   operationsInWork: number;
   operationsTotal: number;
   atRiskCount: number;
+  /** Названия горящих заказов: одного числа мало, «2» заставляет идти искать. */
+  atRiskOrders: string[];
   roster: DistributionRosterEntry[];
 }
 

@@ -169,7 +169,15 @@ export class DistributionService {
      * благополучными ровно до того дня, когда сборке нечего было собирать.
      * Начальнику участка нужно его собственное отставание, а не общее.
      */
-    const atRiskCount = operations.filter((op) => isAlarming(op.deadline.level)).length;
+    const alarming = operations.filter((op) => isAlarming(op.deadline.level));
+    const atRiskCount = alarming.length;
+    /**
+     * Названия заказов, которые горят.
+     *
+     * Одного числа мало: «2» заставляет идти и искать, какие именно. Названия
+     * отвечают на это сразу, а список коротким останется — их и не бывает много.
+     */
+    const atRiskOrders = [...new Set(alarming.map((op) => op.order.name))];
 
     const users = await this.prisma.user.findMany({
       where: { id: { in: effectiveUserIds } },
@@ -199,6 +207,7 @@ export class DistributionService {
       operationsInWork: operations.filter((op) => op.assignments.length > 0).length,
       operationsTotal: operations.length,
       atRiskCount,
+      atRiskOrders,
       roster,
     };
   }
