@@ -8,10 +8,11 @@ import { Badge, type BadgeVariant } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
+import { useTableControls, SearchInput, SortSelect, type SortChoice } from '../../components/TableControls';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
-import { Table, Th, Td, Button, Input } from '../../components/ui';
+import { Button, Input } from '../../components/ui';
+import { ListCard } from '../../components/ListCard';
 
 const STATUS_BADGE: Record<Order['status'], BadgeVariant> = {
   CREATED: 'muted',
@@ -29,6 +30,14 @@ interface OrderFormState {
 }
 
 const EMPTY_FORM: OrderFormState = { name: '', quantity: '', dueDate: '', priority: '0' };
+
+/** Порядок в списке заказов. Выбор запоминается. */
+const SORT_CHOICES: SortChoice[] = [
+  { key: 'dueDate', dir: 'asc', label: 'сначала срочные' },
+  { key: 'name', dir: 'asc', label: 'по алфавиту' },
+  { key: 'quantity', dir: 'desc', label: 'больше по количеству' },
+  { key: 'priority', dir: 'desc', label: 'сначала приоритетные' },
+];
 
 export function OrdersPage() {
   const { token } = useAuth();
@@ -208,6 +217,12 @@ export function OrdersPage() {
       {!loading && orders.length > 0 && (
         <div style={styles.toolbar}>
           <SearchInput value={controls.query} onChange={controls.setQuery} placeholder="Поиск по наименованию, статусу..." />
+          <SortSelect
+            choices={SORT_CHOICES}
+            sortKey={controls.sortKey}
+            dir={controls.sortDir}
+            onSelect={controls.setSort}
+          />
         </div>
       )}
 
@@ -218,49 +233,55 @@ export function OrdersPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <Table>
-          <thead>
-            <tr>
-              <SortHeader label="Наименование" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <SortHeader label="Кол-во" sortKey="quantity" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <SortHeader label="Срок" sortKey="dueDate" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <SortHeader label="Приоритет" sortKey="priority" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <SortHeader label="Статус" sortKey="status" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <Th>Операции</Th>
-              <Th></Th>
-            </tr>
-          </thead>
-          <tbody>
-            {controls.result.map((o) => (
-              <tr key={o.id}>
-                <Td>{o.name}</Td>
-                <Td>{o.quantity}</Td>
-                <Td>{new Date(o.dueDate).toLocaleDateString('ru-RU')}</Td>
-                <Td>{o.priority}</Td>
-                <Td>
-                  <Badge variant={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Badge>
-                </Td>
-                <Td>
-                  {o.operationsQuantity} / {o.quantity} ({o.operationsCount})
-                  <div style={styles.readyLine}>
-                    готово изделий: {o.readyUnits} из {o.quantity}
-                  </div>
-                </Td>
-                <Td align="right">
+        <div style={styles.list}>
+          {controls.result.map((o) => {
+            // Срок красным, когда он уже прошёл, а заказ не закрыт: это то, из-за
+            // чего в список и заходят.
+            const overdue =
+              o.status !== 'DONE' && o.status !== 'SHIPPED' && new Date(o.dueDate) < new Date();
+            return (
+              <ListCard
+                key={o.id}
+                accent={overdue ? 'var(--err)' : undefined}
+                title={o.name}
+                badge={<Badge variant={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Badge>}
+                subtitle={
+                  <>
+                    <span style={overdue ? styles.overdue : undefined}>
+                      срок {new Date(o.dueDate).toLocaleDateString('ru-RU')}
+                    </span>
+                    {o.priority > 0 && <> · приоритет {o.priority}</>}
+                    {' · '}операций {o.operationsCount}
+                  </>
+                }
+                stats={[
+                  { label: 'заказано, шт', value: o.quantity },
+                  { label: 'готово изделий', value: o.readyUnits, muted: o.readyUnits === 0 },
+                ]}
+                actions={
                   <Link to={`/planner/orders/${o.id}`} style={styles.linkButton}>
                     Открыть →
                   </Link>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+                }
+              />
+            );
+          })}
+        </div>
       )}
     </PlannerLayout>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  overdue: {
+    color: 'var(--err)',
+    fontWeight: 600,
+  },
   toolbar: {
     marginBottom: '16px',
   },

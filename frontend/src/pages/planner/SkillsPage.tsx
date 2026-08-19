@@ -7,9 +7,10 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
+import { useTableControls, SearchInput } from '../../components/TableControls';
 import { COLORS } from '../../theme';
-import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
+import { Button, LinkButton, Input } from '../../components/ui';
+import { ListCard } from '../../components/ListCard';
 
 export function SkillsPage() {
   const { token } = useAuth();
@@ -134,56 +135,49 @@ export function SkillsPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <Table>
-          <thead>
-            <tr>
-              <SortHeader label="Название" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <Th></Th>
-            </tr>
-          </thead>
-          <tbody>
-            {controls.result.map((skill) => (
-              <tr key={skill.id}>
-                <Td>
-                  {editingId === skill.id ? (
-                    <Input style={{ flex: 1 }}
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      autoFocus
-                    />
-                  ) : (
-                    skill.name
-                  )}
-                </Td>
-                <Td align="right">
-                  {editingId === skill.id ? (
-                    <>
-                      <LinkButton onClick={() => saveEdit(skill.id)}>
-                        Сохранить
-                      </LinkButton>
-                      <LinkButton onClick={() => setEditingId(null)}>
-                        Отмена
-                      </LinkButton>
-                    </>
-                  ) : (
-                    <>
-                      <RowActions
-                        primary={{ label: 'Переименовать', onClick: () => startEdit(skill) }}
-                        actions={[{ label: 'Удалить', onClick: () => handleDelete(skill), danger: true }]}
-                      />
-                    </>
-                  )}
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <div style={styles.list}>
+          {controls.result.map((skill) => (
+            <ListCard
+              key={skill.id}
+              title={
+                editingId === skill.id ? (
+                  <Input
+                    style={{ width: '100%', minWidth: '240px' }}
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    autoFocus
+                  />
+                ) : (
+                  skill.name
+                )
+              }
+              actions={
+                editingId === skill.id ? (
+                  <>
+                    <LinkButton onClick={() => saveEdit(skill.id)}>Сохранить</LinkButton>
+                    <LinkButton onClick={() => setEditingId(null)}>Отмена</LinkButton>
+                  </>
+                ) : (
+                  <RowActions
+                            primary={{ label: 'Переименовать', onClick: () => startEdit(skill) }}
+                            actions={[{ label: 'Удалить', onClick: () => handleDelete(skill), danger: true }]}
+                          />
+                )
+              }
+            />
+          ))}
+        </div>
       )}
     </PlannerLayout>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
   hint: {
     color: COLORS.mutedText,
     fontSize: '14px',

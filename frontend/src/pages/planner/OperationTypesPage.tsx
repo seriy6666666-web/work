@@ -9,12 +9,21 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
+import { useTableControls, SearchInput, SortSelect, type SortChoice } from '../../components/TableControls';
 import { COLORS, RADIUS } from '../../theme';
-import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
+import { Button, LinkButton, Input } from '../../components/ui';
+import { ListCard } from '../../components/ListCard';
 
 /** Значение «навык не требуется» в выпадающем списке. Пустая строка = не выбрано. */
 const NO_SKILL = 'none';
+
+/** Порядок в справочнике операций. Выбор запоминается. */
+const SORT_CHOICES: SortChoice[] = [
+  { key: 'name', dir: 'asc', label: 'по алфавиту' },
+  { key: 'usage', dir: 'desc', label: 'сначала используемые' },
+  { key: 'norm', dir: 'asc', label: 'сначала без нормы' },
+  { key: 'skill', dir: 'asc', label: 'по навыку' },
+];
 
 export function OperationTypesPage() {
   const { token } = useAuth();
@@ -208,6 +217,12 @@ export function OperationTypesPage() {
             onChange={controls.setQuery}
             placeholder="Поиск операции..."
           />
+          <SortSelect
+            choices={SORT_CHOICES}
+            sortKey={controls.sortKey}
+            dir={controls.sortDir}
+            onSelect={controls.setSort}
+          />
           <label style={styles.checkboxLabel}>
             <input
               type="checkbox"
@@ -230,120 +245,109 @@ export function OperationTypesPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <Table>
-          <thead>
-            <tr>
-              <SortHeader label="Операция" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <SortHeader label="Требуемый навык" sortKey="skill" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <SortHeader label="Норма/смена" sortKey="norm" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
-              <SortHeader label="Где используется" sortKey="usage" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-              <Th></Th>
-            </tr>
-          </thead>
-          <tbody>
-            {controls.result.map((item) => {
-              const editing = editingId === item.id;
-              const used = (item.usedInOrders ?? 0) + (item.usedInProducts ?? 0);
-              return (
-                <tr key={item.id} style={item.archivedAt ? styles.archivedRow : undefined}>
-                  <Td style={{ fontSize: '15px' }}>
-                    {editing ? (
-                      <Input style={{ flex: 1, minWidth: '220px' }}
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        autoFocus
-                      />
-                    ) : (
-                      <>
-                        {item.name}
-                        {item.archivedAt && (
-                          <span style={{ marginLeft: '8px' }}>
-                            <Badge variant="muted">в архиве</Badge>
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </Td>
-                  <Td style={{ fontSize: '15px' }}>
-                    {editing ? (
-                      <Select
-                        value={editingSkillId}
-                        onChange={setEditingSkillId}
-                        options={skillOptions}
-                      />
-                    ) : item.skill ? (
-                      item.skill.name
-                    ) : (
-                      <span style={styles.muted}>не требуется</span>
-                    )}
-                  </Td>
-                  <Td align="right" style={{ fontSize: '15px' }}>
-                    {editing ? (
-                      <input
-                        style={styles.normInput}
+        <div style={styles.list}>
+          {controls.result.map((item) => {
+            const editing = editingId === item.id;
+            const used = (item.usedInOrders ?? 0) + (item.usedInProducts ?? 0);
+            return (
+              <ListCard
+                key={item.id}
+                accent={item.archivedAt ? 'var(--line)' : undefined}
+                title={
+                  editing ? (
+                    <Input
+                      style={{ width: '100%', minWidth: '240px' }}
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      autoFocus
+                    />
+                  ) : (
+                    item.name
+                  )
+                }
+                badge={item.archivedAt ? <Badge variant="muted">в архиве</Badge> : undefined}
+                subtitle={
+                  editing ? (
+                    <div style={styles.editRow}>
+                      <Select value={editingSkillId} onChange={setEditingSkillId} options={skillOptions} />
+                      <Input
+                        style={{ maxWidth: '120px' }}
                         type="number"
                         min="1"
-                        placeholder="—"
+                        placeholder="норма"
                         value={editingNorm}
                         onChange={(e) => setEditingNorm(e.target.value)}
                       />
-                    ) : item.norm === null ? (
-                      <span style={styles.muted}>—</span>
-                    ) : (
-                      item.norm
-                    )}
-                  </Td>
-                  <Td style={{ fontSize: '15px' }}>
-                    {used === 0 ? (
-                      <span style={styles.muted}>нигде</span>
-                    ) : (
-                      <span style={styles.muted}>
-                        заказов: {item.usedInOrders ?? 0} · изделий: {item.usedInProducts ?? 0}
-                      </span>
-                    )}
-                  </Td>
-                  <Td align="right" style={{ fontSize: '15px' }}>
-                    {editing ? (
-                      <>
-                        <LinkButton style={{ fontWeight: 600, padding: '4px 8px' }} onClick={() => saveEdit(item.id)}>
-                          Сохранить
-                        </LinkButton>
-                        <LinkButton style={{ fontWeight: 600, padding: '4px 8px' }} onClick={() => setEditingId(null)}>
-                          Отмена
-                        </LinkButton>
-                      </>
-                    ) : item.archivedAt ? (
-                      <RowActions
-                        primary={{ label: 'Вернуть', onClick: () => handleRestore(item) }}
-                        actions={
-                          used === 0
-                            ? [{ label: 'Удалить', onClick: () => handleDelete(item), danger: true }]
-                            : []
-                        }
-                      />
-                    ) : (
-                      <RowActions
-                        primary={{ label: 'Изменить', onClick: () => startEdit(item) }}
-                        actions={[
-                          { label: 'В архив', onClick: () => handleArchive(item) },
-                          ...(used === 0
-                            ? [{ label: 'Удалить', onClick: () => handleDelete(item), danger: true }]
-                            : []),
-                        ]}
-                      />
-                    )}
-                  </Td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
+                    </div>
+                  ) : (
+                    <>
+                      {item.skill ? `навык: ${item.skill.name}` : 'особый навык не требуется'}
+                      {' · '}
+                      {used === 0
+                        ? 'нигде не используется'
+                        : `заказов: ${item.usedInOrders ?? 0} · изделий: ${item.usedInProducts ?? 0}`}
+                    </>
+                  )
+                }
+                stats={
+                  editing
+                    ? []
+                    : [
+                        {
+                          label: 'норма/смена',
+                          // Прочерк с подписью, а не пустое место: норма не
+                          // заполнена ни у одной операции, и это надо видеть.
+                          value: item.norm === null ? '—' : item.norm,
+                          muted: item.norm === null,
+                        },
+                      ]
+                }
+                actions={
+                  editing ? (
+                    <>
+                      <LinkButton onClick={() => saveEdit(item.id)}>Сохранить</LinkButton>
+                      <LinkButton onClick={() => setEditingId(null)}>Отмена</LinkButton>
+                    </>
+                  ) : item.archivedAt ? (
+                    <RowActions
+                      primary={{ label: 'Вернуть', onClick: () => handleRestore(item) }}
+                      actions={
+                        used === 0 ? [{ label: 'Удалить', onClick: () => handleDelete(item), danger: true }] : []
+                      }
+                    />
+                  ) : (
+                    <RowActions
+                      primary={{ label: 'Изменить', onClick: () => startEdit(item) }}
+                      actions={[
+                        { label: 'В архив', onClick: () => handleArchive(item) },
+                        ...(used === 0
+                          ? [{ label: 'Удалить', onClick: () => handleDelete(item), danger: true }]
+                          : []),
+                      ]}
+                    />
+                  )
+                }
+              />
+            );
+          })}
+        </div>
       )}
     </PlannerLayout>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  editRow: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    marginTop: '6px',
+  },
   hint: {
     margin: '0 0 16px',
     fontSize: '14px',
