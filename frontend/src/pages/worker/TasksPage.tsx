@@ -18,6 +18,7 @@ import { FeedbackButton } from '../../components/FeedbackButton';
 import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
 import { Select } from '../../components/Select';
 import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
+import { queueSave, dropSave, usePendingSaves, useOnlineHint } from '../../pending-saves';
 
 
 /**
@@ -178,28 +179,90 @@ export function TasksPage() {
     });
   }
 
+  /**
+   * Отправка отметки.
+   *
+   * Сначала кладём её в очередь в браузере, потом пробуем отправить. Если связь
+   * оборвалась, отметка остаётся в очереди и уходит сама, когда сеть вернётся, —
+   * до сих пор она просто пропадала вместе с набранным числом.
+   *
+   * Ключ отправки один на все попытки: сервер по нему узнаёт повтор и не тратит
+   * на него исправление.
+   */
+  const pending = usePendingSaves();
+  const online = useOnlineHint();
+
   async function handleSubmit(task: MyTask) {
     if (!token) return;
     const value = inputs[task.id];
     if (value === undefined || value === '') return;
-    setSubmitting((prev) => ({ ...prev, [task.id]: true }));
+    const reason = reasonOpen[task.id] ? reasonInputs[task.id] : undefined;
+    const body = {
+      doneQuantity: Number(value),
+      defectQuantity: Number(defectInputs[task.id] || 0),
+      reasonCode: reason?.code,
+      reasonComment: reason?.comment || undefined,
+      requestId: crypto.randomUUID(),
+    };
+    queueSave({
+      requestId: body.requestId,
+      path: `/my-tasks/${task.id}/completion`,
+      body,
+      subject: task.id,
+      queuedAt: Date.now(),
+    });
+    await sendPending(task.id, body);
+  }
+
+  /** Одна попытка отправки того, что лежит в очереди по этому заданию. */
+  async function sendPending(taskId: string, body: Record<string, unknown>) {
+    if (!token) return;
+    setSubmitting((prev) => ({ ...prev, [taskId]: true }));
     setError(null);
     try {
-      const reason = reasonOpen[task.id] ? reasonInputs[task.id] : undefined;
-      const updated = await api.submitCompletion(token, task.id, {
-        doneQuantity: Number(value),
-        defectQuantity: Number(defectInputs[task.id] || 0),
-        reasonCode: reason?.code,
-        reasonComment: reason?.comment || undefined,
-      });
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-      setReasonOpen((prev) => ({ ...prev, [task.id]: false }));
+      const updated = await api.submitCompletion(token, taskId, body as never);
+      dropSave(taskId);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+      setReasonOpen((prev) => ({ ...prev, [taskId]: false }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось сохранить отметку');
+      /*
+       * Отказ сервера и обрыв связи — разные вещи. На отказ («лимит исправлений
+       * исчерпан») повторять нечего, отметку из очереди убираем, иначе она будет
+       * биться в стену вечно. На обрыв — оставляем и пробуем снова.
+       */
+      const offline = err instanceof ApiError && err.status === 0;
+      if (!offline) dropSave(taskId);
+      setError(
+        offline
+          ? 'Нет связи с сервером. Отметка сохранена и уйдёт, когда связь вернётся.'
+          : err instanceof ApiError
+            ? err.message
+            : 'Не удалось сохранить отметку',
+      );
     } finally {
-      setSubmitting((prev) => ({ ...prev, [task.id]: false }));
+      setSubmitting((prev) => ({ ...prev, [taskId]: false }));
     }
   }
+
+  /**
+   * Пока в очереди что-то есть — пробуем снова: когда браузер сообщил, что сеть
+   * вернулась, и раз в полминуты на случай, когда сеть есть, а сервера нет.
+   */
+  useEffect(() => {
+    if (pending.length === 0 || !token) return;
+    const retry = () => {
+      for (const item of pending) {
+        sendPending(item.subject, item.body as Record<string, unknown>);
+      }
+    };
+    window.addEventListener('online', retry);
+    const timer = window.setInterval(retry, 30_000);
+    return () => {
+      window.removeEventListener('online', retry);
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending.length, token]);
 
   async function handleSubmitAbsence(e: FormEvent) {
     e.preventDefault();
@@ -440,6 +503,34 @@ export function TasksPage() {
                       >
                         {task.completionRecord ? 'Исправить' : 'Сделал'}
                       </button>
+
+                      {/*
+                        Состояние сохранения словами. Молчание тут опаснее ошибки:
+                        человек не должен гадать, дошла отметка или нет.
+                      */}
+                      {(() => {
+                        const waiting = pending.find((i) => i.subject === task.id);
+                        if (isSubmitting) return <p style={styles.saveState}>Сохраняется…</p>;
+                        if (waiting) {
+                          return (
+                            <p style={{ ...styles.saveState, ...styles.saveStateWaiting }}>
+                              {online
+                                ? 'Не сохранилось — данные остались в поле, пробуем ещё раз'
+                                : 'Нет связи. Отметка сохранена и уйдёт, когда связь вернётся'}
+                              <button
+                                style={styles.retry}
+                                onClick={() => sendPending(task.id, waiting.body as Record<string, unknown>)}
+                              >
+                                Повторить
+                              </button>
+                            </p>
+                          );
+                        }
+                        if (task.completionRecord) {
+                          return <p style={styles.saveState}>Все изменения сохранены</p>;
+                        }
+                        return null;
+                      })()}
                     </div>
                     <button
                       style={styles.linkButton}
@@ -634,6 +725,34 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '12px',
     marginTop: '4px',
     alignItems: 'flex-end',
+  },
+  saveState: {
+    flex: '1 1 100%',
+    margin: '4px 0 0',
+    fontSize: '13px',
+    color: 'var(--tx3)',
+  },
+  saveStateWaiting: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap',
+    padding: '8px 10px',
+    borderRadius: '12px',
+    background: 'var(--warnsoft)',
+    color: 'var(--warn)',
+    fontWeight: 600,
+  },
+  retry: {
+    minHeight: '40px',
+    padding: '6px 14px',
+    borderRadius: '10px',
+    border: '1px solid var(--warn)',
+    background: 'transparent',
+    color: 'var(--warn)',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
   },
   counterBlock: {
     display: 'flex',

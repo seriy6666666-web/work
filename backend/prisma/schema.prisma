@@ -719,6 +719,18 @@ model CompletionRecord {
   reasonComment   String?
   reasonConfirmed Boolean             @default(false)
 
+  /**
+   * Ключ последней отправки с планшета.
+   *
+   * Связь в цеху рвётся, и отметка уходит повторно: сама по себе отправка от
+   * этого не портится — количество записывается целиком, а не прибавляется. Но
+   * повтор считался бы исправлением, а их у рабочего всего два, и на третьем
+   * система отказала бы человеку, который ничего не исправлял.
+   *
+   * Совпал ключ — значит это та же самая отметка, просто дошла второй раз.
+   */
+  lastRequestId String?
+
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
   assignmentId String     @unique
 }

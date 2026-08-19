@@ -18,4 +18,12 @@ export class SubmitCompletionDto {
   @IsOptional()
   @IsString()
   reasonComment?: string;
+
+  /**
+   * Ключ отправки. Планшет присылает один и тот же, пока пытается достучаться,
+   * поэтому повтор после оборвавшейся связи не тратит исправление.
+   */
+  @IsOptional()
+  @IsString()
+  requestId?: string;
 }

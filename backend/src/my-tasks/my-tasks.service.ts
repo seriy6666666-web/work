@@ -85,6 +85,21 @@ export class MyTasksService {
      * фактического, расхождение копилось со скоростью процента брака, а сигнал о
      * низком остатке срабатывал позже, чем материал реально заканчивался.
      */
+    /**
+     * Та же самая отправка, дошедшая второй раз.
+     *
+     * Связь рвётся, планшет повторяет попытку с тем же ключом. Записать нечего —
+     * данные уже те же, — а вот засчитать это исправлением нельзя: их у рабочего
+     * два, и человек остался бы без них из-за вайфая.
+     */
+    if (existing && dto.requestId && existing.lastRequestId === dto.requestId) {
+      const same = await this.prisma.assignment.findUniqueOrThrow({
+        where: { id: assignmentId },
+        include: includeTaskDetails,
+      });
+      return toTask(same);
+    }
+
     const previousProduced = (existing?.doneQuantity ?? 0) + (existing?.defectQuantity ?? 0);
     if (!existing) {
       await this.prisma.completionRecord.create({
@@ -95,6 +110,7 @@ export class MyTasksService {
           reasonCode: dto.reasonCode,
           reasonComment: dto.reasonComment,
           correctionCount: 0,
+          lastRequestId: dto.requestId,
         },
       });
     } else {
@@ -110,6 +126,7 @@ export class MyTasksService {
           reasonComment: dto.reasonComment,
           reasonConfirmed: false,
           correctionCount: existing.correctionCount + 1,
+          lastRequestId: dto.requestId,
         },
       });
     }
