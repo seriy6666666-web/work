@@ -9,7 +9,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { useTableControls, SearchInput } from '../../components/TableControls';
+import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
 import { COLORS, RADIUS } from '../../theme';
 
 /** Значение «навык не требуется» в выпадающем списке. Пустая строка = не выбрано. */
@@ -151,6 +151,16 @@ export function OperationTypesPage() {
 
   const controls = useTableControls(items, {
     searchText: (o) => `${o.name} ${o.skill?.name ?? ''}`,
+    sortAccessors: {
+      name: (o) => o.name,
+      // «Навык не требуется» — это не пустое значение, а осознанный выбор, но
+      // сортировать его не по чему: ставим в конец.
+      skill: (o) => o.skill?.name ?? null,
+      norm: (o) => o.norm,
+      usage: (o) => (o.usedInOrders ?? 0) + (o.usedInProducts ?? 0),
+    },
+    defaultSortKey: 'name',
+    storageKey: 'planner-operation-types',
   });
 
   const skillOptions = [
@@ -223,10 +233,10 @@ export function OperationTypesPage() {
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Операция</th>
-              <th style={styles.th}>Требуемый навык</th>
-              <th style={{ ...styles.th, textAlign: 'right' }}>Норма/смена</th>
-              <th style={styles.th}>Где используется</th>
+              <SortHeader label="Операция" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+              <SortHeader label="Требуемый навык" sortKey="skill" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+              <SortHeader label="Норма/смена" sortKey="norm" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
+              <SortHeader label="Где используется" sortKey="usage" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <th style={styles.th}></th>
             </tr>
           </thead>

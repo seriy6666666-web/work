@@ -11,6 +11,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 const TYPE_BADGE: Record<AbsenceType, BadgeVariant> = {
   SICK_LEAVE: 'danger',
@@ -23,6 +24,18 @@ export function AbsencesPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const [absences, setAbsences] = useState<Absence[]>([]);
+
+  const controls = useTableControls(absences, {
+    searchText: (a) => a.user?.fullName ?? '',
+    sortAccessors: {
+      user: (a) => a.user?.fullName ?? null,
+      type: (a) => a.type,
+      period: (a) => a.startDate,
+    },
+    defaultSortKey: 'period',
+    defaultSortDir: 'desc',
+    storageKey: 'site-lead-absences',
+  });
   const [matrix, setMatrix] = useState<CompetencyMatrix | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -137,14 +150,14 @@ export function AbsencesPage() {
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Сотрудник</th>
-              <th style={styles.th}>Тип</th>
-              <th style={styles.th}>Период</th>
+              <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+              <SortHeader label="Тип" sortKey="type" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+              <SortHeader label="Период" sortKey="period" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <th style={styles.th}></th>
             </tr>
           </thead>
           <tbody>
-            {absences.map((a) => (
+            {controls.result.map((a) => (
               <tr key={a.id}>
                 <td style={styles.td}>
                   {a.user ? (

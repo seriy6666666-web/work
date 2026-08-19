@@ -315,6 +315,10 @@ export const api = {
     if (filters.method) params.set('method', filters.method);
     if (filters.from) params.set('from', filters.from);
     if (filters.to) params.set('to', filters.to);
+    // Порядок задаёт сервер: журнал приходит страницами, и сортировать в браузере
+    // можно было бы только текущую страницу.
+    if (filters.sort) params.set('sort', filters.sort);
+    if (filters.dir) params.set('dir', filters.dir);
     params.set('page', String(filters.page ?? 1));
     return request<AuditLogPage>(`/audit-log?${params.toString()}`, {}, token);
   },
@@ -1232,6 +1236,9 @@ export interface AuditLogFilters {
   method?: string;
   from?: string;
   to?: string;
+  /** Поле сортировки. Не задано — свежее сверху. */
+  sort?: 'createdAt' | 'username' | 'method' | 'path' | 'statusCode';
+  dir?: 'asc' | 'desc';
   page?: number;
 }
 

@@ -9,12 +9,25 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { BarChart } from '../../components/BarChart';
 import { COLORS, RADIUS } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 export function PlantSummaryPage() {
   const { token } = useAuth();
   const toast = useToast();
   const [period, setPeriod] = useState<StatsPeriod>('week');
   const [summary, setSummary] = useState<PlantSummaryEntry[]>([]);
+
+  const controls = useTableControls(summary, {
+    searchText: (s) => s.siteName,
+    sortAccessors: {
+      site: (s) => s.siteName,
+      norm: (s) => s.normRate,
+      completion: (s) => s.completionRate,
+      people: (s) => s.workersCount,
+    },
+    defaultSortKey: 'site',
+    storageKey: 'head-summary',
+  });
   const [loading, setLoading] = useState(true);
 
   async function refresh() {
@@ -94,15 +107,15 @@ export function PlantSummaryPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Участок</th>
-                <th style={styles.th}>Выработка по норме</th>
-                <th style={styles.th}>Выполнение плана</th>
-                <th style={styles.th}>Сотрудников с данными</th>
+                <SortHeader label="Участок" sortKey="site" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Выработка по норме" sortKey="norm" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Выполнение плана" sortKey="completion" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Сотрудников с данными" sortKey="people" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <th style={styles.th}></th>
               </tr>
             </thead>
             <tbody>
-              {summary.map((s) => (
+              {controls.result.map((s) => (
                 <tr key={s.siteId}>
                   <td style={styles.td}>{s.siteName}</td>
                   <td style={{ ...styles.td, fontWeight: 600 }}>

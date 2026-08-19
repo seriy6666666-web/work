@@ -7,7 +7,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { useTableControls, SearchInput } from '../../components/TableControls';
+import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
 import { COLORS, RADIUS } from '../../theme';
 
 export function SitesPage() {
@@ -91,7 +91,12 @@ export function SitesPage() {
     }
   }
 
-  const controls = useTableControls(sites, { searchText: (s) => s.name });
+  const controls = useTableControls(sites, {
+    searchText: (s) => s.name,
+    sortAccessors: { name: (s) => s.name },
+    defaultSortKey: 'name',
+    storageKey: 'admin-sites',
+  });
 
   return (
     <AdminLayout title="Участки" breadcrumb="Администрирование">
@@ -123,7 +128,7 @@ export function SitesPage() {
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Название</th>
+              <SortHeader label="Название" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <th style={styles.th}></th>
             </tr>
           </thead>

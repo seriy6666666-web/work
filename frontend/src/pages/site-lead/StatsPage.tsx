@@ -9,6 +9,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { Icon } from '../../components/Icon';
 import { COLORS, RADIUS } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 /** Colour the norm-rate cell: red below 85% of norm, green when at/above norm. */
 function normStyle(rate: number | null): React.CSSProperties {
@@ -23,6 +24,21 @@ export function StatsPage() {
   const toast = useToast();
   const [period, setPeriod] = useState<StatsPeriod>('shift');
   const [ranking, setRanking] = useState<SiteRanking | null>(null);
+
+  // Сортируем строки рейтинга, а не весь ответ: в нём кроме них лежат сводные числа.
+  const controls = useTableControls(ranking?.entries ?? [], {
+    searchText: (e) => e.fullName,
+    sortAccessors: {
+      user: (e) => e.fullName,
+      norm: (e) => e.normRate,
+      completion: (e) => e.completionRate,
+      defects: (e) => e.defectRate,
+      excused: (e) => e.excusedCount,
+      total: (e) => e.totalCount,
+    },
+    defaultSortKey: 'user',
+    storageKey: 'site-lead-stats',
+  });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -131,17 +147,17 @@ export function StatsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Сотрудник</th>
-                <th style={styles.th}>Выработка по норме</th>
-                <th style={styles.th}>Выполнение назначенного</th>
-                <th style={styles.th}>Брак</th>
-                <th style={styles.th}>Исключено (уважительная причина)</th>
-                <th style={styles.th}>Всего назначений</th>
+                <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Выработка по норме" sortKey="norm" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Выполнение назначенного" sortKey="completion" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Брак" sortKey="defects" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Исключено (уважительная причина)" sortKey="excused" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Всего назначений" sortKey="total" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <th style={styles.th}>Причины невыполнения</th>
               </tr>
             </thead>
             <tbody>
-              {ranking.entries.map((e) => (
+              {controls.result.map((e) => (
                 <tr key={e.userId}>
                   <td style={styles.td}>
                     <div style={styles.nameCell}>

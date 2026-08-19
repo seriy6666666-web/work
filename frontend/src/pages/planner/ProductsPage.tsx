@@ -15,6 +15,7 @@ import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
+import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
@@ -30,6 +31,18 @@ const EMPTY_OP: OpForm = { operationTypeId: '', siteId: '', secondarySiteId: '' 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU');
 }
+
+/**
+ * Порядок проектов. Алфавит — чтобы найти знакомое название, дата — чтобы
+ * увидеть, что заводили последним: планировщик работает и так, и так.
+ */
+const SORT_CHOICES: SortChoice[] = [
+  { key: 'name', dir: 'asc', label: 'по алфавиту' },
+  { key: 'name', dir: 'desc', label: 'по алфавиту, наоборот' },
+  { key: 'created', dir: 'desc', label: 'сначала новые' },
+  { key: 'created', dir: 'asc', label: 'сначала старые' },
+  { key: 'operations', dir: 'desc', label: 'больше операций сверху' },
+];
 
 export function ProductsPage() {
   const { token } = useAuth();
@@ -66,6 +79,17 @@ export function ProductsPage() {
       return next;
     });
   }
+
+  const controls = useTableControls(products, {
+    searchText: (p) => p.name,
+    sortAccessors: {
+      name: (p) => p.name,
+      created: (p) => p.createdAt,
+      operations: (p) => p.operations.length,
+    },
+    defaultSortKey: 'name',
+    storageKey: 'planner-products',
+  });
 
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -240,14 +264,22 @@ export function ProductsPage() {
         </button>
       </form>
 
-      <label style={styles.archivedToggle}>
-        <input
-          type="checkbox"
-          checked={showArchived}
-          onChange={(e) => setShowArchived(e.target.checked)}
+      <div style={styles.listControls}>
+        <label style={styles.archivedToggle}>
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+          />
+          Показывать архивные
+        </label>
+        <SortSelect
+          choices={SORT_CHOICES}
+          sortKey={controls.sortKey}
+          dir={controls.sortDir}
+          onSelect={controls.setSort}
         />
-        Показывать архивные
-      </label>
+      </div>
 
       {operationTypes.length === 0 && (
         <p style={styles.hint}>
@@ -261,7 +293,7 @@ export function ProductsPage() {
       ) : products.length === 0 ? (
         <EmptyState icon="box" title="Проектов пока нет" hint="Добавьте первый проект в форме выше." />
       ) : (
-        products.map((p) => {
+        controls.result.map((p) => {
           const form = opForms[p.id] ?? EMPTY_OP;
           const archived = p.status === 'ARCHIVED';
           const platformIds = new Set(p.platforms.map((pl) => pl.id));
@@ -469,13 +501,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   hint: { color: COLORS.mutedText, fontSize: '14px', marginTop: 0 },
   createForm: { display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' },
+  /** Строка над списком: что показывать и в каком порядке. */
+  listControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
+    flexWrap: 'wrap',
+    marginBottom: '20px',
+  },
   archivedToggle: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
     fontSize: '14px',
     color: COLORS.mutedText,
-    marginBottom: '20px',
     cursor: 'pointer',
   },
   input: {

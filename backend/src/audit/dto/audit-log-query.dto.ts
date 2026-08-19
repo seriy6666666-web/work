@@ -3,6 +3,15 @@ import { IsIn, IsInt, IsISO8601, IsOptional, IsString, Min } from 'class-validat
 
 const METHODS = ['POST', 'PATCH', 'PUT', 'DELETE'] as const;
 
+/**
+ * По чему можно упорядочить журнал.
+ *
+ * Сортировка здесь серверная, а не в браузере: записи приходят страницами по 50,
+ * и порядок, наведённый в браузере, переставил бы только текущую страницу — а
+ * выглядел бы как порядок всего журнала. Это хуже, чем отсутствие сортировки.
+ */
+const SORT_FIELDS = ['createdAt', 'username', 'method', 'path', 'statusCode'] as const;
+
 export class AuditLogQueryDto {
   @IsOptional()
   @IsString()
@@ -19,6 +28,14 @@ export class AuditLogQueryDto {
   @IsOptional()
   @IsISO8601()
   to?: string;
+
+  @IsOptional()
+  @IsIn(SORT_FIELDS)
+  sort?: (typeof SORT_FIELDS)[number];
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  dir?: 'asc' | 'desc';
 
   @IsOptional()
   @Type(() => Number)

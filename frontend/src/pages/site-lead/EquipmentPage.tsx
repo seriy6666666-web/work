@@ -11,6 +11,7 @@ import { Badge, type BadgeVariant } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
+import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
@@ -35,11 +36,38 @@ function maintenanceDueSoon(iso: string | null): boolean {
   return due - Date.now() < 7 * 24 * 60 * 60 * 1000;
 }
 
+/**
+ * Порядок оборудования. По сроку обслуживания — чтобы не пропустить то, что
+ * скоро встанет; по состоянию — чтобы сломанное было сверху.
+ */
+const SORT_CHOICES: SortChoice[] = [
+  { key: 'name', dir: 'asc', label: 'по алфавиту' },
+  { key: 'maintenance', dir: 'asc', label: 'по сроку обслуживания' },
+  { key: 'status', dir: 'asc', label: 'сначала неисправное' },
+  { key: 'created', dir: 'desc', label: 'сначала новое' },
+];
+
+/** Сломанное впереди: с ним надо что-то делать сегодня. */
+const STATUS_SEVERITY: Record<string, number> = { BROKEN: 0, MAINTENANCE: 1, OPERATIONAL: 2 };
+
 export function EquipmentPage() {
   const { token } = useAuth();
   const toast = useToast();
   const confirm = useConfirm();
   const [items, setItems] = useState<Equipment[]>([]);
+
+  const controls = useTableControls(items, {
+    searchText: (e) => e.name,
+    sortAccessors: {
+      name: (e) => e.name,
+      // Без даты обслуживания элемент уходит в конец — там нечего просрочить.
+      maintenance: (e) => e.nextMaintenanceAt,
+      status: (e) => STATUS_SEVERITY[String(e.status)] ?? 9,
+      created: (e) => e.createdAt,
+    },
+    defaultSortKey: 'name',
+    storageKey: 'site-lead-equipment',
+  });
   const [loading, setLoading] = useState(true);
 
   const [newName, setNewName] = useState('');
@@ -166,7 +194,15 @@ export function EquipmentPage() {
         />
       ) : (
         <div style={styles.list}>
-          {items.map((item) => {
+          <div style={styles.listControls}>
+            <SortSelect
+              choices={SORT_CHOICES}
+              sortKey={controls.sortKey}
+              dir={controls.sortDir}
+              onSelect={controls.setSort}
+            />
+          </div>
+          {controls.result.map((item) => {
             const dueSoon = item.status !== 'BROKEN' && maintenanceDueSoon(item.nextMaintenanceAt);
             return (
               <div key={item.id} style={styles.card}>
@@ -235,6 +271,8 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   list: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  /** Выбор порядка прижат вправо, чтобы не спорить с карточками. */
+  listControls: { display: 'flex', justifyContent: 'flex-end' },
   card: {
     display: 'flex',
     justifyContent: 'space-between',

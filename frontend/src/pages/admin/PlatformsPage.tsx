@@ -7,7 +7,7 @@ import { useToast } from '../../components/ToastProvider';
 import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { useTableControls, SearchInput } from '../../components/TableControls';
+import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
 import { COLORS, RADIUS } from '../../theme';
 
 export function PlatformsPage() {
@@ -98,7 +98,16 @@ export function PlatformsPage() {
     }
   }
 
-  const controls = useTableControls(platforms, { searchText: (p) => `${p.name} ${p.address ?? ''}` });
+  const controls = useTableControls(platforms, {
+    searchText: (p) => `${p.name} ${p.address ?? ''}`,
+    sortAccessors: {
+      name: (p) => p.name,
+      // Площадки без адреса уходят в конец: сравнивать там нечего.
+      address: (p) => p.address ?? null,
+    },
+    defaultSortKey: 'name',
+    storageKey: 'admin-platforms',
+  });
 
   return (
     <AdminLayout title="Площадки" breadcrumb="Администрирование">
@@ -141,8 +150,8 @@ export function PlatformsPage() {
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Название</th>
-              <th style={styles.th}>Адрес</th>
+              <SortHeader label="Название" sortKey="name" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+              <SortHeader label="Адрес" sortKey="address" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               <th style={styles.th}></th>
             </tr>
           </thead>

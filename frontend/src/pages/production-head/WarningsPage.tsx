@@ -7,11 +7,36 @@ import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { COLORS } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 export function WarningsPage() {
   const { token } = useAuth();
   const toast = useToast();
   const [warnings, setWarnings] = useState<Warnings | null>(null);
+
+  // Заказы и сотрудники — разные таблицы, порядок в них выбирают порознь.
+  const orderControls = useTableControls(warnings?.orderWarnings ?? [], {
+    searchText: (w) => w.orderName,
+    sortAccessors: {
+      order: (w) => w.orderName,
+      due: (w) => w.dueDate,
+      progress: (w) => w.progressRatio,
+      time: (w) => w.timeRatio,
+    },
+    defaultSortKey: 'due',
+    storageKey: 'head-warnings-orders',
+  });
+  const workerControls = useTableControls(warnings?.workerWarnings ?? [], {
+    searchText: (w) => `${w.fullName} ${w.siteName}`,
+    sortAccessors: {
+      user: (w) => w.fullName,
+      site: (w) => w.siteName,
+      norm: (w) => w.normRate,
+      completion: (w) => w.completionRate,
+    },
+    defaultSortKey: 'norm',
+    storageKey: 'head-warnings-workers',
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,14 +62,14 @@ export function WarningsPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Заказ</th>
-                  <th style={styles.th}>Срок</th>
-                  <th style={styles.th}>Прогресс</th>
-                  <th style={styles.th}>Прошло времени</th>
+                  <SortHeader label="Заказ" sortKey="order" activeKey={orderControls.sortKey} dir={orderControls.sortDir} onSort={orderControls.toggleSort} />
+                  <SortHeader label="Срок" sortKey="due" activeKey={orderControls.sortKey} dir={orderControls.sortDir} onSort={orderControls.toggleSort} />
+                  <SortHeader label="Прогресс" sortKey="progress" activeKey={orderControls.sortKey} dir={orderControls.sortDir} onSort={orderControls.toggleSort} />
+                  <SortHeader label="Прошло времени" sortKey="time" activeKey={orderControls.sortKey} dir={orderControls.sortDir} onSort={orderControls.toggleSort} />
                 </tr>
               </thead>
               <tbody>
-                {warnings.orderWarnings.map((w) => (
+                {orderControls.result.map((w) => (
                   <tr key={w.orderId}>
                     <td style={styles.td}>
                       {w.orderName} <Badge variant="danger">риск</Badge>
@@ -65,14 +90,14 @@ export function WarningsPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Сотрудник</th>
-                  <th style={styles.th}>Участок</th>
-                  <th style={styles.th}>Выработка по норме</th>
-                  <th style={styles.th}>Выполнение назначенного</th>
+                  <SortHeader label="Сотрудник" sortKey="user" activeKey={workerControls.sortKey} dir={workerControls.sortDir} onSort={workerControls.toggleSort} />
+                  <SortHeader label="Участок" sortKey="site" activeKey={workerControls.sortKey} dir={workerControls.sortDir} onSort={workerControls.toggleSort} />
+                  <SortHeader label="Выработка по норме" sortKey="norm" activeKey={workerControls.sortKey} dir={workerControls.sortDir} onSort={workerControls.toggleSort} />
+                  <SortHeader label="Выполнение назначенного" sortKey="completion" activeKey={workerControls.sortKey} dir={workerControls.sortDir} onSort={workerControls.toggleSort} />
                 </tr>
               </thead>
               <tbody>
-                {warnings.workerWarnings.map((w) => (
+                {workerControls.result.map((w) => (
                   <tr key={w.userId}>
                     <td style={styles.td}>
                       <div style={styles.nameCell}>

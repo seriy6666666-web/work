@@ -8,6 +8,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 const STATUS_LABELS: Record<Transfer['status'], string> = {
   PENDING: 'Ожидает решения',
@@ -27,6 +28,32 @@ export function TransfersPage() {
   const [eligibleUsers, setEligibleUsers] = useState<EligibleUser[]>([]);
   const [incoming, setIncoming] = useState<Transfer[]>([]);
   const [outgoing, setOutgoing] = useState<Transfer[]>([]);
+
+  // Две таблицы — два набора настроек: порядок в «отдаём» и «принимаем» человек
+  // выбирает независимо, и запоминаются они тоже порознь.
+  const outControls = useTableControls(outgoing, {
+    searchText: (t) => `${t.user.fullName} ${t.toSite.name}`,
+    sortAccessors: {
+      user: (t) => t.user.fullName,
+      site: (t) => t.toSite.name,
+      period: (t) => t.startDate,
+    },
+    defaultSortKey: 'period',
+    defaultSortDir: 'desc',
+    storageKey: 'site-lead-transfers-out',
+  });
+  const inControls = useTableControls(incoming, {
+    searchText: (t) => `${t.user.fullName} ${t.fromSite.name}`,
+    sortAccessors: {
+      user: (t) => t.user.fullName,
+      site: (t) => t.fromSite.name,
+      period: (t) => t.startDate,
+      status: (t) => t.status,
+    },
+    defaultSortKey: 'period',
+    defaultSortDir: 'desc',
+    storageKey: 'site-lead-transfers-in',
+  });
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -136,14 +163,14 @@ export function TransfersPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Сотрудник</th>
-                <th style={styles.th}>Запросил участок</th>
-                <th style={styles.th}>Период</th>
+                <SortHeader label="Сотрудник" sortKey="user" activeKey={outControls.sortKey} dir={outControls.sortDir} onSort={outControls.toggleSort} />
+                <SortHeader label="Запросил участок" sortKey="site" activeKey={outControls.sortKey} dir={outControls.sortDir} onSort={outControls.toggleSort} />
+                <SortHeader label="Период" sortKey="period" activeKey={outControls.sortKey} dir={outControls.sortDir} onSort={outControls.toggleSort} />
                 <th style={styles.th}></th>
               </tr>
             </thead>
             <tbody>
-              {outgoing.map((t) => (
+              {outControls.result.map((t) => (
                 <tr key={t.id}>
                   <td style={styles.td}>
                     <div style={styles.nameCell}>
@@ -180,14 +207,14 @@ export function TransfersPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Сотрудник</th>
-                <th style={styles.th}>С участка</th>
-                <th style={styles.th}>Период</th>
-                <th style={styles.th}>Статус</th>
+                <SortHeader label="Сотрудник" sortKey="user" activeKey={inControls.sortKey} dir={inControls.sortDir} onSort={inControls.toggleSort} />
+                <SortHeader label="С участка" sortKey="site" activeKey={inControls.sortKey} dir={inControls.sortDir} onSort={inControls.toggleSort} />
+                <SortHeader label="Период" sortKey="period" activeKey={inControls.sortKey} dir={inControls.sortDir} onSort={inControls.toggleSort} />
+                <SortHeader label="Статус" sortKey="status" activeKey={inControls.sortKey} dir={inControls.sortDir} onSort={inControls.toggleSort} />
               </tr>
             </thead>
             <tbody>
-              {incoming.map((t) => (
+              {inControls.result.map((t) => (
                 <tr key={t.id}>
                   <td style={styles.td}>
                     <div style={styles.nameCell}>

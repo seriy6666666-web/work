@@ -17,6 +17,7 @@ import { useConfirm } from '../../components/ConfirmProvider';
 import { Skeleton } from '../../components/Skeleton';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
@@ -30,6 +31,23 @@ export function OrderDetailPage() {
   const confirm = useConfirm();
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
+
+  const controls = useTableControls(order?.operations ?? [], {
+    searchText: (op) => op.operationType.name,
+    sortAccessors: {
+      operation: (op) => op.operationType.name,
+      quantity: (op) => op.quantity,
+      done: (op) => op.doneQuantity,
+      daily: (op) => op.dailyQuantity,
+      // Операции без своего срока уходят в конец: у них его просто нет.
+      due: (op) => op.dueDate,
+      perUnit: (op) => op.perUnit,
+      site: (op) => op.site.name,
+      secondary: (op) => op.secondarySite?.name ?? null,
+    },
+    defaultSortKey: 'operation',
+    storageKey: 'planner-order-operations',
+  });
   const [sites, setSites] = useState<Site[]>([]);
   const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -415,19 +433,19 @@ export function OrderDetailPage() {
       <table style={styles.table}>
         <thead>
           <tr>
-            <th style={styles.th}>Операция</th>
-            <th style={styles.th}>Всего</th>
-            <th style={styles.th}>Сделано</th>
-            <th style={styles.th}>В день</th>
-            <th style={styles.th}>Сдать</th>
-            <th style={styles.th}>На изделие</th>
-            <th style={styles.th}>Участок</th>
-            <th style={styles.th}>Второй участок</th>
+            <SortHeader label="Операция" sortKey="operation" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+            <SortHeader label="Всего" sortKey="quantity" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+            <SortHeader label="Сделано" sortKey="done" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+            <SortHeader label="В день" sortKey="daily" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+            <SortHeader label="Сдать" sortKey="due" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+            <SortHeader label="На изделие" sortKey="perUnit" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+            <SortHeader label="Участок" sortKey="site" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+            <SortHeader label="Второй участок" sortKey="secondary" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
             <th style={styles.th}></th>
           </tr>
         </thead>
         <tbody>
-          {order.operations.map((op) => {
+          {controls.result.map((op) => {
             const editing = editingOpId === op.id;
             return (
               <tr key={op.id}>

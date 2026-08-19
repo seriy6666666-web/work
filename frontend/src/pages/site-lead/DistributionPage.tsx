@@ -26,6 +26,7 @@ import { useDistributionUpdates } from '../../realtime';
 import { useIsMobile } from '../../responsive';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { deadlineLook, deadlineShort, worstDeadline } from '../../deadline-label';
+import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
 
 const UNDERPERFORMING_THRESHOLD = 0.7;
 
@@ -67,6 +68,30 @@ function dayLabel(iso: string): string {
     timeZone: 'UTC',
   });
 }
+
+/**
+ * Порядок заказов на доске.
+ *
+ * По умолчанию — по сроку: сервер отдаёт операции уже так, и первым идёт то, что
+ * горит. Остальное на случай, когда начальник участка ищет конкретный заказ или
+ * разбирает, где вообще некого поставить.
+ */
+const SORT_CHOICES: SortChoice[] = [
+  { key: 'deadline', dir: 'asc', label: 'сначала срочные' },
+  { key: 'name', dir: 'asc', label: 'по названию заказа' },
+  { key: 'uncovered', dir: 'desc', label: 'сначала без исполнителя' },
+  { key: 'progress', dir: 'asc', label: 'сначала отстающие' },
+];
+
+/** Насколько горит заказ целиком — по худшей операции внутри. */
+const LEVEL_ORDER: Record<string, number> = {
+  overdue: 0,
+  late: 1,
+  tight: 2,
+  ok: 3,
+  none: 4,
+  done: 5,
+};
 
 export function DistributionPage() {
   const { token, user } = useAuth();
@@ -279,6 +304,38 @@ export function DistributionPage() {
     }
   }
 
+  /**
+   * Операции по заказам. Плоским списком их было 37 на одном экране, и он будет
+   * расти с каждым запущенным заказом — искать в нём нужную операцию нельзя.
+   *
+   * Группируем до раннего возврата по загрузке: ниже стоит хук выбора порядка, а
+   * хук нельзя вызывать после return — React считает их по порядку вызова.
+   */
+  const groups: { orderId: string; orderName: string; ops: DistributionOperation[] }[] = [];
+  for (const op of operations) {
+    const found = groups.find((g) => g.orderId === op.order.id);
+    if (found) found.ops.push(op);
+    else groups.push({ orderId: op.order.id, orderName: op.order.name, ops: [op] });
+  }
+
+  const orderControls = useTableControls(groups, {
+    searchText: (g) => g.orderName,
+    sortAccessors: {
+      // Порядок с сервера уже по сроку — здесь повторяем его по худшей операции,
+      // чтобы группа вставала по самой горящей из своих, а не по первой попавшейся.
+      deadline: (g) => Math.min(...g.ops.map((o) => LEVEL_ORDER[o.deadline.level] ?? 9)),
+      name: (g) => g.orderName,
+      uncovered: (g) => g.ops.filter((o) => o.assignments.length === 0).length,
+      progress: (g) => {
+        const total = g.ops.reduce((sum, o) => sum + o.quantity, 0);
+        return total > 0 ? g.ops.reduce((sum, o) => sum + o.doneAllTime, 0) / total : 1;
+      },
+    },
+    defaultSortKey: 'deadline',
+    storageKey: 'site-lead-distribution',
+  });
+  const byOrder = orderControls.result;
+
   if (loading) {
     return (
       <SiteLeadLayout title="Распределение операций" breadcrumb="Начальник участка">
@@ -296,20 +353,6 @@ export function DistributionPage() {
     : underperformer
       ? `${underperformer.fullName} отстаёт — ${Math.round(underperformer.loadPercent! * 100)}% от нормы`
       : null;
-
-  /**
-   * Операции по заказам. Плоским списком их было 37 на одном экране, и он будет
-   * расти с каждым запущенным заказом — искать в нём нужную операцию нельзя.
-   *
-   * Порядок заказов сохраняем тот же, в котором пришли операции: сервер уже
-   * отсортировал их по приоритету и сроку.
-   */
-  const byOrder: { orderId: string; orderName: string; ops: DistributionOperation[] }[] = [];
-  for (const op of operations) {
-    const found = byOrder.find((g) => g.orderId === op.order.id);
-    if (found) found.ops.push(op);
-    else byOrder.push({ orderId: op.order.id, orderName: op.order.name, ops: [op] });
-  }
 
   const present = summary?.roster.filter((r) => !r.absent) ?? [];
   const absent = summary?.roster.filter((r) => r.absent) ?? [];
@@ -395,7 +438,15 @@ export function DistributionPage() {
 
       <div style={{ ...styles.columns, ...(isMobile ? styles.columnsStacked : {}) }}>
         <div style={styles.leftColumn} ref={operationsRef}>
-          <h3 style={styles.sectionTitle}>Операции участка</h3>
+          <div style={styles.listControls}>
+            <h3 style={styles.sectionTitle}>Операции участка</h3>
+            <SortSelect
+              choices={SORT_CHOICES}
+              sortKey={orderControls.sortKey}
+              dir={orderControls.sortDir}
+              onSelect={orderControls.setSort}
+            />
+          </div>
 
           {operations.length === 0 && <p style={styles.muted}>На вашем участке пока нет операций.</p>}
 
@@ -748,6 +799,15 @@ const styles: Record<string, React.CSSProperties> = {
     color: COLORS.error,
     fontSize: '13px',
     fontWeight: 600,
+  },
+  /** Заголовок раздела и выбор порядка — в одну строку. */
+  listControls: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    flexWrap: 'wrap',
+    marginBottom: '10px',
   },
   /** Строка со сроком под операцией. Фон появляется только когда есть о чём предупредить. */
   deadline: {

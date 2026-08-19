@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { api, ApiError, type AuditLogEntry, type AuditLogPage } from '../../api/client';
+import { api, ApiError, type AuditLogEntry, type AuditLogPage, type AuditLogFilters } from '../../api/client';
 import { AdminLayout } from './AdminLayout';
 import { Badge, type BadgeVariant } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
@@ -8,6 +8,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS } from '../../theme';
+import { SortHeader } from '../../components/TableControls';
 
 const METHOD_BADGE: Record<string, BadgeVariant> = {
   POST: 'accent',
@@ -30,6 +31,28 @@ export function AuditLogPage() {
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
 
+  /**
+   * Порядок здесь серверный.
+   *
+   * Записей в журнале десятки тысяч, приходят они страницами по 50. Сортировка в
+   * браузере переставила бы только видимые 50, а выглядела бы как сортировка
+   * всего журнала — и по ней делали бы неверные выводы.
+   */
+  const [sort, setSort] = useState<AuditLogFilters['sort']>(undefined);
+  const [dir, setDir] = useState<'asc' | 'desc'>('desc');
+
+  function toggleSort(key: string) {
+    const field = key as NonNullable<AuditLogFilters['sort']>;
+    if (sort === field) {
+      setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSort(field);
+      setDir('asc');
+    }
+    // Порядок сменился — прежний номер страницы указывает уже не туда.
+    setPage(1);
+  }
+
   async function refresh() {
     if (!token) return;
     setLoading(true);
@@ -39,6 +62,8 @@ export function AuditLogPage() {
         method: method || undefined,
         from: from || undefined,
         to: to || undefined,
+        sort,
+        dir,
         page,
       });
       setData(result);
@@ -52,7 +77,7 @@ export function AuditLogPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page]);
+  }, [token, page, sort, dir]);
 
   function applyFilters() {
     setPage(1);
@@ -98,12 +123,12 @@ export function AuditLogPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Время</th>
-                <th style={styles.th}>Пользователь</th>
+                <SortHeader label="Время" sortKey="createdAt" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
+                <SortHeader label="Пользователь" sortKey="username" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
                 <th style={styles.th}>Роль</th>
-                <th style={styles.th}>Метод</th>
-                <th style={styles.th}>Путь</th>
-                <th style={styles.th}>Код</th>
+                <SortHeader label="Метод" sortKey="method" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
+                <SortHeader label="Путь" sortKey="path" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
+                <SortHeader label="Код" sortKey="statusCode" activeKey={sort ?? null} dir={dir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>

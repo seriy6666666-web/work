@@ -9,6 +9,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 function isLow(s: MaterialStock): boolean {
   return s.quantity <= s.lowStockThreshold;
@@ -24,6 +25,19 @@ export function MaterialsPage() {
   const confirm = useConfirm();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [stocks, setStocks] = useState<MaterialStock[]>([]);
+
+  const controls = useTableControls(stocks, {
+    searchText: (s) => `${s.material.name} ${s.platform.name} ${s.project.name}`,
+    sortAccessors: {
+      material: (s) => s.material.name,
+      platform: (s) => s.platform.name,
+      project: (s) => s.project.name,
+      quantity: (s) => s.quantity,
+      threshold: (s) => s.lowStockThreshold,
+    },
+    defaultSortKey: 'material',
+    storageKey: 'planner-materials',
+  });
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [projects, setProjects] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,17 +237,17 @@ export function MaterialsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Материал</th>
-                <th style={styles.th}>Площадка</th>
-                <th style={styles.th}>Проект</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>Остаток</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>Порог</th>
+                <SortHeader label="Материал" sortKey="material" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Площадка" sortKey="platform" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Проект" sortKey="project" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Остаток" sortKey="quantity" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
+                <SortHeader label="Порог" sortKey="threshold" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
                 <th style={styles.th}>Приход / расход</th>
                 <th style={styles.th}></th>
               </tr>
             </thead>
             <tbody>
-              {stocks.map((s) => {
+              {controls.result.map((s) => {
                 const low = isLow(s);
                 return (
                   <tr key={s.id} style={low ? styles.rowLow : undefined}>

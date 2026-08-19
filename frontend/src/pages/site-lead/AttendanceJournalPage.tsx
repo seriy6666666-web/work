@@ -9,6 +9,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Icon } from '../../components/Icon';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -32,6 +33,20 @@ export function AttendanceJournalPage() {
   });
   const [to, setTo] = useState(() => ymd(new Date()));
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+
+  const controls = useTableControls(entries, {
+    searchText: (e) => e.fullName,
+    sortAccessors: {
+      user: (e) => e.fullName,
+      date: (e) => e.date,
+      checkIn: (e) => e.checkInAt,
+      checkOut: (e) => e.checkOutAt,
+      hours: (e) => e.hours,
+    },
+    defaultSortKey: 'date',
+    defaultSortDir: 'desc',
+    storageKey: 'site-lead-journal',
+  });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -122,15 +137,15 @@ export function AttendanceJournalPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Сотрудник</th>
-                <th style={styles.th}>Дата</th>
-                <th style={styles.th}>Приход</th>
-                <th style={styles.th}>Уход</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>Отработано</th>
+                <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Дата" sortKey="date" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Приход" sortKey="checkIn" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Уход" sortKey="checkOut" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Отработано" sortKey="hours" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
               </tr>
             </thead>
             <tbody>
-              {entries.map((e, i) => (
+              {controls.result.map((e, i) => (
                 <tr key={`${e.userId}-${e.checkInAt}-${i}`}>
                   <td style={styles.td}>
                     <div style={styles.nameCell}>

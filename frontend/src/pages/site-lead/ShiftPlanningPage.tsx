@@ -11,6 +11,7 @@ import { useToast } from '../../components/ToastProvider';
 import { Skeleton } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 function ymd(d: Date): string {
   const y = d.getFullYear();
@@ -41,6 +42,15 @@ export function ShiftPlanningPage() {
   const toast = useToast();
   const [weekStart, setWeekStart] = useState(() => ymd(mondayOf(new Date())));
   const [week, setWeek] = useState<PlannedShiftWeek | null>(null);
+
+  // Дни недели здесь — столбцы, их порядок задан календарём. Переставлять можно
+  // только строки, то есть сотрудников.
+  const controls = useTableControls(week?.workers ?? [], {
+    searchText: (w) => w.fullName,
+    sortAccessors: { user: (w) => w.fullName },
+    defaultSortKey: 'user',
+    storageKey: 'site-lead-shifts',
+  });
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -127,7 +137,7 @@ export function ShiftPlanningPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={{ ...styles.th, ...styles.nameCol }}>Сотрудник</th>
+                <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 {week.days.map((d) => (
                   <th key={d} style={styles.th}>
                     {new Date(d)
@@ -145,7 +155,7 @@ export function ShiftPlanningPage() {
               </tr>
             </thead>
             <tbody>
-              {week.workers.map((w) => (
+              {controls.result.map((w) => (
                 <tr key={w.id}>
                   <td style={{ ...styles.td, ...styles.nameCol }}>{w.fullName}</td>
                   {week.days.map((d) => {

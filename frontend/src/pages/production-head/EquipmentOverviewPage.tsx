@@ -7,6 +7,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useSortState, sortWith, SortHeader } from '../../components/TableControls';
 
 const STATUS_META: Record<EquipmentStatus, { label: string; variant: BadgeVariant }> = {
   OPERATIONAL: { label: 'В работе', variant: 'accent' },
@@ -27,10 +28,23 @@ interface SiteGroup {
   maintenance: number;
 }
 
+/** Сломанное впереди: с ним надо что-то делать сегодня. */
+const STATUS_SEVERITY: Record<string, number> = { BROKEN: 0, MAINTENANCE: 1, OPERATIONAL: 2 };
+
+const ACCESSORS: Record<string, (i: { name: string; status: string; nextMaintenanceAt: string | null }) => string | number | null> = {
+  name: (i) => i.name,
+  status: (i) => STATUS_SEVERITY[String(i.status)] ?? 9,
+  maintenance: (i) => i.nextMaintenanceAt,
+};
+
 export function EquipmentOverviewPage() {
   const { token } = useAuth();
   const toast = useToast();
   const [items, setItems] = useState<Equipment[]>([]);
+
+  // Порядок один на страницу, а применяется внутри каждого участка: общий список
+  // сортировать нельзя, он бы перемешал участки между собой.
+  const sort = useSortState({ defaultKey: 'name', storageKey: 'head-equipment' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -112,13 +126,13 @@ export function EquipmentOverviewPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Оборудование</th>
-                  <th style={styles.th}>Статус</th>
-                  <th style={styles.th}>След. обслуживание</th>
+                  <SortHeader label="Оборудование" sortKey="name" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
+                  <SortHeader label="Статус" sortKey="status" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
+                  <SortHeader label="След. обслуживание" sortKey="maintenance" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
                 </tr>
               </thead>
               <tbody>
-                {g.items.map((item) => (
+                {sortWith(g.items, ACCESSORS[sort.sortKey] ?? ACCESSORS.name, sort.sortDir).map((item) => (
                   <tr key={item.id}>
                     <td style={styles.td}>{item.name}</td>
                     <td style={styles.td}>

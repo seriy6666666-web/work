@@ -7,6 +7,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useSortState, sortWith, SortHeader } from '../../components/TableControls';
 
 function isLow(s: MaterialStock): boolean {
   return s.quantity <= s.lowStockThreshold;
@@ -23,10 +24,23 @@ interface PlatformGroup {
   low: number;
 }
 
+const ACCESSORS: Record<string, (s: { material: { name: string }; project: { name: string }; quantity: number; lowStockThreshold: number }) => string | number | null> = {
+  material: (s) => s.material.name,
+  project: (s) => s.project.name,
+  quantity: (s) => s.quantity,
+  threshold: (s) => s.lowStockThreshold,
+  // «Не хватает» — это остаток относительно порога, а не сам остаток: 5 из 10
+  // тревожнее, чем 50 из 500.
+  shortage: (s) => (s.lowStockThreshold > 0 ? s.quantity / s.lowStockThreshold : Number.MAX_SAFE_INTEGER),
+};
+
 export function MaterialsOverviewPage() {
   const { token } = useAuth();
   const toast = useToast();
   const [stocks, setStocks] = useState<MaterialStock[]>([]);
+
+  // Один выбор на страницу, применяется внутри каждой площадки.
+  const sort = useSortState({ defaultKey: 'material', storageKey: 'head-materials' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,15 +102,15 @@ export function MaterialsOverviewPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Материал</th>
-                  <th style={styles.th}>Проект</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Остаток</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Порог</th>
-                  <th style={styles.th}>Статус</th>
+                  <SortHeader label="Материал" sortKey="material" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
+                  <SortHeader label="Проект" sortKey="project" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
+                  <SortHeader label="Остаток" sortKey="quantity" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
+                  <SortHeader label="Порог" sortKey="threshold" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
+                  <SortHeader label="Статус" sortKey="shortage" activeKey={sort.sortKey} dir={sort.sortDir} onSort={(k) => sort.setSort(k, k === sort.sortKey && sort.sortDir === 'asc' ? 'desc' : 'asc')} />
                 </tr>
               </thead>
               <tbody>
-                {g.rows.map((s) => {
+                {sortWith(g.rows, ACCESSORS[sort.sortKey] ?? ACCESSORS.material, sort.sortDir).map((s) => {
                   const low = isLow(s);
                   return (
                     <tr key={s.id} style={low ? styles.rowLow : undefined}>

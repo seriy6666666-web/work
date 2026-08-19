@@ -17,11 +17,39 @@ import { NotificationBell } from '../../components/NotificationBell';
 import { FeedbackButton } from '../../components/FeedbackButton';
 import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
 import { Select } from '../../components/Select';
+import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
+
+/**
+ * Порядок заданий у рабочего.
+ *
+ * Список короткий — это то, что человеку дали на смену, — но и в нём порядок
+ * бывает нужен: сначала то, что горит по сроку, или сначала неотмеченное, чтобы
+ * не искать глазами, о чём ещё не отчитался.
+ */
+const SORT_CHOICES: SortChoice[] = [
+  { key: 'due', dir: 'asc', label: 'сначала срочные' },
+  { key: 'pending', dir: 'asc', label: 'сначала неотмеченные' },
+  { key: 'name', dir: 'asc', label: 'по названию' },
+  { key: 'order', dir: 'asc', label: 'по заказу' },
+];
 
 export function TasksPage() {
   const { user, token, logout } = useAuth();
   const [shift, setShift] = useState<Shift | null>(null);
   const [tasks, setTasks] = useState<MyTask[]>([]);
+
+  const controls = useTableControls(tasks, {
+    searchText: (t) => `${t.operation.operationType.name} ${t.operation.order.name}`,
+    sortAccessors: {
+      due: (t) => t.operation.order.dueDate,
+      // Неотмеченные впереди: по остальным человек уже отчитался.
+      pending: (t) => (t.completionRecord === null ? 0 : 1),
+      name: (t) => t.operation.operationType.name,
+      order: (t) => t.operation.order.name,
+    },
+    defaultSortKey: 'due',
+    storageKey: 'worker-tasks',
+  });
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -309,8 +337,19 @@ export function TasksPage() {
           <p style={styles.hint}>Загрузка...</p>
         ) : tasks.length === 0 ? (
           <p style={styles.hint}>На сегодня заданий пока нет.</p>
-        ) : (
-          tasks.map((task) => {
+        ) : (<>
+          {/* Порядок нужен, только когда заданий больше одного. */}
+          {tasks.length > 1 && (
+            <div style={styles.listControls}>
+              <SortSelect
+                choices={SORT_CHOICES}
+                sortKey={controls.sortKey}
+                dir={controls.sortDir}
+                onSelect={controls.setSort}
+              />
+            </div>
+          )}
+          {controls.result.map((task) => {
             const locked = task.completionRecord !== null && !task.canCorrect;
             const isSubmitting = submitting[task.id] ?? false;
             const correctionsLeft = task.completionRecord ? 2 - task.completionRecord.correctionCount : 2;
@@ -404,8 +443,8 @@ export function TasksPage() {
                 )}
               </div>
             );
-          })
-        )}
+          })}
+        </>)}
       </main>
       <FeedbackButton />
     </div>
@@ -413,6 +452,8 @@ export function TasksPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  /** Выбор порядка над списком заданий. */
+  listControls: { display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' },
   page: {
     minHeight: '100vh',
     background: '#f4f7f6',

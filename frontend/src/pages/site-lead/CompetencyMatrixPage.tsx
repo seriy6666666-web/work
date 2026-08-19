@@ -6,6 +6,7 @@ import { Avatar } from '../../components/Avatar';
 import { useToast } from '../../components/ToastProvider';
 import { Skeleton } from '../../components/Skeleton';
 import { COLORS } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 function key(userId: string, skillId: string) {
   return `${userId}:${skillId}`;
@@ -15,6 +16,15 @@ export function CompetencyMatrixPage() {
   const { token } = useAuth();
   const toast = useToast();
   const [matrix, setMatrix] = useState<CompetencyMatrix | null>(null);
+
+  // Сортируем только сотрудников: навыки здесь — столбцы, их порядок задаёт
+  // справочник, и переставлять их построчно нечем.
+  const controls = useTableControls(matrix?.users ?? [], {
+    searchText: (u) => u.fullName,
+    sortAccessors: { user: (u) => u.fullName },
+    defaultSortKey: 'user',
+    storageKey: 'site-lead-competency',
+  });
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<Set<string>>(new Set());
 
@@ -88,7 +98,7 @@ export function CompetencyMatrixPage() {
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Сотрудник</th>
+              <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
               {matrix.skills.map((skill) => (
                 <th key={skill.id} style={styles.th}>
                   {skill.name}
@@ -97,7 +107,7 @@ export function CompetencyMatrixPage() {
             </tr>
           </thead>
           <tbody>
-            {matrix.users.map((user) => (
+            {controls.result.map((user) => (
               <tr key={user.id}>
                 <td style={styles.td}>
                   <div style={styles.nameCell}>

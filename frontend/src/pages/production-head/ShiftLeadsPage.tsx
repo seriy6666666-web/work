@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { SearchSelect } from '../../components/SearchSelect';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -28,6 +29,19 @@ export function ShiftLeadsPage() {
     return ymd(d);
   });
   const [leads, setLeads] = useState<ShiftLead[]>([]);
+
+  const controls = useTableControls(leads, {
+    searchText: (l) => `${l.user.fullName} ${l.site.name}`,
+    sortAccessors: {
+      date: (l) => l.date,
+      type: (l) => l.type,
+      site: (l) => l.site.name,
+      user: (l) => l.user.fullName,
+    },
+    defaultSortKey: 'date',
+    defaultSortDir: 'desc',
+    storageKey: 'head-shift-leads',
+  });
   const [sites, setSites] = useState<Site[]>([]);
   const [people, setPeople] = useState<{ id: string; fullName: string; role: Role }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,15 +185,15 @@ export function ShiftLeadsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Дата</th>
-                <th style={styles.th}>Смена</th>
-                <th style={styles.th}>Участок</th>
-                <th style={styles.th}>Старший</th>
+                <SortHeader label="Дата" sortKey="date" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Смена" sortKey="type" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Участок" sortKey="site" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="Старший" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
                 <th style={styles.th}></th>
               </tr>
             </thead>
             <tbody>
-              {leads.map((l) => (
+              {controls.result.map((l) => (
                 <tr key={l.id}>
                   <td style={styles.td}>{new Date(l.date).toLocaleDateString('ru-RU', { timeZone: 'UTC' })}</td>
                   <td style={styles.td}>

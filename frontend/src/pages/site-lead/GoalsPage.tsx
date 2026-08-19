@@ -9,6 +9,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { SearchSelect } from '../../components/SearchSelect';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useTableControls, SortHeader } from '../../components/TableControls';
 
 function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -90,6 +91,18 @@ export function GoalsPage() {
   }
 
   const goals = data?.goals ?? [];
+
+  const controls = useTableControls(goals, {
+    searchText: (g) => g.fullName,
+    sortAccessors: {
+      user: (g) => g.fullName,
+      plan: (g) => g.targetQuantity,
+      fact: (g) => g.fact,
+      rate: (g) => g.rate,
+    },
+    defaultSortKey: 'user',
+    storageKey: 'site-lead-goals',
+  });
   const missed = goals.filter((g) => g.rate !== null && g.rate < 1).length;
 
   return (
@@ -143,16 +156,16 @@ export function GoalsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Сотрудник</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>План</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>Факт</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>Выполнение</th>
+                <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
+                <SortHeader label="План" sortKey="plan" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
+                <SortHeader label="Факт" sortKey="fact" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
+                <SortHeader label="Выполнение" sortKey="rate" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} align="right" />
                 <th style={styles.th}>Причина невыполнения</th>
                 <th style={styles.th}></th>
               </tr>
             </thead>
             <tbody>
-              {goals.map((g) => {
+              {controls.result.map((g) => {
                 const notMet = g.rate !== null && g.rate < 1;
                 return (
                   <tr key={g.id}>

@@ -112,10 +112,15 @@ export class AuditService implements OnModuleInit, OnModuleDestroy {
           : undefined,
     };
 
+    // По умолчанию — свежее сверху: журнал смотрят, чтобы понять, что случилось
+    // только что.
+    const dir = query.dir ?? (query.sort ? 'asc' : 'desc');
+    const orderBy = { [query.sort ?? 'createdAt']: dir };
+
     const [entries, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
       }),

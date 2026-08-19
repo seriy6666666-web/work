@@ -15,6 +15,7 @@ import { Badge } from '../../components/Badge';
 import { Icon } from '../../components/Icon';
 import { useToast } from '../../components/ToastProvider';
 import { SkeletonCards } from '../../components/Skeleton';
+import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
@@ -52,11 +53,37 @@ function when(iso: string): string {
   return `${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
+/**
+ * Порядок обращений. По умолчанию новые сверху — так их и разбирают. Порядок по
+ * состоянию нужен, когда надо добрать всё неотвеченное разом.
+ */
+const SORT_CHOICES: SortChoice[] = [
+  { key: 'created', dir: 'desc', label: 'сначала новые' },
+  { key: 'created', dir: 'asc', label: 'сначала старые' },
+  { key: 'status', dir: 'asc', label: 'сначала необработанные' },
+  { key: 'author', dir: 'asc', label: 'по автору' },
+];
+
+/** Необработанное впереди: остальное уже разобрано. */
+const STATUS_ORDER: Record<string, number> = { NEW: 0, IN_PROGRESS: 1, DONE: 2, REJECTED: 3 };
+
 export function FeedbackPage() {
   const { token } = useAuth();
   const toast = useToast();
 
   const [items, setItems] = useState<Feedback[]>([]);
+  const controls = useTableControls(items, {
+    searchText: (f) => `${f.message ?? ''} ${f.author?.fullName ?? ''}`,
+    sortAccessors: {
+      created: (f) => f.createdAt,
+      status: (f) => STATUS_ORDER[f.status] ?? 9,
+      // Анонимные уходят в конец: сортировать их по автору не по чему.
+      author: (f) => f.author?.fullName ?? null,
+    },
+    defaultSortKey: 'created',
+    defaultSortDir: 'desc',
+    storageKey: 'admin-feedback',
+  });
   const [summary, setSummary] = useState<FeedbackSummary | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,7 +260,15 @@ export function FeedbackPage() {
         <EmptyState icon="inbox" title="Обращений нет" hint="Здесь появится то, что напишут сотрудники." />
       ) : (
         <div style={styles.list}>
-          {items.map((f) => (
+          <div style={styles.listControls}>
+            <SortSelect
+              choices={SORT_CHOICES}
+              sortKey={controls.sortKey}
+              dir={controls.sortDir}
+              onSelect={controls.setSort}
+            />
+          </div>
+          {controls.result.map((f) => (
             <div key={f.id} style={styles.card}>
               <div style={styles.cardHead}>
                 <div style={styles.who}>
