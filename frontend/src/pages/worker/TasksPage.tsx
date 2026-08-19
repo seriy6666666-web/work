@@ -18,7 +18,7 @@ import { FeedbackButton } from '../../components/FeedbackButton';
 import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
 import { Select } from '../../components/Select';
 import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
-import { Input } from '../../components/ui';
+
 
 /**
  * Порядок заданий у рабочего.
@@ -168,6 +168,14 @@ export function TasksPage() {
     } finally {
       setCheckingIn(false);
     }
+  }
+
+  /** Шаг счётчика годных. Ниже нуля не уходим: отрицательной выработки не бывает. */
+  function step(taskId: string, delta: number) {
+    setInputs((prev) => {
+      const current = Number(prev[taskId] ?? '0') || 0;
+      return { ...prev, [taskId]: String(Math.max(0, current + delta)) };
+    });
   }
 
   async function handleSubmit(task: MyTask) {
@@ -374,18 +382,47 @@ export function TasksPage() {
                 ) : (
                   <>
                     <div style={styles.form}>
-                      <label style={styles.fieldLabel}>
-                        Годных, шт
-                        <Input style={{ width: '100%', padding: '16px', borderRadius: '12px', border: '2px solid #e8f5ee', background: '#f4f7f6', fontSize: '20px', textAlign: 'center' }}
-                          type="number"
-                          min={0}
-                          inputMode="numeric"
-                          value={inputs[task.id] ?? ''}
-                          onChange={(e) => setInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
-                        />
-                      </label>
-                      <label style={styles.fieldLabel}>
-                        Брак, шт
+                      {/*
+                        Годные: поле ввода с «−» и «+» по бокам. Кнопками отмечают
+                        по ходу дела, полем — когда закрывают смену числом: план в
+                        пятьсот штук пятьюстами нажатиями не отметить.
+
+                        У брака кнопок нет намеренно: его вводят руками и редко, а
+                        случайное нажатие рядом с «плюсом» стоило бы дорого — брак
+                        списывает материал.
+                      */}
+                      <div style={styles.counterBlock}>
+                        <span style={styles.counterLabel}>Годных, шт</span>
+                        <div style={styles.counterRow}>
+                          <button
+                            style={styles.stepButton}
+                            onClick={() => step(task.id, -1)}
+                            disabled={isSubmitting}
+                            aria-label="Убрать одну"
+                          >
+                            −
+                          </button>
+                          <input
+                            style={styles.bigInput}
+                            type="number"
+                            min={0}
+                            inputMode="numeric"
+                            value={inputs[task.id] ?? ''}
+                            onChange={(e) => setInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                          />
+                          <button
+                            style={styles.stepButton}
+                            onClick={() => step(task.id, 1)}
+                            disabled={isSubmitting}
+                            aria-label="Добавить одну"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={styles.counterBlock}>
+                        <span style={styles.counterLabel}>Брак, шт</span>
                         <input
                           style={styles.defectInput}
                           type="number"
@@ -394,13 +431,14 @@ export function TasksPage() {
                           value={defectInputs[task.id] ?? '0'}
                           onChange={(e) => setDefectInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
                         />
-                      </label>
+                      </div>
+
                       <button
                         style={styles.submitButton}
                         onClick={() => handleSubmit(task)}
                         disabled={isSubmitting}
                       >
-                        {task.completionRecord ? 'Исправить' : 'Отметить выполнение'}
+                        {task.completionRecord ? 'Исправить' : 'Сделал'}
                       </button>
                     </div>
                     <button
@@ -595,6 +633,53 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
     gap: '12px',
     marginTop: '4px',
+    alignItems: 'flex-end',
+  },
+  counterBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    // minWidth: 0 обязателен: без него блок не сжимается ниже своего содержимого,
+    // и на телефоне «плюс» уезжал за пределы карточки.
+    flex: '1 1 200px',
+    minWidth: 0,
+  },
+  counterLabel: {
+    fontSize: '13px',
+    color: 'var(--tx2)',
+  },
+  counterRow: {
+    display: 'flex',
+    alignItems: 'stretch',
+    gap: '8px',
+  },
+  /* Цель нажатия 64px: работают в перчатках, экран бликует. */
+  stepButton: {
+    // Не уже 56px даже на телефоне: в перчатках промахиваются по мелкому.
+    flex: '0 0 56px',
+    minHeight: '64px',
+    borderRadius: '14px',
+    border: '1px solid var(--line)',
+    background: 'var(--surf2)',
+    color: 'var(--tx)',
+    fontSize: '26px',
+    lineHeight: 1,
+    cursor: 'pointer',
+  },
+  bigInput: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: '64px',
+    padding: '12px',
+    borderRadius: '14px',
+    border: '2px solid var(--accsoft)',
+    background: 'var(--surf2)',
+    color: 'var(--tx)',
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    fontVariantNumeric: 'tabular-nums',
+    fontSize: '28px',
+    fontWeight: 600,
+    textAlign: 'center',
   },
   fieldLabel: {
     display: 'flex',
@@ -606,20 +691,25 @@ const styles: Record<string, React.CSSProperties> = {
   },
   defectInput: {
     width: '100%',
-    padding: '16px',
-    borderRadius: '12px',
-    border: '2px solid #fdecea',
-    background: '#fff6f5',
-    fontSize: '20px',
+    minHeight: '64px',
+    padding: '12px',
+    borderRadius: '14px',
+    border: '2px solid var(--errsoft)',
+    background: 'var(--errsoft)',
+    color: 'var(--err)',
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    fontVariantNumeric: 'tabular-nums',
+    fontSize: '28px',
+    fontWeight: 600,
     textAlign: 'center',
-    color: '#c0392b',
   },
   submitButton: {
-    flex: '1 1 200px',
+    flex: '1 1 100%',
+    minHeight: '64px',
     padding: '16px',
-    borderRadius: '12px',
+    borderRadius: '14px',
     border: 'none',
-    background: '#4caf82',
+    background: 'var(--acc)',
     color: '#fff',
     fontSize: '18px',
     fontWeight: 700,
