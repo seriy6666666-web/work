@@ -23,7 +23,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { SearchSelect } from '../../components/SearchSelect';
 import { Select } from '../../components/Select';
 import { useDistributionUpdates } from '../../realtime';
-import { useIsMobile } from '../../responsive';
+import { useIsPhone } from '../../responsive';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { deadlineLook, deadlineShort, worstDeadline } from '../../deadline-label';
 import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
@@ -179,7 +179,7 @@ export function DistributionPage() {
    *
    * Порядок важен: сначала операции — ради них экран и открывают.
    */
-  const isMobile = useIsMobile();
+  const isPhone = useIsPhone();
 
   /**
    * Кандидаты на операцию, разделённые по владению навыком. Раньше список был общий:
@@ -437,7 +437,7 @@ export function DistributionPage() {
         </div>
       )}
 
-      <div style={{ ...styles.columns, ...(isMobile ? styles.columnsStacked : {}) }}>
+      <div style={{ ...styles.columns, ...(isPhone ? styles.columnsStacked : {}) }}>
         <div style={styles.leftColumn} ref={operationsRef}>
           <div style={styles.listControls}>
             <h3 style={styles.sectionTitle}>Операции участка</h3>

@@ -7,7 +7,7 @@ import { Icon, type IconName } from './Icon';
 import { NotificationBell } from './NotificationBell';
 import { FeedbackButton } from './FeedbackButton';
 import { useThemeMode } from '../theme-mode';
-import { useIsMobile } from '../responsive';
+import { useDrawerMenu } from '../responsive';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
 export interface SidebarTab {
@@ -37,7 +37,7 @@ export function SidebarLayout({
 }) {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const isMobile = useIsMobile();
+  const isMobile = useDrawerMenu();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [themeMode, toggleTheme] = useThemeMode();
 

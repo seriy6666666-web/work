@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api, ApiError, type FeedbackType } from '../api/client';
 import { useToast } from './ToastProvider';
 import { Icon } from './Icon';
-import { useIsMobile } from '../responsive';
+import { useDrawerMenu } from '../responsive';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
 const TYPES: { value: FeedbackType; label: string }[] = [
@@ -27,7 +27,7 @@ export function FeedbackButton() {
    * заметную часть узкого экрана и накрывала содержимое под собой. Название
    * остаётся в aria-label, поэтому для чтения с экрана ничего не теряется.
    */
-  const isMobile = useIsMobile();
+  const isMobile = useDrawerMenu();
 
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>('PROBLEM');

@@ -1,3 +1,13 @@
+/*
+ * Переменные нового дизайна — источник истины для всего оформления.
+ *
+ * Значения перенесены из макета один в один. Имена тоже: так правка в макете
+ * ищется в коде поиском по имени, без перевода.
+ *
+ * Ниже прежние имена вида --c-* выражены через новые. Они остаются, потому что
+ * на них опирается весь существующий код; менять их разом означало бы трогать
+ * все страницы сразу и потерять возможность сверять снимки до и после.
+ */
 :root {
   /*
    * Подсказка браузеру, в какой теме рисовать то, что рисует он сам: календарь у
@@ -6,22 +16,51 @@
    */
   color-scheme: light;
 
-  --c-dark-bg: #1a3a4a;
-  --c-accent: #4caf82;
-  --c-accent-dark: #3d9970;
-  --c-surface: #ffffff;
-  --c-surface-alt: #e8f5ee;
-  --c-page-bg: #f4f7f6;
-  --c-muted-text: #8fa8b0;
-  --c-text: #1a2e3b;
-  --c-error: #c0392b;
-  --c-error-bg: #fdecea;
-  --c-warning: #b8860b;
-  --c-warning-bg: #fff4e5;
-  --c-info: #2f6fb0;
-  --c-info-bg: #e6f0fa;
-  --shadow-card: 0 1px 3px rgba(26, 46, 59, 0.08);
-  --shadow-raised: 0 8px 24px rgba(26, 46, 59, 0.12);
+  --page: #f1f4f3;
+  --surf: #ffffff;
+  --surf2: #f6f9f7;
+  --line: #e0e8e5;
+  --line2: #edf2f0;
+  --tx: #12242e;
+  --tx2: #5d7480;
+  --tx3: #8fa8b0;
+  --nav: #1a3a4a;
+  --navtx: #e2edf1;
+  --navtx2: #93b2bf;
+  --navact: rgba(76, 175, 130, 0.16);
+  --acc: #4caf82;
+  --accd: #2f8f68;
+  --accsoft: #e8f5ee;
+  --info: #2f6fb0;
+  --infosoft: #e6f0fa;
+  --warn: #b8860b;
+  --warnsoft: #fff4e5;
+  --err: #c0392b;
+  --errsoft: #fdecea;
+  --queue: #ccd8dc;
+  --track: #e7edeb;
+  --sh1: 0 1px 2px rgba(18, 36, 46, 0.05), 0 2px 8px rgba(18, 36, 46, 0.05);
+  --sh2: 0 12px 32px rgba(18, 36, 46, 0.14);
+  --logo: none;
+
+  /* Прежние имена — выражены через новые, менять их значения больше негде. */
+  --c-dark-bg: var(--nav);
+  --c-accent: var(--acc);
+  --c-accent-dark: var(--accd);
+  --c-surface: var(--surf);
+  /* Служило и мягким зелёным фоном, и цветом линий. Линии теперь свои — --line. */
+  --c-surface-alt: var(--accsoft);
+  --c-page-bg: var(--page);
+  --c-muted-text: var(--tx3);
+  --c-text: var(--tx);
+  --c-error: var(--err);
+  --c-error-bg: var(--errsoft);
+  --c-warning: var(--warn);
+  --c-warning-bg: var(--warnsoft);
+  --c-info: var(--info);
+  --c-info-bg: var(--infosoft);
+  --shadow-card: var(--sh1);
+  --shadow-raised: var(--sh2);
   --skeleton-from: #eef2f1;
   --skeleton-mid: #e0e8e5;
 }
@@ -29,22 +68,49 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --c-dark-bg: #12202a;
-  --c-accent: #55c194;
-  --c-accent-dark: #6fd0a6;
-  --c-surface: #16232c;
+  --page: #0d171d;
+  --surf: #16232c;
+  --surf2: #1b2a33;
+  --line: #26363f;
+  --line2: #1f2e37;
+  --tx: #e6eef1;
+  --tx2: #a7bcc4;
+  --tx3: #7e979f;
+  --nav: #101c23;
+  --navtx: #dbe8ec;
+  --navtx2: #7e979f;
+  --navact: rgba(85, 193, 148, 0.18);
+  --acc: #55c194;
+  --accd: #6fd0a6;
+  --accsoft: #153229;
+  --info: #6ba7dd;
+  --infosoft: #152738;
+  --warn: #d8b45a;
+  --warnsoft: #312a17;
+  --err: #e77a6d;
+  --errsoft: #36211e;
+  --queue: #31434c;
+  --track: #22323b;
+  --sh1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --sh2: 0 14px 36px rgba(0, 0, 0, 0.5);
+  --logo: brightness(0) invert(1);
+
+  --c-dark-bg: var(--nav);
+  --c-accent: var(--acc);
+  --c-accent-dark: var(--accd);
+  --c-surface: var(--surf);
   --c-surface-alt: #24343d;
-  --c-page-bg: #0f1a20;
-  --c-muted-text: #86a0aa;
-  --c-text: #e6eef1;
-  --c-error: #e77a6d;
-  --c-error-bg: #3a2320;
-  --c-warning: #d8b45a;
-  --c-warning-bg: #37301c;
-  --c-info: #6ba7dd;
-  --c-info-bg: #1c2c39;
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --c-page-bg: var(--page);
+  --c-muted-text: var(--tx3);
+  --c-text: var(--tx);
+  --c-error: var(--err);
+  --c-error-bg: var(--errsoft);
+  --c-warning: var(--warn);
+  --c-warning-bg: var(--warnsoft);
+  --c-info: var(--info);
+  --c-info-bg: var(--infosoft);
+  --shadow-card: var(--sh1);
+  --shadow-raised: var(--sh2);
   --skeleton-from: #1c2b33;
   --skeleton-mid: #263740;
 }
@@ -88,7 +154,11 @@ input:-webkit-autofill:focus {
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /*
+   * IBM Plex Sans — из макета, файлами в сборке. Системные шрифты остаются
+   * запасным вариантом: пока файл не дошёл, текст читается ими, а не пропадает.
+   */
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: var(--c-page-bg);
   color: var(--c-text);
 }
