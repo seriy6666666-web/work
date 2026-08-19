@@ -18,9 +18,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { useTableControls, SortSelect, SearchInput, type SortChoice } from '../../components/TableControls';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
-import { COLORS } from '../../theme';
 import { Button, Input, LinkButton, Hint, Muted } from '../../components/ui';
-import { ProgressRing } from '../../components/ProgressRing';
 
 interface OpForm {
   operationTypeId: string;
@@ -47,41 +45,11 @@ const SORT_CHOICES: SortChoice[] = [
 ];
 
 /** Фильтры над списком — как в макете, со счётчиками. */
-const FILTERS: { key: 'all' | 'inWork' | 'atRisk' | 'notStarted'; label: string }[] = [
+const FILTERS: { key: 'all' | 'filled' | 'empty'; label: string }[] = [
   { key: 'all', label: 'Все' },
-  { key: 'inWork', label: 'В работе' },
-  { key: 'atRisk', label: 'Риск' },
-  { key: 'notStarted', label: 'Не начаты' },
+  { key: 'filled', label: 'С техкартой' },
+  { key: 'empty', label: 'Пустые' },
 ];
-
-/** Метка состояния проекта. Цвет несёт смысл и только его. */
-const STATE_META: Record<Product['progress']['state'], { label: string; variant: 'accent' | 'danger' | 'muted' | 'shared' }> = {
-  draft: { label: 'Черновик', variant: 'muted' },
-  notStarted: { label: 'Не начат', variant: 'muted' },
-  inWork: { label: 'В работе', variant: 'accent' },
-  atRisk: { label: 'Риск срыва', variant: 'danger' },
-  done: { label: 'Готов', variant: 'accent' },
-};
-
-function formatIso(iso: string): string {
-  const [y, m, d] = iso.split('-');
-  return `${d}.${m}.${y}`;
-}
-
-/**
- * Отрезки полосы — по одному на операцию.
- *
- * Когда операций в заказах нет, показываем шаги техкарты серым: полоса не должна
- * исчезать у проекта, который просто ещё не запускали.
- */
-function segments(g: Product['progress'], techCardSize: number): string[] {
-  const total = g.operationsTotal || techCardSize;
-  return Array.from({ length: total }, (_, i) => {
-    if (i < g.operationsDone) return 'var(--acc)';
-    if (i < g.operationsDone + g.operationsInWork) return 'var(--info)';
-    return 'var(--queue)';
-  });
-}
 
 export function ProductsPage() {
   const { token } = useAuth();
@@ -284,16 +252,13 @@ export function ProductsPage() {
    */
   const counts = {
     all: controls.result.length,
-    inWork: products.filter((p) => p.progress.state === 'inWork').length,
-    atRisk: products.filter((p) => p.progress.state === 'atRisk').length,
-    notStarted: products.filter((p) => p.progress.state === 'notStarted' || p.progress.state === 'draft')
-      .length,
+    filled: products.filter((p) => p.operations.length > 0).length,
+    empty: products.filter((p) => p.operations.length === 0).length,
   };
   const visible = controls.result.filter((p) => {
     if (filter === 'all') return true;
-    if (filter === 'inWork') return p.progress.state === 'inWork';
-    if (filter === 'atRisk') return p.progress.state === 'atRisk';
-    return p.progress.state === 'notStarted' || p.progress.state === 'draft';
+    if (filter === 'filled') return p.operations.length > 0;
+    return p.operations.length === 0;
   });
 
   function openProject(id: string) {
@@ -309,66 +274,41 @@ export function ProductsPage() {
     requestAnimationFrame(() => window.scrollTo({ top: listScrollRef.current }));
   }
 
-  /** Плитка проекта: состояние одним взглядом, без раскрытия. */
+  /**
+   * Плитка проекта.
+   *
+   * Проект — шаблон: техкарта, из которой собирают заказ. Ни количества, ни
+   * срока, ни выработки у него нет, поэтому здесь нет ни кольца процента, ни
+   * полосы выполнения — эти числа принадлежат заказу. Показываем состав: где
+   * производится, на каком участке и из скольких операций собран.
+   */
   function renderTile(p: Product) {
-    const g = p.progress;
     const archived = p.status === 'ARCHIVED';
-    const ratio = g.planUnits > 0 ? g.doneUnits / g.planUnits : 0;
-    const meta = STATE_META[g.state];
     const site = p.operations[0]?.site.name;
+    const empty = p.operations.length === 0;
     return (
       <button key={p.id} style={styles.tile} onClick={() => openProject(p.id)}>
         <div style={styles.tileTop}>
-          <ProgressRing ratio={ratio} size={56} color={g.atRisk ? COLORS.error : COLORS.accent} />
           <div style={styles.tileMain}>
             <div style={styles.tileTitle}>
               <strong style={styles.tileName}>{p.name}</strong>
               {archived ? (
                 <Badge variant="muted">Архив</Badge>
-              ) : (
-                <Badge variant={meta.variant}>{meta.label}</Badge>
-              )}
+              ) : empty ? (
+                <Badge variant="muted">Техкарта пуста</Badge>
+              ) : null}
             </div>
             <div style={styles.tileMeta}>
               {p.platforms.map((pl) => pl.name).join(', ') || 'площадка не выбрана'}
               {site ? ` · ${site}` : ''}
+              {' · от '}
+              {formatDate(p.createdAt)}
             </div>
-            {g.dueDate && (
-              <div style={{ ...styles.tileDue, ...(g.atRisk ? styles.tileDueRisk : null) }}>
-                срок {formatIso(g.dueDate)}
-              </div>
-            )}
           </div>
           <div style={styles.tileNumbers}>
-            <div style={styles.tileDone}>{g.doneUnits.toLocaleString('ru-RU')}</div>
-            <div style={styles.tilePlan}>из {g.planUnits.toLocaleString('ru-RU')} шт</div>
+            <div style={styles.tileDone}>{p.operations.length}</div>
+            <div style={styles.tilePlan}>операций</div>
           </div>
-        </div>
-
-        <div style={styles.tileCounters}>
-          <span style={styles.counter}>
-            <i style={{ ...styles.dot, background: 'var(--acc)' }} />
-            готово {g.operationsDone}
-          </span>
-          <span style={styles.counter}>
-            <i style={{ ...styles.dot, background: 'var(--info)' }} />в работе {g.operationsInWork}
-          </span>
-          <span style={styles.counter}>
-            <i style={{ ...styles.dot, background: 'var(--queue)' }} />
-            без исполнителя {g.operationsUnassigned}
-          </span>
-          <span style={styles.counterMuted}>операций {g.operationsTotal || p.operations.length}</span>
-        </div>
-
-        {/*
-          Полоса по одному отрезку на операцию: видно не только «сколько сделано»,
-          но и из скольких шагов это набрано. Пять закрытых из пятнадцати и пять из
-          шести выглядят по-разному, а процент у них может совпасть.
-        */}
-        <div style={styles.segments}>
-          {segments(g, p.operations.length).map((c, i) => (
-            <span key={i} style={{ ...styles.segment, background: c }} />
-          ))}
         </div>
       </button>
     );
@@ -379,8 +319,6 @@ export function ProductsPage() {
     const form = opForms[p.id] ?? EMPTY_OP;
     const archived = p.status === 'ARCHIVED';
     const platformIds = new Set(p.platforms.map((pl) => pl.id));
-    const g = p.progress;
-    const meta = STATE_META[g.state];
     return (
       <>
         <button style={styles.back} onClick={closeProject}>
@@ -389,23 +327,13 @@ export function ProductsPage() {
 
         <div style={styles.projectHead}>
           <div style={styles.titleRow}>
-            <ProgressRing
-              ratio={g.planUnits > 0 ? g.doneUnits / g.planUnits : 0}
-              size={52}
-              color={g.atRisk ? COLORS.error : COLORS.accent}
-            />
             <div>
               <div style={styles.tileTitle}>
                 <strong style={styles.projectName}>{p.name}</strong>
-                {archived ? (
-                  <Badge variant="muted">Архив</Badge>
-                ) : (
-                  <Badge variant={meta.variant}>{meta.label}</Badge>
-                )}
+                {archived && <Badge variant="muted">Архив</Badge>}
               </div>
               <div style={styles.tileMeta}>
-                {g.doneUnits.toLocaleString('ru-RU')} из {g.planUnits.toLocaleString('ru-RU')} шт
-                {g.dueDate ? ` · срок ${formatIso(g.dueDate)}` : ''} · от {formatDate(p.createdAt)}
+                {p.operations.length} операций · от {formatDate(p.createdAt)}
               </div>
             </div>
           </div>
@@ -583,6 +511,9 @@ export function ProductsPage() {
               placeholder="Проект, операция"
             />
             <div style={styles.filters}>
+              {/*
+                Фильтры по составу, а не по ходу работ: у шаблона хода работ нет.
+              */}
               {FILTERS.map((f) => (
                 <button
                   key={f.key}

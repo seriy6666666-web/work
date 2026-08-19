@@ -591,6 +591,7 @@ export interface Order {
   operationsDone: number;
   /** Готовых изделий — по самому узкому шагу цепочки. */
   readyUnits: number;
+  progress: OrderProgress;
 }
 
 export interface Operation {
@@ -611,6 +612,18 @@ export interface Operation {
   site: { id: string; name: string };
   secondarySite: { id: string; name: string } | null;
   operationType: { id: string; name: string; norm: number | null; skill: { id: string; name: string } | null };
+}
+
+/**
+ * Как идёт заказ. Считается на сервере по его операциям — работа идёт по заказу,
+ * а не по проекту: проект это шаблон, у него нет ни количества, ни срока.
+ */
+export interface OrderProgress {
+  operationsDone: number;
+  operationsInWork: number;
+  operationsUnassigned: number;
+  /** Есть операция, которую уже не успеть, или срок прошёл. */
+  atRisk: boolean;
 }
 
 export interface OrderDetail extends Omit<Order, 'operationsCount' | 'operationsQuantity'> {
@@ -820,28 +833,6 @@ export interface Platform {
   createdAt: string;
 }
 
-/**
- * Ход работ по проекту: считается на сервере по заказам проекта.
- *
- * Раньше планировщик видел техкарту и не видел, как проект идёт, — данные лежали
- * в базе, но до его экрана не доходили.
- */
-export interface ProductProgress {
-  /** Изделий заказано по всем незакрытым заказам. */
-  planUnits: number;
-  /** Изделий готово — по самому отстающему шагу, а не по сумме операций. */
-  doneUnits: number;
-  /** Ближайший срок отгрузки; null — заказов нет. */
-  dueDate: string | null;
-  operationsTotal: number;
-  operationsDone: number;
-  operationsInWork: number;
-  operationsUnassigned: number;
-  /** Есть операция, которую уже не успеть, или срок прошёл. */
-  atRisk: boolean;
-  state: 'draft' | 'notStarted' | 'inWork' | 'atRisk' | 'done';
-}
-
 export interface Product {
   id: string;
   name: string;
@@ -849,7 +840,6 @@ export interface Product {
   createdAt: string;
   operations: ProductOperation[];
   platforms: { id: string; name: string }[];
-  progress: ProductProgress;
 }
 
 export interface CreateProductOperationPayload {

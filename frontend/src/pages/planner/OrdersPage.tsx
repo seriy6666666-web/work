@@ -12,6 +12,7 @@ import { useTableControls, SearchInput, SortSelect, type SortChoice } from '../.
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
 import { Button, Input, Panel } from '../../components/ui';
+import { ProgressRing } from '../../components/ProgressRing';
 
 
 const STATUS_BADGE: Record<Order['status'], BadgeVariant> = {
@@ -301,18 +302,64 @@ export function OrdersPage() {
             const overdue =
               o.status !== 'DONE' && o.status !== 'SHIPPED' && new Date(o.dueDate) < new Date();
             const ready = o.quantity > 0 ? Math.round((o.readyUnits / o.quantity) * 100) : 0;
+            const g = o.progress;
             return (
               <Link key={o.id} to={`/planner/orders/${o.id}`} style={styles.row}>
+                {/*
+                  Кольцо и полоса стоят здесь, а не у проекта: проект — шаблон, у
+                  него нет ни количества, ни срока, ни выработки. Работа идёт по
+                  заказу, и его состояние должно читаться с одного взгляда.
+                */}
+                <ProgressRing
+                  ratio={o.quantity > 0 ? o.readyUnits / o.quantity : 0}
+                  size={46}
+                  color={g.atRisk ? COLORS.error : COLORS.accent}
+                />
                 <div style={styles.rowMain}>
                   <div style={styles.rowName}>{o.name}</div>
                   <div style={styles.rowSub}>
-                    {o.quantity} шт · операций {o.operationsCount}
+                    {o.readyUnits} из {o.quantity} шт
                     {o.priority > 0 ? ` · приоритет ${o.priority}` : ''}
+                  </div>
+                  <div style={styles.counters}>
+                    <span style={styles.counter}>
+                      <i style={{ ...styles.dot, background: 'var(--acc)' }} />
+                      готово {g.operationsDone}
+                    </span>
+                    <span style={styles.counter}>
+                      <i style={{ ...styles.dot, background: 'var(--info)' }} />в работе{' '}
+                      {g.operationsInWork}
+                    </span>
+                    <span style={styles.counter}>
+                      <i style={{ ...styles.dot, background: 'var(--queue)' }} />
+                      без исполнителя {g.operationsUnassigned}
+                    </span>
+                  </div>
+                  {/*
+                    По одному отрезку на операцию: видно, из скольких шагов набран
+                    процент. Пять закрытых из пятнадцати и пять из шести дают разную
+                    картину, а процент у них может совпасть.
+                  */}
+                  <div style={styles.segments}>
+                    {Array.from({ length: o.operationsCount }, (_, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          ...styles.segment,
+                          background:
+                            i < g.operationsDone
+                              ? 'var(--acc)'
+                              : i < g.operationsDone + g.operationsInWork
+                                ? 'var(--info)'
+                                : 'var(--queue)',
+                        }}
+                      />
+                    ))}
                   </div>
                 </div>
                 <div style={styles.rowStat}>
                   <div style={styles.statLabel}>срок</div>
-                  <div style={{ ...styles.statValue, ...(overdue ? styles.statBad : null) }}>
+                  <div style={{ ...styles.statValue, ...(overdue || g.atRisk ? styles.statBad : null) }}>
                     {new Date(o.dueDate).toLocaleDateString('ru-RU')}
                   </div>
                 </div>
@@ -322,7 +369,9 @@ export function OrdersPage() {
                     {ready}%
                   </div>
                 </div>
-                <Badge variant={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Badge>
+                <Badge variant={g.atRisk ? 'danger' : STATUS_BADGE[o.status]}>
+                  {g.atRisk ? 'Риск срыва' : ORDER_STATUS_LABELS[o.status]}
+                </Badge>
               </Link>
             );
           })}
@@ -395,6 +444,18 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--tx)',
   },
   rowMain: { flex: 1, minWidth: 0 },
+  counters: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    marginTop: '6px',
+    fontSize: '12px',
+    color: 'var(--tx2)',
+  },
+  counter: { display: 'inline-flex', alignItems: 'center', gap: '5px' },
+  dot: { width: '7px', height: '7px', borderRadius: '999px', display: 'inline-block' },
+  segments: { display: 'flex', gap: '2px', marginTop: '7px' },
+  segment: { flex: 1, height: '7px', borderRadius: '999px' },
   rowName: { fontSize: '15px', fontWeight: 600 },
   rowSub: { marginTop: '3px', fontSize: '13px', color: 'var(--tx2)' },
   rowStat: { textAlign: 'right', whiteSpace: 'nowrap', minWidth: '92px' },

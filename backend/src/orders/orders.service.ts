@@ -6,6 +6,7 @@ import { OrderStatus, Role } from '../generated/prisma/enums';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { CreateOrderFromProductDto } from './dto/create-order-from-product.dto';
+import { deadlineState, isAlarming } from '../common/deadline';
 
 function withOperationsSummary<
   T extends {
@@ -47,6 +48,59 @@ function withOperationsSummary<
     operationsDone: doneByOperation.reduce((sum, d) => sum + d, 0),
     readyUnits: Math.max(0, Math.min(readyUnits, order.quantity)),
   };
+}
+
+
+/**
+ * Как идёт заказ: сколько операций закрыто, сколько в работе, сколько без
+ * исполнителя, и горит ли что-нибудь.
+ *
+ * Раньше это считалось по проекту, но проект — шаблон: количества и срока у него
+ * нет, работа идёт по заказу.
+ */
+function orderProgress(
+  order: {
+    dueDate: Date;
+    operations: {
+      quantity: number;
+      dailyQuantity: number | null;
+      dueDate: Date | null;
+      assignments: { completionRecords: { doneQuantity: number | null }[] }[];
+    }[];
+  },
+  today: Date,
+) {
+  let done = 0;
+  let inWork = 0;
+  let unassigned = 0;
+  let atRisk = false;
+
+  for (const op of order.operations) {
+    const made = op.assignments.reduce(
+      (sum, a) => sum + (a.completionRecords[0]?.doneQuantity ?? 0),
+      0,
+    );
+    if (op.quantity > 0 && made >= op.quantity) done += 1;
+    else if (op.assignments.length > 0 || made > 0) inWork += 1;
+    else unassigned += 1;
+
+    if (
+      isAlarming(
+        deadlineState({
+          dueDate: op.dueDate,
+          orderDueDate: order.dueDate,
+          quantity: op.quantity,
+          done: made,
+          dailyQuantity: op.dailyQuantity,
+          today,
+        }).level,
+      )
+    ) {
+      atRisk = true;
+    }
+  }
+
+  return { operationsDone: done, operationsInWork: inWork, operationsUnassigned: unassigned, atRisk };
 }
 
 @Injectable()
@@ -113,13 +167,20 @@ export class OrdersService {
           select: {
             quantity: true,
             perUnit: true,
+            dailyQuantity: true,
+            dueDate: true,
             assignments: { select: { completionRecords: { select: { doneQuantity: true } } } },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
-    return orders.map(withOperationsSummary);
+
+    const today = new Date();
+    return orders.map((order) => ({
+      ...withOperationsSummary(order),
+      progress: orderProgress(order, today),
+    }));
   }
 
   async findOne(id: string) {
