@@ -43,6 +43,30 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
 
+  /**
+   * Свёрнутые проекты. Раньше все техкарты были развёрнуты разом: пять проектов
+   * по 8–15 шагов, у каждого шага ещё блок материалов — чтобы дойти до
+   * последнего, приходилось листать всю страницу.
+   *
+   * Свёрнутость держим в localStorage, а не в памяти: страница перезагружается
+   * после каждого действия со списком, и иначе всё распахивалось бы заново.
+   */
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('belmy_collapsed_products') ?? '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  function toggleProduct(productId: string) {
+    setCollapsed((prev) => {
+      const next = { ...prev, [productId]: !prev[productId] };
+      localStorage.setItem('belmy_collapsed_products', JSON.stringify(next));
+      return next;
+    });
+  }
+
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [opForms, setOpForms] = useState<Record<string, OpForm>>({});
@@ -241,11 +265,25 @@ export function ProductsPage() {
           const form = opForms[p.id] ?? EMPTY_OP;
           const archived = p.status === 'ARCHIVED';
           const platformIds = new Set(p.platforms.map((pl) => pl.id));
+          const isCollapsed = Boolean(collapsed[p.id]);
           return (
             <div key={p.id} style={{ ...styles.card, ...(archived ? styles.cardArchived : null) }}>
               <div style={styles.cardHeader}>
                 <div style={styles.titleRow}>
-                  <strong>{p.name}</strong>
+                  {/* Раскрывает техкарту. Сводка в заголовке — чтобы понять состав, не разворачивая. */}
+                  <button
+                    style={styles.caret}
+                    onClick={() => toggleProduct(p.id)}
+                    aria-label={isCollapsed ? 'Раскрыть техкарту' : 'Свернуть техкарту'}
+                  >
+                    {isCollapsed ? '▸' : '▾'}
+                  </button>
+                  <strong style={styles.clickableName} onClick={() => toggleProduct(p.id)}>
+                    {p.name}
+                  </strong>
+                  <span style={styles.opsCount}>
+                    {p.operations.length === 0 ? 'техкарта пуста' : `${p.operations.length} оп.`}
+                  </span>
                   {archived ? <Badge variant="muted">Архив</Badge> : <Badge variant="accent">Активен</Badge>}
                   <span style={styles.date}>от {formatDate(p.createdAt)}</span>
                 </div>
@@ -259,6 +297,8 @@ export function ProductsPage() {
                 </div>
               </div>
 
+              {!isCollapsed && (
+                <>
               {/* Площадки */}
               <div style={styles.platformsRow}>
                 <span style={styles.blockLabel}>Площадки:</span>
@@ -397,6 +437,8 @@ export function ProductsPage() {
                   + Операция
                 </button>
               </form>
+                </>
+              )}
             </div>
           );
         })
@@ -406,6 +448,21 @@ export function ProductsPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  caret: {
+    border: 'none',
+    background: 'none',
+    color: COLORS.mutedText,
+    cursor: 'pointer',
+    fontSize: '13px',
+    padding: '0 2px',
+  },
+  clickableName: {
+    cursor: 'pointer',
+  },
+  opsCount: {
+    color: COLORS.mutedText,
+    fontSize: '13px',
+  },
   opSkill: {
     color: COLORS.mutedText,
     fontSize: '13px',
