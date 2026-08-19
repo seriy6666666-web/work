@@ -4,6 +4,12 @@ export class CreateProductOperationDto {
   @IsString()
   operationTypeId: string;
 
+  /** Сколько штук этой операции на одно изделие. Резка провода — 2. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  perUnit?: number;
+
   @IsString()
   siteId: string;
 

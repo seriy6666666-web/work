@@ -94,6 +94,7 @@ export class ProductsService {
       data: {
         productId,
         operationTypeId: dto.operationTypeId,
+        perUnit: dto.perUnit ?? 1,
         siteId: dto.siteId,
         secondarySiteId: dto.secondarySiteId || null,
         sequence: dto.sequence ?? count,

@@ -7,4 +7,5 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   IN_PROGRESS: 'В работе',
   DONE: 'Выполнен',
   SHIPPED: 'Отгружен',
+  ARCHIVED: 'В архиве',
 };

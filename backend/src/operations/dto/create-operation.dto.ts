@@ -11,6 +11,12 @@ export class CreateOperationDto {
   @Min(1)
   dailyQuantity?: number;
 
+  /** Сколько штук операции на одно изделие. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  perUnit?: number;
+
 
   @IsUUID()
   siteId: string;

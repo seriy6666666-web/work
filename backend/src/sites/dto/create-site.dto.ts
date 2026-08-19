@@ -1,7 +1,7 @@
+import { MeaningfulName } from '../../common/meaningful-name';
 import { IsString, MinLength } from 'class-validator';
 
 export class CreateSiteDto {
-  @IsString()
-  @MinLength(1)
+  @MeaningfulName()
   name: string;
 }

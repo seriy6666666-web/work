@@ -1,9 +1,9 @@
+import { MeaningfulName } from '../../common/meaningful-name';
 import { IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpdatePlatformDto {
   @IsOptional()
-  @IsString()
-  @MinLength(1)
+  @MeaningfulName()
   name?: string;
 
   @IsOptional()

@@ -7,12 +7,45 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { CreateOrderFromProductDto } from './dto/create-order-from-product.dto';
 
-function withOperationsSummary<T extends { operations: { quantity: number }[] }>(order: T) {
+function withOperationsSummary<
+  T extends {
+    quantity: number;
+    operations: {
+      quantity: number;
+      perUnit: number;
+      assignments?: { completionRecords: { doneQuantity: number | null }[] }[];
+    }[];
+  },
+>(order: T) {
   const { operations, ...rest } = order;
+
+  const doneByOperation = operations.map((op) =>
+    (op.assignments ?? []).reduce(
+      (sum, a) => sum + (a.completionRecords[0]?.doneQuantity ?? 0),
+      0,
+    ),
+  );
+
+  /**
+   * Готовых изделий — по самому узкому шагу цепочки.
+   *
+   * Изделие готово, когда пройдены все операции, поэтому берём минимум. И делим
+   * на коэффициент: резка провода даёт два провода на батарею, 200 нарезанных
+   * проводов — это 100 батарей, а не 200.
+   *
+   * Планировщик раньше не видел ни того ни другого: данные были, до его экранов
+   * их не доводили.
+   */
+  const readyUnits = operations.length
+    ? Math.min(...operations.map((op, i) => Math.floor(doneByOperation[i] / Math.max(1, op.perUnit))))
+    : 0;
+
   return {
     ...rest,
     operationsCount: operations.length,
     operationsQuantity: operations.reduce((sum, op) => sum + op.quantity, 0),
+    operationsDone: doneByOperation.reduce((sum, d) => sum + d, 0),
+    readyUnits: Math.max(0, Math.min(readyUnits, order.quantity)),
   };
 }
 
@@ -75,7 +108,15 @@ export class OrdersService {
 
   async list() {
     const orders = await this.prisma.order.findMany({
-      include: { operations: { select: { quantity: true } } },
+      include: {
+        operations: {
+          select: {
+            quantity: true,
+            perUnit: true,
+            assignments: { select: { completionRecords: { select: { doneQuantity: true } } } },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
     return orders.map(withOperationsSummary);
@@ -91,6 +132,7 @@ export class OrdersService {
             operationType: {
               select: { id: true, name: true, norm: true, skill: { select: { id: true, name: true } } },
             },
+            assignments: { select: { completionRecords: { select: { doneQuantity: true } } } },
           },
           orderBy: { operationType: { name: 'asc' } },
         },
@@ -99,7 +141,25 @@ export class OrdersService {
     if (!order) {
       throw new NotFoundException('Заказ не найден');
     }
-    return order;
+
+    /**
+     * Сколько сделано по каждой операции. Планировщик раньше не видел этого
+     * вовсе: цифры были на доске у начальника участка, но до карточки заказа их
+     * не доводили, и планировать следующую партию приходилось вслепую.
+     */
+    const operations = order.operations.map(({ assignments, ...op }) => ({
+      ...op,
+      doneQuantity: assignments.reduce(
+        (sum, a) => sum + (a.completionRecords[0]?.doneQuantity ?? 0),
+        0,
+      ),
+    }));
+
+    const readyUnits = operations.length
+      ? Math.min(...operations.map((op) => Math.floor(op.doneQuantity / Math.max(1, op.perUnit))))
+      : 0;
+
+    return { ...order, operations, readyUnits: Math.max(0, Math.min(readyUnits, order.quantity)) };
   }
 
   create(dto: CreateOrderDto) {
@@ -141,8 +201,11 @@ export class OrdersService {
         platformId: platform.id,
         operations: {
           create: product.operations.map((op) => ({
-            quantity: dto.quantity,
+            quantity: dto.quantity * op.perUnit,
             operationTypeId: op.operationTypeId,
+            // Объём операции — в её собственных штуках: резка провода даёт два
+            // провода на батарею, поэтому 100 батарей это 200 резов.
+            perUnit: op.perUnit,
             siteId: op.siteId,
             secondarySiteId: op.secondarySiteId,
             // По умолчанию операцию делают там же, где оформлен заказ. Если фактически
@@ -182,17 +245,58 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Удалить заказ.
+   *
+   * Раньше требовалось сначала вручную убрать все операции — планировщик получал
+   * отказ «сначала удалите их» и щёлкал по одной. Теперь операции уходят вместе с
+   * заказом.
+   *
+   * Но только если по ним никто не отчитывался: выработка и брак — это история
+   * производства, и удалять её задним числом нельзя, иначе статистика за период
+   * молча изменится. Такой заказ отправляется в архив: пропадает из работы,
+   * остаётся в отчётах.
+   */
   async remove(id: string) {
-    try {
-      await this.prisma.order.delete({ where: { id } });
-    } catch (err) {
-      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
-        throw new NotFoundException('Заказ не найден');
-      }
-      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2003') {
-        throw new ConflictException('У заказа есть операции — сначала удалите их');
-      }
-      throw err;
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        operations: {
+          include: { assignments: { include: { completionRecords: true } } },
+        },
+      },
+    });
+    if (!order) {
+      throw new NotFoundException('Заказ не найден');
     }
+
+    const records = order.operations.flatMap((op) =>
+      op.assignments.flatMap((a) => a.completionRecords),
+    );
+    if (records.length > 0) {
+      const done = records.reduce((sum, r) => sum + (r.doneQuantity ?? 0), 0);
+      throw new ConflictException(
+        `По заказу «${order.name}» уже отчитались (${records.length} отметок, ${done} шт годных) — ` +
+          'удалить его нельзя, иначе выработка людей пропадёт из отчётов. ' +
+          'Отправьте заказ в архив: из работы он исчезнет, в статистике останется.',
+      );
+    }
+
+    const operationIds = order.operations.map((op) => op.id);
+    await this.prisma.$transaction([
+      this.prisma.assignment.deleteMany({ where: { operationId: { in: operationIds } } }),
+      this.prisma.operationMaterialReq.deleteMany({ where: { operationId: { in: operationIds } } }),
+      this.prisma.operation.deleteMany({ where: { orderId: id } }),
+      this.prisma.order.delete({ where: { id } }),
+    ]);
+  }
+
+  /** Убрать заказ из работы, сохранив историю. Возврат — сменой статуса обратно. */
+  async archive(id: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Заказ не найден');
+    }
+    return this.prisma.order.update({ where: { id }, data: { status: OrderStatus.ARCHIVED } });
   }
 }

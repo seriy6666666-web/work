@@ -19,6 +19,7 @@ import type { AuthenticatedRequest } from '../auth/jwt.strategy';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ConfirmReasonDto } from './dto/confirm-reason.dto';
+import { CarryOverDto } from './dto/carry-over.dto';
 import { DistributionService } from './distribution.service';
 import { EventsGateway } from '../events/events.gateway';
 
@@ -74,6 +75,19 @@ export class DistributionController {
   async removeAssignment(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     const siteId = requireSiteId(req);
     const result = await this.distributionService.removeAssignment(siteId, id);
+    this.events.emitDistributionChanged(siteId);
+    return result;
+  }
+
+  /** Перенести остаток задания на другой день или на другого человека. */
+  @Post('assignments/:id/carry-over')
+  async carryOver(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: CarryOverDto,
+  ) {
+    const siteId = requireSiteId(req);
+    const result = await this.distributionService.carryOver(siteId, id, dto);
     this.events.emitDistributionChanged(siteId);
     return result;
   }

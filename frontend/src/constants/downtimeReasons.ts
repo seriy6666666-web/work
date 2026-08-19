@@ -5,6 +5,7 @@ export const DOWNTIME_REASON_CODES: DowntimeReasonCode[] = [
   'EQUIPMENT_BREAKDOWN',
   'NO_ELECTRICITY',
   'HEALTH_ISSUE',
+  'REASSIGNED',
   'OTHER',
 ];
 
@@ -13,6 +14,7 @@ export const DOWNTIME_REASON_LABELS: Record<DowntimeReasonCode, string> = {
   EQUIPMENT_BREAKDOWN: 'Поломка оборудования',
   NO_ELECTRICITY: 'Нет электричества',
   HEALTH_ISSUE: 'Плохое самочувствие',
+  REASSIGNED: 'Переведён на другую работу',
   OTHER: 'Другое',
 };
 
@@ -21,5 +23,7 @@ export const DOWNTIME_REASON_ZONE: Record<DowntimeReasonCode, 'Производ�
   EQUIPMENT_BREAKDOWN: 'Производство',
   NO_ELECTRICITY: 'Производство',
   HEALTH_ISSUE: 'Личная',
+  // Решение начальника участка, а не вина рабочего — поэтому производственная.
+  REASSIGNED: 'Производство',
   OTHER: 'Личная',
 };

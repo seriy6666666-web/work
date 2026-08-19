@@ -178,6 +178,8 @@ export const api = {
     request<Order>('/orders', { method: 'POST', body: JSON.stringify(payload) }, token),
   updateOrder: (token: string, id: string, payload: UpdateOrderPayload) =>
     request<Order>(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  archiveOrder: (token: string, id: string) =>
+    request<Order>(`/orders/${id}/archive`, { method: 'POST' }, token),
   deleteOrder: (token: string, id: string) =>
     request<void>(`/orders/${id}`, { method: 'DELETE' }, token),
 
@@ -225,6 +227,16 @@ export const api = {
     request<Assignment>('/assignments', { method: 'POST', body: JSON.stringify(payload) }, token),
   updateAssignment: (token: string, id: string, payload: UpdateAssignmentPayload) =>
     request<Assignment>(`/assignments/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  carryOverAssignment: (
+    token: string,
+    id: string,
+    payload: { date?: string; userId?: string; reasonCode?: DowntimeReasonCode; reasonComment?: string },
+  ) =>
+    request<{ carried: Assignment; remaining: number; producedByPrevious: number }>(
+      `/assignments/${id}/carry-over`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token,
+    ),
   deleteAssignment: (token: string, id: string) =>
     request<void>(`/assignments/${id}`, { method: 'DELETE' }, token),
 
@@ -557,7 +569,7 @@ export interface UpdateUserPayload {
   managerId?: string | null;
 }
 
-export type OrderStatus = 'CREATED' | 'IN_PROGRESS' | 'DONE' | 'SHIPPED';
+export type OrderStatus = 'CREATED' | 'IN_PROGRESS' | 'DONE' | 'SHIPPED' | 'ARCHIVED';
 
 export interface Order {
   id: string;
@@ -569,6 +581,10 @@ export interface Order {
   createdAt: string;
   operationsCount: number;
   operationsQuantity: number;
+  /** Сколько сделано суммарно по всем операциям заказа. */
+  operationsDone: number;
+  /** Готовых изделий — по самому узкому шагу цепочки. */
+  readyUnits: number;
 }
 
 export interface Operation {
@@ -576,6 +592,10 @@ export interface Operation {
   quantity: number;
   /** Сколько участок должен сделать за смену; null — план не задан. */
   dailyQuantity: number | null;
+  /** Сколько штук операции на одно изделие. Резка провода — 2. */
+  perUnit: number;
+  /** Сколько уже сделано по операции. */
+  doneQuantity: number;
   orderId: string;
   siteId: string;
   secondarySiteId: string | null;
@@ -587,6 +607,8 @@ export interface Operation {
 
 export interface OrderDetail extends Omit<Order, 'operationsCount' | 'operationsQuantity'> {
   operations: Operation[];
+  /** Готовых изделий — по самому узкому шагу цепочки. */
+  readyUnits: number;
 }
 
 export interface CreateOrderPayload {
@@ -615,6 +637,7 @@ export interface CreateOperationPayload {
 export interface UpdateOperationPayload {
   quantity?: number;
   dailyQuantity?: number;
+  perUnit?: number;
   siteId?: string;
   secondarySiteId?: string;
   operationTypeId?: string;
@@ -663,6 +686,7 @@ export interface ProductOperation {
   id: string;
   sequence: number;
   operationTypeId: string;
+  perUnit: number;
   siteId: string;
   secondarySiteId: string | null;
   operationType: { id: string; name: string; norm: number | null; skill: { id: string; name: string } | null };
@@ -780,6 +804,8 @@ export interface Product {
 
 export interface CreateProductOperationPayload {
   operationTypeId: string;
+  /** Сколько штук операции на одно изделие. По умолчанию 1. */
+  perUnit?: number;
   siteId: string;
   secondarySiteId?: string;
   sequence?: number;
@@ -980,6 +1006,7 @@ export type DowntimeReasonCode =
   | 'EQUIPMENT_BREAKDOWN'
   | 'NO_ELECTRICITY'
   | 'HEALTH_ISSUE'
+  | 'REASSIGNED'
   | 'OTHER';
 
 export interface CompletionRecord {

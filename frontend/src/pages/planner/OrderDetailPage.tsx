@@ -42,7 +42,7 @@ export function OrderDetailPage() {
    * экране не было — оставалось удалить операцию и завести заново.
    */
   const [editingOpId, setEditingOpId] = useState<string | null>(null);
-  const [editOp, setEditOp] = useState({ operationTypeId: '', quantity: '', dailyQuantity: '', siteId: '', secondarySiteId: '' });
+  const [editOp, setEditOp] = useState({ operationTypeId: '', quantity: '', dailyQuantity: '', perUnit: '1', siteId: '', secondarySiteId: '' });
   const [savingOp, setSavingOp] = useState(false);
 
   const [orderForm, setOrderForm] = useState({
@@ -109,11 +109,32 @@ export function OrderDetailPage() {
     }
   }
 
+  async function handleArchive() {
+    if (!token || !id) return;
+    const ok = await confirm({
+      title: 'В архив',
+      message:
+        'Убрать заказ из работы? Он пропадёт с доски начальника участка, ' +
+        'но останется в отчётах вместе со всей выработкой по нему.',
+      confirmLabel: 'В архив',
+    });
+    if (!ok) return;
+    try {
+      await api.archiveOrder(token, id);
+      toast.success('Заказ в архиве');
+      navigate('/planner/orders');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось отправить в архив');
+    }
+  }
+
   async function handleDeleteOrder() {
     if (!token || !id) return;
     const ok = await confirm({
       title: 'Удаление заказа',
-      message: 'Удалить заказ? Это возможно только если у него нет операций.',
+      message:
+        'Удалить заказ вместе со всеми его операциями? ' +
+        'Если по операциям уже отчитывались, удалить не получится — такой заказ отправляется в архив.',
       confirmLabel: 'Удалить',
       danger: true,
     });
@@ -162,6 +183,7 @@ export function OrderDetailPage() {
       operationTypeId: op.operationTypeId,
       quantity: String(op.quantity),
       dailyQuantity: op.dailyQuantity === null ? '' : String(op.dailyQuantity),
+      perUnit: String(op.perUnit),
       siteId: op.siteId,
       secondarySiteId: op.secondarySiteId ?? '',
     });
@@ -175,6 +197,7 @@ export function OrderDetailPage() {
         operationTypeId: editOp.operationTypeId,
         quantity: Number(editOp.quantity),
         dailyQuantity: editOp.dailyQuantity ? Number(editOp.dailyQuantity) : undefined,
+        perUnit: editOp.perUnit ? Number(editOp.perUnit) : undefined,
         siteId: editOp.siteId,
         // Пустая строка — «второго участка нет». undefined сервер трактует как
         // «не трогать», поэтому снять его этим способом было бы нельзя.
@@ -286,8 +309,28 @@ export function OrderDetailPage() {
           <button style={styles.dangerButton} type="button" onClick={handleDeleteOrder}>
             Удалить заказ
           </button>
+          {/*
+            Архив — для заказов с выработкой: удалять их нельзя, иначе история
+            производства пропадёт из отчётов задним числом.
+          */}
+          <button style={styles.linkButton} type="button" onClick={handleArchive}>
+            В архив
+          </button>
         </div>
       </form>
+
+      {/*
+        Готовая продукция — по самому узкому шагу: изделие готово, когда пройдены
+        все операции. Раньше планировщик этого не видел вовсе и планировал
+        следующую партию вслепую.
+      */}
+      <div style={styles.readyBar}>
+        Готово изделий: <strong>{order.readyUnits}</strong> из {order.quantity}
+        <span style={styles.opSkill}>
+          {' '}
+          · считается по самой отстающей операции
+        </span>
+      </div>
 
       <h3 style={styles.subheading}>Операции</h3>
 
@@ -360,7 +403,9 @@ export function OrderDetailPage() {
           <tr>
             <th style={styles.th}>Операция</th>
             <th style={styles.th}>Всего</th>
+            <th style={styles.th}>Сделано</th>
             <th style={styles.th}>В день</th>
+            <th style={styles.th}>На изделие</th>
             <th style={styles.th}>Участок</th>
             <th style={styles.th}>Второй участок</th>
             <th style={styles.th}></th>
@@ -408,6 +453,12 @@ export function OrderDetailPage() {
                   )}
                 </td>
                 <td style={styles.td}>
+                  <strong>{op.doneQuantity}</strong>
+                  <div style={styles.opSkill}>
+                    {op.quantity > 0 ? Math.round((op.doneQuantity / op.quantity) * 100) : 0}%
+                  </div>
+                </td>
+                <td style={styles.td}>
                   {editing ? (
                     <input
                       style={styles.qtyInput}
@@ -422,6 +473,20 @@ export function OrderDetailPage() {
                     <span style={styles.opSkill}>не задан</span>
                   ) : (
                     op.dailyQuantity
+                  )}
+                </td>
+                <td style={styles.td}>
+                  {editing ? (
+                    <input
+                      style={styles.qtyInput}
+                      type="number"
+                      min={1}
+                      value={editOp.perUnit}
+                      onChange={(e) => setEditOp({ ...editOp, perUnit: e.target.value })}
+                      aria-label="На изделие"
+                    />
+                  ) : (
+                    op.perUnit
                   )}
                 </td>
                 <td style={styles.td}>
@@ -581,6 +646,13 @@ const styles: Record<string, React.CSSProperties> = {
   td: {
     padding: '10px 8px',
     borderBottom: `1px solid ${COLORS.lightGreenBg}`,
+  },
+  readyBar: {
+    padding: '12px 16px',
+    marginBottom: '16px',
+    borderRadius: RADIUS.sm,
+    background: COLORS.lightGreenBg,
+    fontSize: '15px',
   },
   linkButton: {
     border: 'none',

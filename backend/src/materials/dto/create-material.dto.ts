@@ -1,8 +1,8 @@
+import { MeaningfulName } from '../../common/meaningful-name';
 import { IsString, MinLength } from 'class-validator';
 
 export class CreateMaterialDto {
-  @IsString()
-  @MinLength(1)
+  @MeaningfulName()
   name: string;
 
   @IsString()

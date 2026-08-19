@@ -24,6 +24,8 @@ enum OrderStatus {
   IN_PROGRESS
   DONE
   SHIPPED
+  /** Убран из работы, история сохранена. Удалять заказ с выработкой нельзя. */
+  ARCHIVED
 }
 
 enum AbsenceType {
@@ -43,6 +45,8 @@ enum DowntimeReasonCode {
   EQUIPMENT_BREAKDOWN
   NO_ELECTRICITY
   HEALTH_ISSUE
+  /** Сняли с операции и поставили на другую — решение начальника, не вина рабочего. */
+  REASSIGNED
   OTHER
 }
 
@@ -512,6 +516,9 @@ model ProductOperation {
   operationType   OperationType @relation(fields: [operationTypeId], references: [id])
   operationTypeId String
 
+  /** Сколько штук этой операции нужно на одно изделие. */
+  perUnit Int @default(1)
+
   site   Site   @relation("ProductOpSite", fields: [siteId], references: [id])
   siteId String
 
@@ -581,8 +588,17 @@ model Order {
 model Operation {
   id       String @id @default(uuid())
 
-  /** Объём на весь заказ. */
+  /** Объём на весь заказ — в штуках самой операции, не изделий. */
   quantity Int
+
+  /**
+   * Сколько штук этой операции приходится на одно изделие.
+   *
+   * Резка силового провода даёт два провода на батарею, поэтому объём операции
+   * равен количеству заказа, умноженному на этот коэффициент. Он же нужен, чтобы
+   * посчитать готовую продукцию: 200 нарезанных проводов — это 100 батарей.
+   */
+  perUnit Int @default(1)
 
   /**
    * Сколько участок должен сделать за смену. Ставит планировщик, считая от

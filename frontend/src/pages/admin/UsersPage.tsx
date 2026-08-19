@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { api, ApiError, type AdminUser, type Role, type Site } from '../../api/client';
 import { ROLES, ROLE_LABELS, SITE_BOUND_ROLES } from '../../constants/roles';
 import { AdminLayout } from './AdminLayout';
+import { downloadCredentials, type Credential } from '../../credentials';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
 import { useToast } from '../../components/ToastProvider';
@@ -57,7 +58,18 @@ export function UsersPage() {
   const [pwdForId, setPwdForId] = useState<string | null>(null);
   const [pwdValue, setPwdValue] = useState('');
   const [pwdSaving, setPwdSaving] = useState(false);
-  const [issued, setIssued] = useState<{ fullName: string; password: string } | null>(null);
+  /**
+   * Только что выданные доступы — и при смене пароля, и при заведении сотрудника.
+   *
+   * Пароль виден один раз: в базе лежит хэш, восстановить его нельзя, можно лишь
+   * задать новый. Раньше список появлялся только после импорта из Excel, а при
+   * добавлении по одному пароль взять было негде — приходилось держать в голове
+   * или заводить людей пачкой ради выгрузки.
+   *
+   * Копим списком: заводя смену по одному, администратор получает в конце готовый
+   * файл на всех, а не двадцать разрозненных сообщений.
+   */
+  const [issued, setIssued] = useState<Credential[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -114,9 +126,13 @@ export function UsersPage() {
         siteId: SITE_BOUND_ROLES.includes(form.role) ? form.siteId : undefined,
         managerId: form.managerId || undefined,
       });
+      setIssued((prev) => [
+        { fullName: form.fullName.trim(), username: form.username.trim(), password: form.password },
+        ...prev,
+      ]);
       setForm(EMPTY_FORM);
       setShowCreate(false);
-      toast.success('Пользователь создан');
+      toast.success('Пользователь создан — сохраните пароль, второй раз он не покажется');
       await refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось создать пользователя');
@@ -167,7 +183,7 @@ export function UsersPage() {
     setPwdSaving(true);
     try {
       await api.updateUser(token, u.id, { password: pwdValue });
-      setIssued({ fullName: u.fullName, password: pwdValue });
+      setIssued((prev) => [{ fullName: u.fullName, username: u.username, password: pwdValue }, ...prev]);
       setPwdForId(null);
       setPwdValue('');
       toast.success(`Пароль изменён: ${u.fullName}`);
@@ -338,16 +354,43 @@ export function UsersPage() {
         </form>
       )}
 
-      {issued && (
+      {issued.length > 0 && (
         <div style={styles.issuedBox}>
-          <span>
-            Новый пароль для <b>{issued.fullName}</b>:{' '}
-            <code style={styles.issuedCode}>{issued.password}</code> — запишите или продиктуйте, второй
-            раз его не показать.
-          </span>
-          <button style={styles.linkButton} onClick={() => setIssued(null)}>
-            Скрыть
-          </button>
+          <div style={{ flex: 1 }}>
+            <div style={{ marginBottom: '6px' }}>
+              <b>Выданные доступы ({issued.length})</b> — запишите, продиктуйте или скачайте.
+              Второй раз пароли не показать.
+            </div>
+            <table style={styles.issuedTable}>
+              <tbody>
+                {issued.map((c) => (
+                  <tr key={c.username}>
+                    <td style={styles.issuedCell}>{c.fullName}</td>
+                    <td style={styles.issuedCell}>
+                      <code style={styles.issuedCode}>{c.username}</code>
+                    </td>
+                    <td style={styles.issuedCell}>
+                      <code style={styles.issuedCode}>{c.password}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button
+              style={styles.linkButton}
+              onClick={() => {
+                downloadCredentials(issued);
+                toast.success('Список выгружен — сохраните его, второй раз пароли не показать');
+              }}
+            >
+              Скачать CSV
+            </button>
+            <button style={styles.linkButton} onClick={() => setIssued([])}>
+              Скрыть
+            </button>
+          </div>
         </div>
       )}
 
@@ -580,6 +623,13 @@ const styles: Record<string, React.CSSProperties> = {
     background: COLORS.lightGreenBg,
     fontSize: '14px',
     color: COLORS.darkText,
+  },
+  issuedTable: {
+    borderCollapse: 'collapse',
+    fontSize: '14px',
+  },
+  issuedCell: {
+    padding: '3px 12px 3px 0',
   },
   issuedCode: { fontFamily: 'monospace', fontSize: '15px' },
   pwdCell: { padding: '0 8px 12px', background: COLORS.lightGrayBg },

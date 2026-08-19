@@ -1,10 +1,10 @@
+import { MeaningfulName } from '../../common/meaningful-name';
 import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { OrderStatus } from '../../generated/prisma/enums';
 
 export class UpdateOrderDto {
   @IsOptional()
-  @IsString()
-  @MinLength(1)
+  @MeaningfulName()
   name?: string;
 
   @IsOptional()

@@ -46,6 +46,13 @@ export class OrdersController {
 
   @UseGuards(RolesGuard)
   @Roles(Role.PLANNER)
+  @Post(':id/archive')
+  archive(@Param('id') id: string) {
+    return this.ordersService.archive(id);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.PLANNER)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.ordersService.remove(id);

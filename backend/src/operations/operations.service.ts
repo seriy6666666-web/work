@@ -39,6 +39,7 @@ export class OperationsService {
         data: {
           quantity: dto.quantity,
           dailyQuantity: dto.dailyQuantity,
+          perUnit: dto.perUnit,
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,
           operationTypeId: dto.operationTypeId,
@@ -87,6 +88,7 @@ export class OperationsService {
         data: {
           quantity: dto.quantity,
           dailyQuantity: dto.dailyQuantity,
+          perUnit: dto.perUnit,
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,
           operationTypeId: dto.operationTypeId,

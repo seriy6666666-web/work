@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/AuthContext';
 import {
   api,
   ApiError,
+  type Assignment,
   type CompetencyMatrix,
   type DistributionOperation,
   type DistributionSummary,
@@ -174,6 +175,36 @@ export function DistributionPage() {
       await refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось назначить операцию');
+    }
+  }
+
+  /**
+   * Перенести остаток задания. Человека сняли посреди смены или он не успел —
+   * сделанное остаётся за ним, остаток уходит на завтра или на другого.
+   *
+   * По умолчанию предлагаем завтра и того же человека: это самый частый случай,
+   * а начальнику участка в цеху важнее два нажатия, чем полная форма.
+   */
+  async function handleCarryOver(a: Assignment) {
+    if (!token) return;
+    const produced = (a.completionRecords?.[0]?.doneQuantity ?? 0) + (a.completionRecords?.[0]?.defectQuantity ?? 0);
+    const assigned = a.assignedQuantity ?? 0;
+    const ok = await confirm({
+      title: 'Перенести остаток',
+      message:
+        `«${a.user.fullName}»: назначено ${assigned}, изготовлено ${produced}. ` +
+        `Перенести остаток ${Math.max(0, assigned - produced)} шт на завтра тем же человеком? ` +
+        'Сделанное останется за ним, а невыполнение не испортит его показатели — ' +
+        'причина «переведён на другую работу» проставится сама.',
+      confirmLabel: 'Перенести',
+    });
+    if (!ok) return;
+    try {
+      const res = await api.carryOverAssignment(token, a.id, { date: shiftDay(date, 1) });
+      toast.success(`Перенесено ${res.remaining} шт на завтра`);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Не удалось перенести остаток');
     }
   }
 
@@ -432,6 +463,9 @@ export function DistributionPage() {
                               </div>
                             )}
                           </div>
+                          <button style={styles.linkButton} onClick={() => handleCarryOver(a)}>
+                            Перенести остаток
+                          </button>
                           <button style={styles.linkButtonDanger} onClick={() => handleRemoveAssignment(a.id)}>
                             Снять
                           </button>

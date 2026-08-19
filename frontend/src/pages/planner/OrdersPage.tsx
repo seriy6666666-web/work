@@ -17,6 +17,7 @@ const STATUS_BADGE: Record<Order['status'], BadgeVariant> = {
   IN_PROGRESS: 'shared',
   DONE: 'accent',
   SHIPPED: 'accent',
+  ARCHIVED: 'muted',
 };
 
 interface OrderFormState {
@@ -246,6 +247,9 @@ export function OrdersPage() {
                 </td>
                 <td style={styles.td}>
                   {o.operationsQuantity} / {o.quantity} ({o.operationsCount})
+                  <div style={styles.readyLine}>
+                    готово изделий: {o.readyUnits} из {o.quantity}
+                  </div>
                 </td>
                 <td style={{ ...styles.td, textAlign: 'right' }}>
                   <Link to={`/planner/orders/${o.id}`} style={styles.linkButton}>

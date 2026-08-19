@@ -1,8 +1,8 @@
+import { MeaningfulName } from '../../common/meaningful-name';
 import { IsDateString, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateOrderDto {
-  @IsString()
-  @MinLength(1)
+  @MeaningfulName()
   name: string;
 
   @IsInt()

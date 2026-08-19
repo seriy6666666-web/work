@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { DowntimeReasonCode } from '../generated/prisma/enums';
 import { TransfersService } from '../transfers/transfers.service';
 import { AbsencesService } from '../absences/absences.service';
 import { StatsService } from '../stats/stats.service';
@@ -9,6 +10,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ConfirmReasonDto } from './dto/confirm-reason.dto';
+import { CarryOverDto } from './dto/carry-over.dto';
 
 const includeAssignmentUser = { user: { select: { id: true, fullName: true } } } as const;
 
@@ -51,7 +53,12 @@ export class DistributionService {
     const date = dayOnly(dateInput);
     const [operations, competencies] = await Promise.all([
       this.prisma.operation.findMany({
-        where: { OR: [{ siteId }, { secondarySiteId: siteId }] },
+        // Архивные заказы с доски убираем: они выведены из работы, распределять
+        // по ним нечего, а место они занимают.
+        where: {
+          OR: [{ siteId }, { secondarySiteId: siteId }],
+          order: { status: { not: 'ARCHIVED' } },
+        },
         include: {
           order: { select: { id: true, name: true, priority: true, dueDate: true } },
           operationType: {
@@ -292,6 +299,123 @@ export class DistributionService {
 
     await this.prisma.assignment.delete({ where: { id } });
     await this.ordersService.recomputeStatus(assignment.operation.orderId);
+  }
+
+  /**
+   * Перенести остаток задания на другой день или на другого человека.
+   *
+   * Сценарий с производства: человек взял 100, сделал 40, и его сняли на другую
+   * работу. Раньше начальнику участка приходилось считать остаток в уме и
+   * заводить назначение заново, а невыполнение оставалось висеть на рабочем —
+   * хотя решение принимал не он.
+   *
+   * Что делает метод: закрывает исходное назначение причиной (по умолчанию
+   * «переведён на другую работу») и сразу подтверждает её. Подтверждённая
+   * причина исключает назначение из оценки человека, но сделанные им 40 штук
+   * остаются в выработке участка. Остаток уходит новым назначением.
+   */
+  async carryOver(siteId: string, assignmentId: string, dto: CarryOverDto) {
+    const assignment = await this.prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        user: { select: { id: true, fullName: true } },
+        completionRecords: true,
+        operation: {
+          select: { id: true, siteId: true, secondarySiteId: true, quantity: true },
+        },
+      },
+    });
+    if (!assignment) {
+      throw new NotFoundException('Назначение не найдено');
+    }
+    if (!belongsToSite(assignment.operation, siteId)) {
+      throw new ForbiddenException('Назначение относится к другому участку');
+    }
+
+    const record = assignment.completionRecords[0];
+    const produced = (record?.doneQuantity ?? 0) + (record?.defectQuantity ?? 0);
+    const assigned = assignment.assignedQuantity ?? assignment.operation.quantity;
+    const remaining = assigned - produced;
+    if (remaining <= 0) {
+      throw new BadRequestException(
+        `Переносить нечего: назначено ${assigned}, изготовлено ${produced}. ` +
+          'Задание закрыто полностью.',
+      );
+    }
+
+    const targetUserId = dto.userId ?? assignment.userId;
+    const targetDate = dayOnly(dto.date ?? new Date(Date.now() + 86400000));
+
+    // Принимающий должен быть на этом участке — правило то же, что при обычном
+    // назначении, иначе переносом можно было бы обойти проверку участка.
+    const eligible = await this.transfersService.getEffectiveSiteUserIds(siteId, assignment.userId);
+    if (!eligible.includes(targetUserId)) {
+      throw new BadRequestException('Сотрудник не относится к вашему участку');
+    }
+
+    const clash = await this.prisma.assignment.findUnique({
+      where: {
+        operationId_userId_date: {
+          operationId: assignment.operationId,
+          userId: targetUserId,
+          date: targetDate,
+        },
+      },
+      include: { user: { select: { fullName: true } } },
+    });
+    if (clash) {
+      throw new BadRequestException(
+        `«${clash.user.fullName}» уже назначен на эту операцию на выбранный день. ` +
+          'Поправьте существующее назначение вместо переноса.',
+      );
+    }
+
+    const reasonCode = dto.reasonCode ?? DowntimeReasonCode.REASSIGNED;
+
+    const [, carried] = await this.prisma.$transaction([
+      // Закрываем исходное: причина сразу подтверждена — её ставит начальник
+      // участка, подтверждать самому себе нечего.
+      record
+        ? this.prisma.completionRecord.update({
+            where: { id: record.id },
+            data: { reasonCode, reasonComment: dto.reasonComment, reasonConfirmed: true },
+          })
+        : this.prisma.completionRecord.create({
+            data: {
+              assignmentId,
+              doneQuantity: 0,
+              defectQuantity: 0,
+              reasonCode,
+              reasonComment: dto.reasonComment,
+              reasonConfirmed: true,
+            },
+          }),
+      this.prisma.assignment.create({
+        data: {
+          operationId: assignment.operationId,
+          userId: targetUserId,
+          assignedQuantity: remaining,
+          date: targetDate,
+        },
+        include: includeAssignmentUser,
+      }),
+      // Исходное назначение ужимаем до фактически сделанного, иначе сумма
+      // назначенного по операции вырастет на величину остатка и разойдётся с
+      // объёмом заказа.
+      this.prisma.assignment.update({
+        where: { id: assignmentId },
+        data: { assignedQuantity: produced },
+      }),
+    ]);
+
+    await this.notifications.create({
+      userId: targetUserId,
+      type: 'ASSIGNMENT',
+      message: 'Вам передан остаток по операции',
+      link: '/worker/tasks',
+    });
+
+    return { carried, remaining, producedByPrevious: produced };
   }
 
   async confirmReason(siteId: string, completionRecordId: string, dto: ConfirmReasonDto) {
