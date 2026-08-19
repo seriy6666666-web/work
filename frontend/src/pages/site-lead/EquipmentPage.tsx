@@ -15,7 +15,7 @@ import { useTableControls, SortSelect, type SortChoice } from '../../components/
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
-import { Button, Input, LinkButton, CreateBlock } from '../../components/ui';
+import { Button, Input, LinkButton, CreateBlock, FilterChips } from '../../components/ui';
 
 const STATUS_META: Record<EquipmentStatus, { label: string; variant: BadgeVariant }> = {
   OPERATIONAL: { label: 'В работе', variant: 'accent' },
@@ -55,6 +55,7 @@ export function EquipmentPage() {
   const { token } = useAuth();
   const toast = useToast();
   const confirm = useConfirm();
+  const [filter, setFilter] = useState<'all' | 'broken' | 'maintenance' | 'ok'>('all');
   const [items, setItems] = useState<Equipment[]>([]);
 
   const controls = useTableControls(items, {
@@ -68,6 +69,19 @@ export function EquipmentPage() {
     },
     defaultSortKey: 'name',
     storageKey: 'site-lead-equipment',
+  });
+
+  const counts = {
+    all: items.length,
+    broken: items.filter((e) => e.status === 'BROKEN').length,
+    maintenance: items.filter((e) => e.status === 'MAINTENANCE').length,
+    ok: items.filter((e) => e.status === 'OPERATIONAL').length,
+  };
+  const visible = controls.result.filter((e) => {
+    if (filter === 'broken') return e.status === 'BROKEN';
+    if (filter === 'maintenance') return e.status === 'MAINTENANCE';
+    if (filter === 'ok') return e.status === 'OPERATIONAL';
+    return true;
   });
   const [loading, setLoading] = useState(true);
 
@@ -202,8 +216,22 @@ export function EquipmentPage() {
               dir={controls.sortDir}
               onSelect={controls.setSort}
             />
+            <FilterChips
+              options={[
+                { key: 'all', label: 'Всё' },
+                { key: 'broken', label: 'Поломка' },
+                { key: 'maintenance', label: 'Обслуживание' },
+                { key: 'ok', label: 'В работе' },
+              ]}
+              value={filter}
+              counts={counts}
+              onChange={setFilter}
+            />
           </div>
-          {controls.result.map((item) => {
+          {visible.length === 0 && (
+            <EmptyState icon="search" title="Ничего не найдено" hint="Измените поиск или фильтр." />
+          )}
+          {visible.map((item) => {
             const dueSoon = item.status !== 'BROKEN' && maintenanceDueSoon(item.nextMaintenanceAt);
             return (
               <div

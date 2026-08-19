@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { ApiError, type ImportCredential, type ImportReport } from '../api/client';
 import { Badge } from './Badge';
 import { useToast } from './ToastProvider';
-import { COLORS, RADIUS, SHADOW } from '../theme';
+import { COLORS, RADIUS } from '../theme';
 
 /**
  * Загрузка рабочего файла Excel: сначала проверка (что найдено, что будет пропущено),
@@ -216,10 +216,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   credsTd: { padding: '8px 12px', borderBottom: `1px solid ${COLORS.lightGrayBg}` },
   card: {
-    background: COLORS.white,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    borderRadius: RADIUS.md,
-    boxShadow: SHADOW.card,
+    background: 'var(--surf)',
+    border: '1px solid var(--line)',
+    borderRadius: '18px',
+    boxShadow: 'var(--sh1)',
     padding: '18px',
     marginBottom: '18px',
   },

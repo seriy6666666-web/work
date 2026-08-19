@@ -7,7 +7,7 @@ import { useToast } from '../../components/ToastProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { ShiftFeedbackPrompt } from '../../components/ShiftFeedbackPrompt';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { COLORS, RADIUS } from '../../theme';
 import { Button, Input } from '../../components/ui';
 
 function timeOf(iso: string): string {
@@ -185,10 +185,10 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '16px',
     flexWrap: 'wrap',
     padding: '14px 18px',
-    background: COLORS.white,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    borderRadius: RADIUS.md,
-    boxShadow: SHADOW.card,
+    background: 'var(--surf)',
+    border: '1px solid var(--line)',
+    borderRadius: '18px',
+    boxShadow: 'var(--sh1)',
     marginBottom: '18px',
   },
   attText: { fontSize: '15px', color: COLORS.darkText },
@@ -205,10 +205,10 @@ const styles: Record<string, React.CSSProperties> = {
   list: { display: 'flex', flexDirection: 'column', gap: '12px' },
   card: {
     padding: '16px',
-    background: COLORS.white,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    borderRadius: RADIUS.md,
-    boxShadow: SHADOW.card,
+    background: 'var(--surf)',
+    border: '1px solid var(--line)',
+    borderRadius: '18px',
+    boxShadow: 'var(--sh1)',
   },
   cardHead: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
   sub: { margin: '6px 0 12px', fontSize: '13px', color: COLORS.mutedText },

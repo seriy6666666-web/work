@@ -46,6 +46,40 @@ export function Table({ children, className, style }: Div) {
 }
 
 /**
+ * Кнопки-фильтры со счётчиками.
+ *
+ * Один вид на все списки. Счётчики считаются по всему списку, а не по выбранному
+ * фильтру: иначе «Без нормы 65» пропадало бы, стоило выбрать другой фильтр, и
+ * понять, есть ли вообще операции без нормы, было бы нельзя.
+ */
+export function FilterChips<K extends string>({
+  options,
+  value,
+  counts,
+  onChange,
+}: {
+  options: { key: K; label: string }[];
+  value: K;
+  counts: Record<K, number>;
+  onChange: (key: K) => void;
+}) {
+  return (
+    <div className="ui-chips">
+      {options.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          className={cls('ui-chip', value === o.key && 'ui-chip--on')}
+          onClick={() => onChange(o.key)}
+        >
+          {o.label} <span className="ui-chip-count">{counts[o.key]}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Форма создания, спрятанная под кнопку.
  *
  * Формы на этих экранах нужны раз в неделю, а стояли открытыми всегда и

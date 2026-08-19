@@ -11,7 +11,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortSelect, type SortChoice } from '../../components/TableControls';
 import { COLORS, RADIUS } from '../../theme';
-import { Button, LinkButton, Input, CreateBlock } from '../../components/ui';
+import { Button, LinkButton, Input, CreateBlock, FilterChips } from '../../components/ui';
 import { ListCard } from '../../components/ListCard';
 
 /** Значение «навык не требуется» в выпадающем списке. Пустая строка = не выбрано. */
@@ -29,6 +29,7 @@ export function OperationTypesPage() {
   const { token } = useAuth();
   const toast = useToast();
   const confirm = useConfirm();
+  const [filter, setFilter] = useState<'all' | 'withNorm' | 'noNorm'>('all');
   const [items, setItems] = useState<OperationType[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -173,6 +174,21 @@ export function OperationTypesPage() {
     storageKey: 'planner-operation-types',
   });
 
+  /**
+   * Счётчики по всему справочнику, а не по выбранному фильтру: «Без нормы 65»
+   * должно быть видно всегда, иначе непонятно, есть ли вообще такие операции.
+   */
+  const counts = {
+    all: items.length,
+    withNorm: items.filter((o) => o.norm !== null).length,
+    noNorm: items.filter((o) => o.norm === null).length,
+  };
+  const visible = controls.result.filter((o) => {
+    if (filter === 'withNorm') return o.norm !== null;
+    if (filter === 'noNorm') return o.norm === null;
+    return true;
+  });
+
   const skillOptions = [
     { value: NO_SKILL, label: 'Навык не требуется' },
     ...skills.map((s) => ({ value: s.id, label: s.name })),
@@ -225,6 +241,16 @@ export function OperationTypesPage() {
             dir={controls.sortDir}
             onSelect={controls.setSort}
           />
+              <FilterChips
+                options={[
+                  { key: 'all', label: 'Все' },
+                  { key: 'withNorm', label: 'С нормой' },
+                  { key: 'noNorm', label: 'Без нормы' },
+                ]}
+                value={filter}
+                counts={counts}
+                onChange={setFilter}
+              />
           <label style={styles.checkboxLabel}>
             <input
               type="checkbox"
@@ -244,11 +270,11 @@ export function OperationTypesPage() {
           title="Операций пока нет"
           hint="Добавьте операцию кнопкой «+ Операция» или загрузите их из файла норм."
         />
-      ) : controls.result.length === 0 ? (
+      ) : visible.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
         <div style={styles.list}>
-          {controls.result.map((item) => {
+          {visible.map((item) => {
             const editing = editingId === item.id;
             const used = (item.usedInOrders ?? 0) + (item.usedInProducts ?? 0);
             return (

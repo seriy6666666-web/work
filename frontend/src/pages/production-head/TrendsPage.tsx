@@ -6,7 +6,7 @@ import { StatCard } from '../../components/StatCard';
 import { useToast } from '../../components/ToastProvider';
 import { Skeleton } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { COLORS, RADIUS } from '../../theme';
 
 const DAY_OPTIONS = [7, 14, 30];
 
@@ -171,10 +171,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   summary: { display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '24px' },
   chartCard: {
-    background: COLORS.white,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    borderRadius: RADIUS.md,
-    boxShadow: SHADOW.card,
+    background: 'var(--surf)',
+    border: '1px solid var(--line)',
+    borderRadius: '18px',
+    boxShadow: 'var(--sh1)',
     padding: '18px 20px',
     marginBottom: '20px',
   },

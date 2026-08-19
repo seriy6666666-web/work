@@ -9,7 +9,7 @@ import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { COLORS, RADIUS } from '../../theme';
 import { Button, CreateBlock } from '../../components/ui';
 
 interface Assignable {
@@ -247,10 +247,10 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'flex-start',
     gap: '14px',
     padding: '14px 16px',
-    background: COLORS.white,
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    borderRadius: RADIUS.md,
-    boxShadow: SHADOW.card,
+    background: 'var(--surf)',
+    border: '1px solid var(--line)',
+    borderRadius: '18px',
+    boxShadow: 'var(--sh1)',
   },
   cardDone: { opacity: 0.65 },
   checkbox: { width: '20px', height: '20px', marginTop: '2px', cursor: 'pointer', flexShrink: 0 },
