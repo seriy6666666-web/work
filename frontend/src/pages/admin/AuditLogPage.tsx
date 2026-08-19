@@ -20,6 +20,14 @@ const METHOD_BADGE: Record<string, BadgeVariant> = {
 
 const METHODS = ['POST', 'PATCH', 'PUT', 'DELETE'] as const;
 
+/** Быстрые фильтры: два вопроса, с которыми сюда заходят чаще всего. */
+const QUICK: { label: string; method: string }[] = [
+  { label: 'Все', method: '' },
+  { label: 'Изменения', method: 'PATCH' },
+  { label: 'Создание', method: 'POST' },
+  { label: 'Удаления', method: 'DELETE' },
+];
+
 export function AuditLogPage() {
   const { token } = useAuth();
   const toast = useToast();
@@ -90,6 +98,27 @@ export function AuditLogPage() {
   return (
     <AdminLayout title="Журнал действий" breadcrumb="Администрирование">
 
+      {/*
+        Быстрые кнопки поверх подробных фильтров: в журнал заходят с одним из двух
+        вопросов — «что удаляли» и «где отказы». Набирать ради этого дату и метод
+        в четырёх полях никто не станет.
+      */}
+      <div style={styles.quickFilters}>
+        {QUICK.map((q) => (
+          <button
+            key={q.label}
+            style={{ ...styles.quick, ...(method === q.method ? styles.quickActive : null) }}
+            onClick={() => {
+              setMethod(q.method);
+              setPage(1);
+              setTimeout(applyFilters, 0);
+            }}
+          >
+            {q.label}
+          </button>
+        ))}
+      </div>
+
       <div style={styles.filters}>
         <Input style={{ borderRadius: '8px' }}
           placeholder="ID пользователя"
@@ -141,7 +170,16 @@ export function AuditLogPage() {
                     <Badge variant={METHOD_BADGE[entry.method] ?? 'muted'}>{entry.method}</Badge>
                   </Td>
                   <Td>{entry.path}</Td>
-                  <Td>{entry.statusCode}</Td>
+                  <Td>
+                    <span
+                      style={{
+                        ...styles.code,
+                        ...(entry.statusCode >= 400 ? styles.codeBad : null),
+                      }}
+                    >
+                      {entry.statusCode}
+                    </span>
+                  </Td>
                 </tr>
               ))}
             </tbody>
@@ -156,7 +194,9 @@ export function AuditLogPage() {
               ← Назад
             </button>
             <span style={styles.pageInfo}>
-              Стр. {page} из {totalPages}
+              {data
+                ? `${(page - 1) * data.pageSize + 1}–${Math.min(page * data.pageSize, data.total)} из ${data.total}`
+                : ''}
             </span>
             <button
               style={styles.button}
@@ -173,6 +213,39 @@ export function AuditLogPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  quickFilters: {
+    display: 'flex',
+    gap: '6px',
+    flexWrap: 'wrap',
+    marginBottom: '12px',
+  },
+  quick: {
+    padding: '8px 14px',
+    minHeight: '40px',
+    borderRadius: '999px',
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    color: 'var(--tx2)',
+    fontSize: '14px',
+    cursor: 'pointer',
+  },
+  quickActive: {
+    background: 'var(--accsoft)',
+    borderColor: 'var(--acc)',
+    color: 'var(--accd)',
+    fontWeight: 600,
+  },
+  /** Код ответа моноширинным: в столбце цифры не должны плясать. */
+  code: {
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    fontVariantNumeric: 'tabular-nums',
+    fontSize: '13px',
+    color: 'var(--tx2)',
+  },
+  codeBad: {
+    color: 'var(--err)',
+    fontWeight: 600,
+  },
   filters: {
     display: 'flex',
     flexWrap: 'wrap',
