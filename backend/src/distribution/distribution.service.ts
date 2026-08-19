@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { deadlineState, isAlarming } from '../common/deadline';
 import { DowntimeReasonCode } from '../generated/prisma/enums';
 import { TransfersService } from '../transfers/transfers.service';
 import { AbsencesService } from '../absences/absences.service';
@@ -75,7 +76,15 @@ export class DistributionService {
           // Отдельно — все отметки по операции, чтобы знать остаток по заказу.
           _count: { select: { assignments: true } },
         },
-        orderBy: [{ order: { priority: 'desc' } }, { order: { dueDate: 'asc' } }],
+        // Срок операции важнее приоритета заказа: приоритет говорит, что вообще
+        // важнее, а срок — что нужно сделать сейчас, иначе сорвём. Операции без
+        // своего срока Postgres ставит в конец (NULLS LAST), там их подхватывает
+        // сортировка по заказу.
+        orderBy: [
+          { dueDate: 'asc' },
+          { order: { priority: 'desc' } },
+          { order: { dueDate: 'asc' } },
+        ],
       }),
       this.prisma.competency.findMany({
         where: { userId: { in: await this.transfersService.getEffectiveSiteUserIds(siteId, viewerId) } },
@@ -120,26 +129,47 @@ export class DistributionService {
        */
       const requiredSkillId = op.operationType.skill?.id ?? null;
       const { _count, ...rest } = op;
+      const doneAllTime = doneByOperation.get(op.id) ?? 0;
       return {
         ...rest,
         hasCompetentWorker: requiredSkillId === null || competentSkillIds.has(requiredSkillId),
         /** Сделано за выбранный день. */
         totalDoneQuantity,
         /** Сделано по операции за всё время — сколько ещё осталось по заказу. */
-        doneAllTime: doneByOperation.get(op.id) ?? 0,
+        doneAllTime,
+        /**
+         * Успеваем ли сдать в срок. Считается здесь, а не в браузере, чтобы доска,
+         * значки в меню и сводка говорили одно и то же.
+         */
+        deadline: deadlineState({
+          dueDate: op.dueDate,
+          orderDueDate: op.order.dueDate,
+          quantity: op.quantity,
+          done: doneAllTime,
+          dailyQuantity: op.dailyQuantity,
+          today: date,
+        }),
         date: date.toISOString().slice(0, 10),
       };
     });
   }
 
   async getSummary(siteId: string, viewerId: string) {
-    const [ranking, operations, atRiskCount, effectiveUserIds, incomingTransfers] = await Promise.all([
+    const [ranking, operations, effectiveUserIds, incomingTransfers] = await Promise.all([
       this.statsService.computeSiteRanking(siteId, 'shift'),
       this.listOperations(siteId, viewerId),
-      this.statsService.countAtRiskOrdersForSite(siteId),
       this.transfersService.getEffectiveSiteUserIds(siteId, viewerId),
       this.transfersService.getActiveIncomingTransfers(siteId),
     ]);
+
+    /**
+     * Считаем операции участка, а не заказы целиком.
+     *
+     * Заказ мог идти в срок за счёт других участков, и заготовки числились
+     * благополучными ровно до того дня, когда сборке нечего было собирать.
+     * Начальнику участка нужно его собственное отставание, а не общее.
+     */
+    const atRiskCount = operations.filter((op) => isAlarming(op.deadline.level)).length;
 
     const users = await this.prisma.user.findMany({
       where: { id: { in: effectiveUserIds } },

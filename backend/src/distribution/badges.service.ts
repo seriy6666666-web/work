@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TransfersService } from '../transfers/transfers.service';
 import { AbsencesService } from '../absences/absences.service';
 import { TaskStatus, TransferStatus } from '../generated/prisma/enums';
+import { deadlineState, isAlarming } from '../common/deadline';
 
 /**
  * Счётчики у пунктов меню начальника участка.
@@ -26,6 +27,8 @@ export interface SiteLeadBadges {
   handover: boolean;
   /** Открытые задачи, поставленные лично ему. */
   tasks: number;
+  /** Операции, которые уже не успеть или срок которых прошёл. */
+  overdue: number;
 }
 
 function today(): Date {
@@ -54,7 +57,14 @@ export class BadgesService {
           OR: [{ siteId }, { secondarySiteId: siteId }],
           order: { status: { notIn: ['ARCHIVED', 'DONE', 'SHIPPED'] } },
         },
-        select: { id: true, assignments: { where: { date: day }, select: { id: true } } },
+        select: {
+          id: true,
+          quantity: true,
+          dailyQuantity: true,
+          dueDate: true,
+          order: { select: { dueDate: true } },
+          assignments: { where: { date: day }, select: { id: true } },
+        },
       }),
       this.transfers.getEffectiveSiteUserIds(siteId, userId),
       this.prisma.shiftHandover.count({
@@ -70,12 +80,40 @@ export class BadgesService {
 
     const absentFlags = await Promise.all(siteUserIds.map((id) => this.absences.isAbsentToday(id)));
 
+    // Сделанное по каждой операции за всё время — одним запросом, иначе на участке
+    // с сотней операций это была бы сотня запросов ради одного значка.
+    const doneByOperation = new Map<string, number>();
+    if (operations.length > 0) {
+      const records = await this.prisma.completionRecord.findMany({
+        where: { assignment: { operationId: { in: operations.map((o) => o.id) } } },
+        select: { doneQuantity: true, assignment: { select: { operationId: true } } },
+      });
+      for (const r of records) {
+        const id = r.assignment.operationId;
+        doneByOperation.set(id, (doneByOperation.get(id) ?? 0) + (r.doneQuantity ?? 0));
+      }
+    }
+
+    const overdue = operations.filter((op) =>
+      isAlarming(
+        deadlineState({
+          dueDate: op.dueDate,
+          orderDueDate: op.order.dueDate,
+          quantity: op.quantity,
+          done: doneByOperation.get(op.id) ?? 0,
+          dailyQuantity: op.dailyQuantity,
+          today: day,
+        }).level,
+      ),
+    ).length;
+
     return {
       transfers,
       unassigned: operations.filter((op) => op.assignments.length === 0).length,
       absences: absentFlags.filter(Boolean).length,
       handover: handoverCount > 0,
       tasks,
+      overdue,
     };
   }
 }

@@ -595,6 +595,8 @@ export interface Operation {
   dailyQuantity: number | null;
   /** Сколько штук операции на одно изделие. Резка провода — 2. */
   perUnit: number;
+  /** К какому дню участок должен сдать операцию; null — срок берётся у заказа. */
+  dueDate: string | null;
   /** Сколько уже сделано по операции. */
   doneQuantity: number;
   orderId: string;
@@ -630,6 +632,8 @@ export interface UpdateOrderPayload {
 export interface CreateOperationPayload {
   quantity: number;
   dailyQuantity?: number;
+  /** Дата сдачи операции участком. */
+  dueDate?: string | null;
   siteId: string;
   secondarySiteId?: string;
   operationTypeId: string;
@@ -638,6 +642,8 @@ export interface CreateOperationPayload {
 export interface UpdateOperationPayload {
   quantity?: number;
   dailyQuantity?: number;
+  /** null — снять срок. */
+  dueDate?: string | null;
   perUnit?: number;
   siteId?: string;
   secondarySiteId?: string;
@@ -932,6 +938,24 @@ export interface Assignment {
   completionRecords?: CompletionRecord[];
 }
 
+/**
+ * Успеваем ли сдать операцию в срок. Считает сервер, чтобы доска, значки в меню
+ * и сводка не разошлись в оценках.
+ */
+export type DeadlineLevel = 'done' | 'none' | 'ok' | 'tight' | 'late' | 'overdue';
+
+export interface DeadlineState {
+  level: DeadlineLevel;
+  /** Дата, к которой сдавать. */
+  dueDate: string | null;
+  /** Срок взят у операции, а не у заказа. */
+  own: boolean;
+  /** Дней до срока: 0 — сегодня, отрицательное — просрочено. */
+  daysLeft: number | null;
+  /** Сколько смен нужно на остаток; null — план на смену не задан. */
+  shiftsNeeded: number | null;
+}
+
 export interface DistributionOperation {
   id: string;
   quantity: number;
@@ -949,6 +973,9 @@ export interface DistributionOperation {
   doneAllTime: number;
   /** Сколько участок должен сделать за смену; null — план не задан. */
   dailyQuantity: number | null;
+  /** К какому дню участок должен сдать операцию; null — срок берётся у заказа. */
+  dueDate: string | null;
+  deadline: DeadlineState;
   date: string;
 }
 
@@ -962,6 +989,8 @@ export interface SiteLeadBadges {
   absences: number;
   handover: boolean;
   tasks: number;
+  /** Операции, которые уже не успеть или срок которых прошёл. */
+  overdue: number;
 }
 
 export interface DistributionRosterEntry {

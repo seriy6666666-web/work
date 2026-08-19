@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsInt, IsISO8601, IsOptional, IsUUID, Min, ValidateIf } from 'class-validator';
 
 export class CreateOperationDto {
   @IsInt()
@@ -17,6 +17,15 @@ export class CreateOperationDto {
   @Min(1)
   perUnit?: number;
 
+
+  /**
+   * К какому дню участок должен сдать операцию. Не задан — начальник участка
+   * видит срок заказа, как было раньше.
+   */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsISO8601()
+  dueDate?: string | null;
 
   @IsUUID()
   siteId: string;

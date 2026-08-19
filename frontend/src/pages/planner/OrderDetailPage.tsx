@@ -42,7 +42,7 @@ export function OrderDetailPage() {
    * экране не было — оставалось удалить операцию и завести заново.
    */
   const [editingOpId, setEditingOpId] = useState<string | null>(null);
-  const [editOp, setEditOp] = useState({ operationTypeId: '', quantity: '', dailyQuantity: '', perUnit: '1', siteId: '', secondarySiteId: '' });
+  const [editOp, setEditOp] = useState({ operationTypeId: '', quantity: '', dailyQuantity: '', dueDate: '', perUnit: '1', siteId: '', secondarySiteId: '' });
   const [savingOp, setSavingOp] = useState(false);
 
   const [orderForm, setOrderForm] = useState({
@@ -53,7 +53,7 @@ export function OrderDetailPage() {
     status: 'CREATED' as OrderStatus,
   });
 
-  const [opForm, setOpForm] = useState({ operationTypeId: '', quantity: '', dailyQuantity: '', siteId: '', secondarySiteId: '' });
+  const [opForm, setOpForm] = useState({ operationTypeId: '', quantity: '', dailyQuantity: '', dueDate: '', siteId: '', secondarySiteId: '' });
   const [addingOp, setAddingOp] = useState(false);
 
   async function refresh() {
@@ -164,10 +164,11 @@ export function OrderDetailPage() {
         operationTypeId: opForm.operationTypeId,
         quantity: Number(opForm.quantity),
         dailyQuantity: opForm.dailyQuantity ? Number(opForm.dailyQuantity) : undefined,
+        dueDate: opForm.dueDate || undefined,
         siteId: opForm.siteId,
         secondarySiteId: opForm.secondarySiteId || undefined,
       });
-      setOpForm({ operationTypeId: '', quantity: '', dailyQuantity: '', siteId: '', secondarySiteId: '' });
+      setOpForm({ operationTypeId: '', quantity: '', dailyQuantity: '', dueDate: '', siteId: '', secondarySiteId: '' });
       toast.success('Операция добавлена');
       await refresh();
     } catch (err) {
@@ -183,6 +184,7 @@ export function OrderDetailPage() {
       operationTypeId: op.operationTypeId,
       quantity: String(op.quantity),
       dailyQuantity: op.dailyQuantity === null ? '' : String(op.dailyQuantity),
+      dueDate: op.dueDate ? op.dueDate.slice(0, 10) : '',
       perUnit: String(op.perUnit),
       siteId: op.siteId,
       secondarySiteId: op.secondarySiteId ?? '',
@@ -197,6 +199,9 @@ export function OrderDetailPage() {
         operationTypeId: editOp.operationTypeId,
         quantity: Number(editOp.quantity),
         dailyQuantity: editOp.dailyQuantity ? Number(editOp.dailyQuantity) : undefined,
+        // Пустое поле — «срок снять», поэтому null, а не undefined: undefined сервер
+        // понимает как «не трогать», и убрать однажды поставленную дату было бы нельзя.
+        dueDate: editOp.dueDate || null,
         perUnit: editOp.perUnit ? Number(editOp.perUnit) : undefined,
         siteId: editOp.siteId,
         // Пустая строка — «второго участка нет». undefined сервер трактует как
@@ -370,6 +375,15 @@ export function OrderDetailPage() {
           value={opForm.dailyQuantity}
           onChange={(e) => setOpForm({ ...opForm, dailyQuantity: e.target.value })}
         />
+        {/* Дата сдачи участком — она же и есть дедлайн, который видит начальник участка. */}
+        <input
+          style={styles.input}
+          type="date"
+          aria-label="Сдать до"
+          title="К какому дню участок должен сдать операцию"
+          value={opForm.dueDate}
+          onChange={(e) => setOpForm({ ...opForm, dueDate: e.target.value })}
+        />
         <Select
           width="180px"
           ariaLabel="Участок"
@@ -405,6 +419,7 @@ export function OrderDetailPage() {
             <th style={styles.th}>Всего</th>
             <th style={styles.th}>Сделано</th>
             <th style={styles.th}>В день</th>
+            <th style={styles.th}>Сдать</th>
             <th style={styles.th}>На изделие</th>
             <th style={styles.th}>Участок</th>
             <th style={styles.th}>Второй участок</th>
@@ -473,6 +488,21 @@ export function OrderDetailPage() {
                     <span style={styles.opSkill}>не задан</span>
                   ) : (
                     op.dailyQuantity
+                  )}
+                </td>
+                <td style={styles.td}>
+                  {editing ? (
+                    <input
+                      style={styles.qtyInput}
+                      type="date"
+                      value={editOp.dueDate}
+                      onChange={(e) => setEditOp({ ...editOp, dueDate: e.target.value })}
+                      aria-label="Сдать до"
+                    />
+                  ) : op.dueDate === null ? (
+                    <span style={styles.opSkill}>по заказу</span>
+                  ) : (
+                    new Date(op.dueDate).toLocaleDateString('ru-RU')
                   )}
                 </td>
                 <td style={styles.td}>

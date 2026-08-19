@@ -12,6 +12,24 @@ const includeSiteAndOperation = {
   },
 } as const;
 
+/**
+ * Срок операции не может быть позже срока заказа.
+ *
+ * Заказ уходит заказчику в свою дату, и операция, назначенная на после неё,
+ * означала бы «сдать после отгрузки». Опечатка в году или в месяце иначе
+ * проходит молча, а вылезает уже на участке, когда сроки перестают сходиться.
+ */
+function checkAgainstOrder(dueDate: string | null | undefined, orderDueDate: Date) {
+  if (!dueDate) return;
+  const value = new Date(dueDate);
+  if (value.getTime() > orderDueDate.getTime()) {
+    throw new BadRequestException(
+      `Срок операции (${value.toLocaleDateString('ru-RU')}) позже срока заказа ` +
+        `(${orderDueDate.toLocaleDateString('ru-RU')}) — операцию нужно сдать до отгрузки, а не после.`,
+    );
+  }
+}
+
 @Injectable()
 export class OperationsService {
   constructor(private prisma: PrismaService) {}
@@ -34,11 +52,14 @@ export class OperationsService {
       throw new NotFoundException('Заказ не найден');
     }
 
+    checkAgainstOrder(dto.dueDate, order.dueDate);
+
     try {
       return await this.prisma.operation.create({
         data: {
           quantity: dto.quantity,
           dailyQuantity: dto.dailyQuantity,
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
           perUnit: dto.perUnit,
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,
@@ -60,6 +81,17 @@ export class OperationsService {
   }
 
   async update(id: string, dto: UpdateOperationDto) {
+    if (dto.dueDate !== undefined) {
+      const existing = await this.prisma.operation.findUnique({
+        where: { id },
+        select: { order: { select: { dueDate: true } } },
+      });
+      if (!existing) {
+        throw new NotFoundException('Операция не найдена');
+      }
+      checkAgainstOrder(dto.dueDate, existing.order.dueDate);
+    }
+
     /**
      * Объём нельзя опустить ниже того, что уже сделано.
      *
@@ -88,6 +120,8 @@ export class OperationsService {
         data: {
           quantity: dto.quantity,
           dailyQuantity: dto.dailyQuantity,
+          // undefined — поле не трогали, null — срок сняли.
+          dueDate: dto.dueDate === undefined ? undefined : dto.dueDate ? new Date(dto.dueDate) : null,
           perUnit: dto.perUnit,
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,

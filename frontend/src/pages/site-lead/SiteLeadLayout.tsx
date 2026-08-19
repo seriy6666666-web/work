@@ -70,8 +70,14 @@ export function SiteLeadLayout({
     switch (tab.path) {
       case '/site-lead/transfers':
         return { ...tab, badge: badges.transfers };
+      /*
+        На «Распределении» два повода сразу: некого поставить и не успеваем сдать.
+        Складываем их в одно число — значок отвечает на «есть ли там работа для
+        меня», а что именно, видно уже на самой странице. Два значка на одном
+        пункте меню только запутали бы.
+      */
       case '/site-lead/distribution':
-        return { ...tab, badge: badges.unassigned };
+        return { ...tab, badge: badges.unassigned + badges.overdue };
       case '/site-lead/absences':
         return { ...tab, badge: badges.absences };
       case '/tasks':

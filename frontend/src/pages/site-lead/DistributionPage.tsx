@@ -25,6 +25,7 @@ import { Select } from '../../components/Select';
 import { useDistributionUpdates } from '../../realtime';
 import { useIsMobile } from '../../responsive';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { deadlineLook, deadlineShort, worstDeadline } from '../../deadline-label';
 
 const UNDERPERFORMING_THRESHOLD = 0.7;
 
@@ -377,7 +378,7 @@ export function DistributionPage() {
         <StatCard
           label="Риск отставания"
           value={summary?.atRiskCount ?? 0}
-          hint="заказы под риском срыва срока"
+          hint="операции, которые не успеваете сдать"
           alert
         />
       </div>
@@ -419,6 +420,29 @@ export function DistributionPage() {
                   {uncovered > 0 && (
                     <span style={styles.uncovered}>без исполнителя: {uncovered}</span>
                   )}
+                  {/*
+                    Худший срок внутри заказа — в заголовке. Без этого сворачивание
+                    прячет ровно то, ради чего заведены цвета: красная операция
+                    уезжает внутрь свёрнутой строки и остаётся незамеченной.
+                  */}
+                  {(() => {
+                    const worst = worstDeadline(group.ops.map((o) => o.deadline));
+                    if (!worst || worst.level === 'ok' || worst.level === 'done' || worst.level === 'none') {
+                      return null;
+                    }
+                    const look = deadlineLook(worst);
+                    return (
+                      <span
+                        style={{
+                          ...styles.headerDeadline,
+                          color: look.color,
+                          background: look.background ?? 'transparent',
+                        }}
+                      >
+                        {deadlineShort(worst)}
+                      </span>
+                    );
+                  })()}
                 </button>
 
                 {!isCollapsed && group.ops.map((op) => {
@@ -476,9 +500,28 @@ export function DistributionPage() {
                   <ProgressBar done={op.totalDoneQuantity} total={op.quantity} />
                 </div>
 
-                <p style={styles.muted}>
-                  Назначено: {assignedTotal} · Срок заказа: {new Date(op.order.dueDate).toLocaleDateString('ru-RU')}
-                </p>
+                <p style={styles.muted}>Назначено: {assignedTotal}</p>
+
+                {/*
+                  Срок отдельной строкой и цветом: раньше здесь стояла дата отгрузки
+                  заказа, одинаковая на всех операциях, и отличить «нужно послезавтра»
+                  от «нужно через три недели» было нельзя.
+                */}
+                {(() => {
+                  const look = deadlineLook(op.deadline);
+                  return (
+                    <p
+                      style={{
+                        ...styles.deadline,
+                        color: look.color,
+                        background: look.background ?? 'transparent',
+                        fontWeight: look.alarming ? 600 : 400,
+                      }}
+                    >
+                      {look.text}
+                    </p>
+                  );
+                })()}
 
                 {op.assignments.length > 0 && (
                   <div style={styles.executorList}>
@@ -673,6 +716,10 @@ const styles: Record<string, React.CSSProperties> = {
   orderHeader: {
     display: 'flex',
     alignItems: 'center',
+    // Заголовок несёт название, счётчик, «без исполнителя» и срок. На узкой
+    // колонке они не помещаются в строку, и без переноса срок обрезался на
+    // середине слова — то есть пропадал ровно там, где он нужен.
+    flexWrap: 'wrap',
     gap: '10px',
     width: '100%',
     padding: '10px 12px',
@@ -701,6 +748,24 @@ const styles: Record<string, React.CSSProperties> = {
     color: COLORS.error,
     fontSize: '13px',
     fontWeight: 600,
+  },
+  /** Строка со сроком под операцией. Фон появляется только когда есть о чём предупредить. */
+  deadline: {
+    margin: '6px 0 0',
+    padding: '4px 8px',
+    borderRadius: RADIUS.sm,
+    fontSize: '13px',
+    display: 'inline-block',
+  },
+  /** То же в заголовке свёрнутого заказа — мельче, чтобы не спорить с названием. */
+  headerDeadline: {
+    marginLeft: 'auto',
+    flexShrink: 0,
+    padding: '2px 8px',
+    borderRadius: RADIUS.pill,
+    fontSize: '12px',
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
   },
   dayBar: {
     display: 'flex',
