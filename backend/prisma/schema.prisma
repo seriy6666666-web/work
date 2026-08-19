@@ -403,9 +403,17 @@ enum ShiftType {
   NIGHT
 }
 
+/**
+ * Постоянный график смен: кто в какой день недели работает.
+ *
+ * Раньше смена привязывалась к календарной дате, и график приходилось
+ * расставлять заново каждую неделю. На участке он повторяется, поэтому храним
+ * день недели, а не дату: задали один раз — работает дальше.
+ */
 model PlannedShift {
   id        String    @id @default(uuid())
-  date      DateTime
+  /** 0 — понедельник, 6 — воскресенье. */
+  weekday   Int
   type      ShiftType @default(DAY)
   createdAt DateTime  @default(now())
 
@@ -415,8 +423,8 @@ model PlannedShift {
   site   Site   @relation(fields: [siteId], references: [id])
   siteId String
 
-  @@unique([userId, date])
-  @@index([siteId, date])
+  @@unique([userId, weekday])
+  @@index([siteId, weekday])
 }
 
 /**

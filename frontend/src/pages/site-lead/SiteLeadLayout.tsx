@@ -12,7 +12,12 @@ const TABS: SidebarTab[] = [
   { path: '/site-lead/shifts', label: 'Планирование смен', icon: 'calendar' },
   { path: '/site-lead/journal', label: 'Журнал смен', icon: 'list' },
   { path: '/site-lead/equipment', label: 'Оборудование', icon: 'wrench' },
-  { path: '/site-lead/goals', label: 'Цели сотрудников', icon: 'checklist' },
+  /*
+   * «Цели сотрудников» убраны из меню по решению заказчика: за весь пилот не
+   * заведено ни одной, а план на человека и так задаётся дважды — «план на
+   * смену» у операции и количество при назначении. Экран и данные оставлены на
+   * месте: если через месяц никто не хватится, вычистим совсем.
+   */
   { path: '/site-lead/stats', label: 'Статистика', icon: 'bar-chart' },
   { path: '/handover', label: 'Пересменка', icon: 'swap' },
   { path: '/my-work', label: 'Моя работа', icon: 'check' },

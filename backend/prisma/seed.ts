@@ -399,12 +399,13 @@ async function main() {
     ['sidorov', 3, 'NIGHT'],
     ['sidorov', 4, 'DAY'],
   ];
+  // График постоянный: дней недели, а не дат. dayIdx — 0 понедельник.
   for (const [username, dayIdx, type] of shiftPlan) {
     await prisma.plannedShift.create({
       data: {
         userId: userByUsername.get(username)!,
         siteId: assembly,
-        date: dayUtc(-monday + dayIdx),
+        weekday: dayIdx,
         type,
       },
     });

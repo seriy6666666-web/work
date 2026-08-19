@@ -31,9 +31,9 @@ function requireSiteId(req: AuthenticatedRequest): string {
 export class PlannedShiftsController {
   constructor(private shifts: PlannedShiftsService) {}
 
-  @Get('week')
-  week(@Req() req: AuthenticatedRequest, @Query('start') start: string) {
-    return this.shifts.week(requireSiteId(req), start ?? new Date().toISOString());
+  @Get('schedule')
+  schedule(@Req() req: AuthenticatedRequest) {
+    return this.shifts.schedule(requireSiteId(req));
   }
 
   @Post()

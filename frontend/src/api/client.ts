@@ -417,8 +417,8 @@ export const api = {
   createOrderFromProduct: (token: string, payload: CreateOrderFromProductPayload) =>
     request<Order>('/orders/from-product', { method: 'POST', body: JSON.stringify(payload) }, token),
 
-  getPlannedShiftsWeek: (token: string, start: string) =>
-    request<PlannedShiftWeek>(`/planned-shifts/week?start=${encodeURIComponent(start)}`, {}, token),
+  getPlannedShiftSchedule: (token: string) =>
+    request<PlannedShiftSchedule>('/planned-shifts/schedule', {}, token),
   setPlannedShift: (token: string, payload: SetPlannedShiftPayload) =>
     request<PlannedShift>('/planned-shifts', { method: 'POST', body: JSON.stringify(payload) }, token),
   deletePlannedShift: (token: string, id: string) =>
@@ -891,20 +891,25 @@ export type ShiftType = 'DAY' | 'NIGHT';
 export interface PlannedShift {
   id: string;
   userId: string;
-  date: string;
+  /** 0 — понедельник, 6 — воскресенье. */
+  weekday: number;
   type: ShiftType;
 }
 
-export interface PlannedShiftWeek {
-  weekStart: string;
-  days: string[];
+/**
+ * Постоянный график смен участка: кто в какой день недели работает.
+ *
+ * Дат нет намеренно — график повторяется, и расставлять его заново каждую
+ * календарную неделю не нужно.
+ */
+export interface PlannedShiftSchedule {
   workers: { id: string; fullName: string }[];
   shifts: PlannedShift[];
 }
 
 export interface SetPlannedShiftPayload {
   userId: string;
-  date: string;
+  weekday: number;
   type: ShiftType;
 }
 

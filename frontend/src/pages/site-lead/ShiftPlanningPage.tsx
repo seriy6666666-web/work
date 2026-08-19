@@ -3,7 +3,7 @@ import { useAuth } from '../../auth/AuthContext';
 import {
   api,
   ApiError,
-  type PlannedShiftWeek,
+  type PlannedShiftSchedule,
   type ShiftType,
 } from '../../api/client';
 import { SiteLeadLayout } from './SiteLeadLayout';
@@ -14,35 +14,16 @@ import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
 import { Table } from '../../components/ui';
 
-function ymd(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function mondayOf(d: Date): Date {
-  const r = new Date(d);
-  const dow = (r.getDay() + 6) % 7; // Mon=0 … Sun=6
-  r.setDate(r.getDate() - dow);
-  r.setHours(0, 0, 0, 0);
-  return r;
-}
-
-function shiftWeek(weekStart: string, deltaDays: number): string {
-  const d = new Date(`${weekStart}T00:00:00`);
-  d.setDate(d.getDate() + deltaDays);
-  return ymd(d);
-}
-
 const DAY_LABEL: Record<ShiftType, string> = { DAY: 'Д', NIGHT: 'Н' };
 const DAY_TITLE: Record<ShiftType, string> = { DAY: 'Дневная смена', NIGHT: 'Ночная смена' };
+
+/** Понедельник первым: смену на участке считают с него. */
+const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 export function ShiftPlanningPage() {
   const { token } = useAuth();
   const toast = useToast();
-  const [weekStart, setWeekStart] = useState(() => ymd(mondayOf(new Date())));
-  const [week, setWeek] = useState<PlannedShiftWeek | null>(null);
+  const [week, setWeek] = useState<PlannedShiftSchedule | null>(null);
 
   // Дни недели здесь — столбцы, их порядок задан календарём. Переставлять можно
   // только строки, то есть сотрудников.
@@ -58,14 +39,14 @@ export function ShiftPlanningPage() {
     if (!token) return;
     setLoading(true);
     try {
-      setWeek(await api.getPlannedShiftsWeek(token, weekStart));
+      setWeek(await api.getPlannedShiftSchedule(token));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Не удалось загрузить смены');
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, weekStart]);
+  }, [token]);
 
   useEffect(() => {
     load();
@@ -74,20 +55,19 @@ export function ShiftPlanningPage() {
   const byCell = useMemo(() => {
     const map = new Map<string, { id: string; type: ShiftType }>();
     for (const s of week?.shifts ?? []) {
-      map.set(`${s.userId}|${s.date.slice(0, 10)}`, { id: s.id, type: s.type });
+      map.set(`${s.userId}|${s.weekday}`, s);
     }
     return map;
   }, [week]);
 
-  async function cycle(userId: string, dayIso: string) {
+  async function cycle(userId: string, weekday: number) {
     if (!token) return;
-    const key = `${userId}|${dayIso.slice(0, 10)}`;
-    const current = byCell.get(key);
+    const current = byCell.get(`${userId}|${weekday}`);
     try {
       if (!current) {
-        await api.setPlannedShift(token, { userId, date: dayIso, type: 'DAY' });
+        await api.setPlannedShift(token, { userId, weekday, type: 'DAY' });
       } else if (current.type === 'DAY') {
-        await api.setPlannedShift(token, { userId, date: dayIso, type: 'NIGHT' });
+        await api.setPlannedShift(token, { userId, weekday, type: 'NIGHT' });
       } else {
         await api.deletePlannedShift(token, current.id);
       }
@@ -97,32 +77,12 @@ export function ShiftPlanningPage() {
     }
   }
 
-  const rangeLabel = week
-    ? `${new Date(week.days[0]).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })} – ${new Date(
-        week.days[6],
-      ).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })}`
-    : '';
-
-  const nav = (
-    <div style={styles.nav}>
-      <button style={styles.navBtn} onClick={() => setWeekStart((w) => shiftWeek(w, -7))} title="Предыдущая неделя">
-        ‹
-      </button>
-      <button style={styles.todayBtn} onClick={() => setWeekStart(ymd(mondayOf(new Date())))}>
-        Текущая неделя
-      </button>
-      <button style={styles.navBtn} onClick={() => setWeekStart((w) => shiftWeek(w, 7))} title="Следующая неделя">
-        ›
-      </button>
-    </div>
-  );
-
   return (
-    <SiteLeadLayout title="Планирование смен" breadcrumb="Участок" headerExtra={nav}>
+    <SiteLeadLayout title="Планирование смен" breadcrumb="Участок">
       <p style={styles.hint}>
-        Неделя: <strong>{rangeLabel}</strong>. Нажимайте на ячейку, чтобы переключать смену:
-        пусто → <span style={styles.legendDay}>Д</span> дневная → <span style={styles.legendNight}>Н</span> ночная →
-        пусто.
+        Постоянный график: он повторяется каждую неделю, расставлять его заново не нужно.
+        Нажимайте на ячейку, чтобы переключать смену: пусто → <span style={styles.legendDay}>Д</span>{' '}
+        дневная → <span style={styles.legendNight}>Н</span> ночная → пусто.
       </p>
 
       {loading ? (
@@ -139,18 +99,9 @@ export function ShiftPlanningPage() {
             <thead>
               <tr>
                 <SortHeader label="Сотрудник" sortKey="user" activeKey={controls.sortKey} dir={controls.sortDir} onSort={controls.toggleSort} />
-                {week.days.map((d) => (
-                  <th key={d} style={styles.th}>
-                    {new Date(d)
-                      .toLocaleDateString('ru-RU', { weekday: 'short', timeZone: 'UTC' })
-                      .replace(/^./, (c) => c.toUpperCase())}
-                    <div style={styles.thDate}>
-                      {new Date(d).toLocaleDateString('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        timeZone: 'UTC',
-                      })}
-                    </div>
+                {WEEKDAYS.map((name, i) => (
+                  <th key={i} style={styles.th}>
+                    {name}
                   </th>
                 ))}
               </tr>
@@ -159,17 +110,17 @@ export function ShiftPlanningPage() {
               {controls.result.map((w) => (
                 <tr key={w.id}>
                   <td style={{ ...styles.td, ...styles.nameCol }}>{w.fullName}</td>
-                  {week.days.map((d) => {
-                    const cell = byCell.get(`${w.id}|${d.slice(0, 10)}`);
+                  {WEEKDAYS.map((_, weekday) => {
+                    const cell = byCell.get(`${w.id}|${weekday}`);
                     return (
-                      <td key={d} style={styles.td}>
+                      <td key={weekday} style={styles.td}>
                         <button
                           style={{
                             ...styles.cellBtn,
                             ...(cell?.type === 'DAY' ? styles.cellDay : null),
                             ...(cell?.type === 'NIGHT' ? styles.cellNight : null),
                           }}
-                          onClick={() => cycle(w.id, d)}
+                          onClick={() => cycle(w.id, weekday)}
                           title={cell ? DAY_TITLE[cell.type] : 'Не запланировано'}
                         >
                           {cell ? DAY_LABEL[cell.type] : '+'}

@@ -3,26 +3,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '../generated/prisma/enums';
 import { SetPlannedShiftDto } from './dto/set-planned-shift.dto';
 
-/** Normalize any date-ish string to UTC midnight so one calendar day == one key. */
-function dayUtc(input: string): Date {
-  return new Date(`${input.slice(0, 10)}T00:00:00.000Z`);
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d;
-}
-
 @Injectable()
 export class PlannedShiftsService {
   constructor(private prisma: PrismaService) {}
 
-  /** Weekly roster + planned shifts for a site, starting at `start` (7 days). */
-  async week(siteId: string, start: string) {
-    const weekStart = dayUtc(start);
-    const weekEnd = addDays(weekStart, 7);
-
+  /**
+   * Постоянный график участка: кто в какой день недели работает.
+   *
+   * Дат нет намеренно. График на участке повторяется, и расставлять его заново
+   * каждую календарную неделю — работа, которой не должно быть.
+   */
+  async schedule(siteId: string) {
     const [workers, shifts] = await Promise.all([
       this.prisma.user.findMany({
         where: { siteId, role: Role.WORKER, archivedAt: null },
@@ -30,13 +21,12 @@ export class PlannedShiftsService {
         orderBy: { fullName: 'asc' },
       }),
       this.prisma.plannedShift.findMany({
-        where: { siteId, date: { gte: weekStart, lt: weekEnd } },
-        select: { id: true, userId: true, date: true, type: true },
+        where: { siteId },
+        select: { id: true, userId: true, weekday: true, type: true },
       }),
     ]);
 
-    const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i).toISOString());
-    return { weekStart: weekStart.toISOString(), days, workers, shifts };
+    return { workers, shifts };
   }
 
   async set(siteId: string, dto: SetPlannedShiftDto) {
@@ -48,12 +38,11 @@ export class PlannedShiftsService {
       throw new ForbiddenException('Сотрудник не относится к вашему участку');
     }
 
-    const date = dayUtc(dto.date);
     return this.prisma.plannedShift.upsert({
-      where: { userId_date: { userId: dto.userId, date } },
-      create: { userId: dto.userId, siteId, date, type: dto.type },
+      where: { userId_weekday: { userId: dto.userId, weekday: dto.weekday } },
+      create: { userId: dto.userId, siteId, weekday: dto.weekday, type: dto.type },
       update: { type: dto.type },
-      select: { id: true, userId: true, date: true, type: true },
+      select: { id: true, userId: true, weekday: true, type: true },
     });
   }
 
