@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { ApiError, type ImportCredential, type ImportReport } from '../api/client';
 import { Badge } from './Badge';
 import { useToast } from './ToastProvider';
@@ -61,14 +61,40 @@ export function ImportBlock({
     }
   }
 
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
   return (
     <div style={styles.card}>
       <p style={styles.cardTitle}>{title}</p>
       <p style={styles.hint}>{hint}</p>
 
-      <div style={styles.row}>
+      {/*
+        Родное поле выбора файла выглядит серой кнопкой «Обзор…» с подписью от
+        системы — на разных машинах разной. Своя кнопка и своя область для
+        перетаскивания: имя и вес файла видно сразу, и понятно, что файл можно
+        просто бросить сюда.
+      */}
+      <div
+        style={{ ...styles.drop, ...(dragOver ? styles.dropOver : null) }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const dropped = e.dataTransfer.files?.[0];
+          if (dropped) {
+            setFile(dropped);
+            setReport(null);
+          }
+        }}
+      >
         <input
-          style={styles.file}
+          ref={fileRef}
+          style={{ display: 'none' }}
           type="file"
           accept=".xlsx"
           onChange={(e) => {
@@ -77,6 +103,19 @@ export function ImportBlock({
             setReport(null);
           }}
         />
+        <button type="button" style={styles.chooseButton} onClick={() => fileRef.current?.click()}>
+          Выбрать файл
+        </button>
+        <div style={styles.fileInfo}>
+          {file ? (
+            <>
+              <span style={styles.fileName}>{file.name}</span>
+              <span style={styles.fileSize}>{(file.size / 1024).toFixed(0)} КБ</span>
+            </>
+          ) : (
+            <span style={styles.fileEmpty}>Файл не выбран — можно перетащить сюда. Формат .xlsx</span>
+          )}
+        </div>
         <button style={styles.button} disabled={!file || busy} onClick={() => run(true)}>
           {busy ? 'Читаю...' : 'Проверить файл'}
         </button>
@@ -179,6 +218,56 @@ export function ImportBlock({
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  drop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
+    padding: '14px 16px',
+    borderRadius: '14px',
+    // Пунктир говорит «сюда можно бросить» без единого слова.
+    border: '1px dashed var(--line)',
+    background: 'var(--surf2)',
+  },
+  dropOver: {
+    borderColor: 'var(--acc)',
+    background: 'var(--accsoft)',
+  },
+  chooseButton: {
+    padding: '10px 18px',
+    minHeight: '40px',
+    borderRadius: '12px',
+    border: '1px solid var(--acc)',
+    background: 'var(--surf)',
+    color: 'var(--accd)',
+    fontSize: '14px',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  fileInfo: {
+    flex: 1,
+    minWidth: '160px',
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '8px',
+  },
+  fileName: {
+    fontSize: '14px',
+    color: 'var(--tx)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  fileSize: {
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    fontSize: '12px',
+    color: 'var(--tx3)',
+    whiteSpace: 'nowrap',
+  },
+  fileEmpty: {
+    fontSize: '13px',
+    color: 'var(--tx3)',
+  },
   credsBox: {
     marginTop: '14px',
     border: `1px solid ${COLORS.lightGreenBg}`,

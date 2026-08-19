@@ -80,6 +80,42 @@ export function FilterChips<K extends string>({
 }
 
 /**
+ * Кнопка, открывающая форму создания.
+ *
+ * Отдельно от CreateBlock — для экранов, где форма стоит не сразу под кнопкой и
+ * состоянием распоряжается сама страница. Поведение обязано быть тем же:
+ * ширина не меняется, цвет выворачивается.
+ */
+export function ToggleCreateButton({
+  open,
+  label,
+  onClick,
+  style,
+}: {
+  open: boolean;
+  label: string;
+  onClick: () => void;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <button
+      type="button"
+      className={cls('ui-btn', 'ui-btn--swap', open && 'ui-btn--inverted')}
+      style={style}
+      onClick={onClick}
+    >
+      <span className="ui-btn-ghosttext" aria-hidden>
+        {label}
+      </span>
+      <span className="ui-btn-ghosttext" aria-hidden>
+        Свернуть
+      </span>
+      <span className="ui-btn-realtext">{open ? 'Свернуть' : label}</span>
+    </button>
+  );
+}
+
+/**
  * Форма создания, спрятанная под кнопку.
  *
  * Формы на этих экранах нужны раз в неделю, а стояли открытыми всегда и
@@ -104,11 +140,22 @@ export function CreateBlock({
         {toolbar}
         <button
           type="button"
-          className="ui-btn"
+          className={cls('ui-btn', 'ui-btn--swap', open && 'ui-btn--inverted')}
           style={{ marginLeft: 'auto' }}
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? 'Свернуть' : label}
+          {/*
+            Обе надписи лежат в одной ячейке: видна одна, но ширину задаёт более
+            длинная. Иначе кнопка сжимается при переключении, уезжает из-под
+            пальца, и чтобы закрыть — надо целиться заново.
+          */}
+          <span className="ui-btn-ghosttext" aria-hidden>
+            {label}
+          </span>
+          <span className="ui-btn-ghosttext" aria-hidden>
+            Свернуть
+          </span>
+          <span className="ui-btn-realtext">{open ? 'Свернуть' : label}</span>
         </button>
       </div>
       {open && <div className="ui-panel ui-create-panel">{children}</div>}

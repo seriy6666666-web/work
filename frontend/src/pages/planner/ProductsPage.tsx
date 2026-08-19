@@ -18,7 +18,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { useTableControls, SortSelect, SearchInput, type SortChoice } from '../../components/TableControls';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
-import { Button, Input, LinkButton, Hint, Muted } from '../../components/ui';
+import { Button, Input, LinkButton, Hint, Muted, ToggleCreateButton } from '../../components/ui';
 
 interface OpForm {
   operationTypeId: string;
@@ -531,7 +531,11 @@ export function ProductsPage() {
                 dir={controls.sortDir}
                 onSelect={controls.setSort}
               />
-              <Button onClick={() => setCreateOpen((v) => !v)}>+ Проект</Button>
+              <ToggleCreateButton
+                open={createOpen}
+                label="+ Проект"
+                onClick={() => setCreateOpen((v) => !v)}
+              />
             </div>
           </div>
 

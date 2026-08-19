@@ -11,7 +11,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortSelect, type SortChoice } from '../../components/TableControls';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
-import { Button, Input, Panel } from '../../components/ui';
+import { Button, Input, Panel, ToggleCreateButton } from '../../components/ui';
 import { ProgressRing } from '../../components/ProgressRing';
 
 
@@ -186,9 +186,12 @@ export function OrdersPage() {
             </button>
           ))}
         </div>
-        <Button style={{ marginLeft: 'auto' }} onClick={() => setCreateOpen((v) => !v)}>
-          + Заказ
-        </Button>
+        <ToggleCreateButton
+          open={createOpen}
+          label="+ Заказ"
+          onClick={() => setCreateOpen((v) => !v)}
+          style={{ marginLeft: 'auto' }}
+        />
       </div>
 
       <div style={styles.sortRow}>

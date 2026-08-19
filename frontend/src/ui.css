@@ -89,7 +89,12 @@
 .ui-btn {
   padding: 10px 20px;
   border-radius: 8px;
-  border: none;
+  /*
+   * Рамка есть всегда, просто прозрачная. Иначе у вывернутой кнопки она
+   * появляется и добавляет два пикселя — кнопка дёргается ровно в тот момент,
+   * когда по ней целятся второй раз.
+   */
+  border: 1px solid transparent;
   background: var(--c-accent);
   color: var(--c-surface);
   font-size: 15px;
@@ -100,6 +105,31 @@
 .ui-btn:hover:not(:disabled) { background: var(--c-accent-dark); }
 .ui-btn:active:not(:disabled) { transform: translateY(1px); }
 .ui-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/*
+ * Кнопка, которая переключает форму. Ширину держат обе надписи сразу, поэтому
+ * при переключении ничего не двигается; меняется только цвет — заливка
+ * выворачивается в обводку.
+ */
+.ui-btn--swap {
+  display: inline-grid;
+  place-items: center;
+}
+.ui-btn--swap > * {
+  grid-area: 1 / 1;
+}
+.ui-btn-ghosttext {
+  visibility: hidden;
+  pointer-events: none;
+}
+.ui-btn--inverted {
+  background: var(--surf);
+  color: var(--accd);
+  border: 1px solid var(--acc);
+}
+.ui-btn--inverted:hover:not(:disabled) {
+  background: var(--accsoft);
+}
 
 .ui-btn--ghost {
   background: transparent;

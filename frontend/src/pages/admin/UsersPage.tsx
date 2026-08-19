@@ -15,7 +15,7 @@ import { RowActions } from '../../components/RowActions';
 import { SearchSelect } from '../../components/SearchSelect';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
-import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
+import { Table, Th, Td, Button, LinkButton, Input, ToggleCreateButton } from '../../components/ui';
 
 interface UserFormState {
   username: string;
@@ -262,9 +262,11 @@ export function UsersPage() {
     <AdminLayout title="Пользователи" breadcrumb="Администрирование">
 
       <div style={styles.topBar}>
-        <Button onClick={() => setShowCreate((v) => !v)}>
-          {showCreate ? 'Свернуть' : '+ Добавить сотрудника'}
-        </Button>
+        <ToggleCreateButton
+          open={showCreate}
+          label="+ Добавить сотрудника"
+          onClick={() => setShowCreate((v) => !v)}
+        />
       </div>
 
       {showCreate && (

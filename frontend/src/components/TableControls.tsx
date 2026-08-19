@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import { COLORS, RADIUS } from '../theme';
+import { Select } from './Select';
 
 type SortDir = 'asc' | 'desc';
 type Accessor<T> = (item: T) => string | number | null;
@@ -218,24 +219,25 @@ export function SortSelect({
 }) {
   const currentIndex = choices.findIndex((c) => c.key === sortKey && c.dir === dir);
   return (
-    <label style={sortSelectStyles.wrap}>
+    <span style={sortSelectStyles.wrap}>
       <span style={sortSelectStyles.caption}>Сортировка</span>
-      <select
-        style={sortSelectStyles.select}
+      {/*
+        Свой список, а не родной. Родной выглядит чужеродно в общем строю, а на
+        планшете открывается системным барабаном во весь экран — ради выбора из
+        четырёх строк это слишком.
+      */}
+      <Select
+        width="220px"
+        ariaLabel="Порядок сортировки"
+        placeholder="по умолчанию"
         value={currentIndex >= 0 ? String(currentIndex) : ''}
-        onChange={(e) => {
-          const choice = choices[Number(e.target.value)];
+        onChange={(v) => {
+          const choice = choices[Number(v)];
           if (choice) onSelect(choice.key, choice.dir);
         }}
-      >
-        {currentIndex < 0 && <option value="">по умолчанию</option>}
-        {choices.map((c, i) => (
-          <option key={`${c.key}-${c.dir}`} value={String(i)}>
-            {c.label}
-          </option>
-        ))}
-      </select>
-    </label>
+        options={choices.map((c, i) => ({ value: String(i), label: c.label }))}
+      />
+    </span>
   );
 }
 
