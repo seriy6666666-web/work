@@ -26,11 +26,30 @@ export function Card({ children, className, style }: Div) {
   );
 }
 
+/**
+ * Таблица в своей панели.
+ *
+ * Раньше всё содержимое страницы лежало в одной общей белой коробке, и разные по
+ * смыслу блоки — форма, подсказка, список — склеивались в одно пятно. Коробку
+ * убрали; панель теперь принадлежит самой таблице, и заодно она же даёт
+ * прокрутку вбок на узком экране, не ломая страницу.
+ */
 export function Table({ children, className, style }: Div) {
   return (
-    <table className={cls('ui-table', className)} style={style}>
+    <div className="ui-panel">
+      <table className={cls('ui-table', className)} style={style}>
+        {children}
+      </table>
+    </div>
+  );
+}
+
+/** Панель: белый прямоугольник, на котором живёт один блок по смыслу. */
+export function Panel({ children, className, style }: Div) {
+  return (
+    <div className={cls('ui-panel', className)} style={style}>
       {children}
-    </table>
+    </div>
   );
 }
 

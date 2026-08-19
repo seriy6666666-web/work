@@ -55,7 +55,10 @@ export function SidebarLayout({
       {showSidebar && (
         <aside style={{ ...styles.sidebar, ...(isMobile ? styles.sidebarMobile : {}) }}>
           <div style={styles.logoWrap}>
-            <Logo height={26} />
+            {/* В тёмном меню логотип выводится белым: цветной на тёмном не читается. */}
+            <span style={{ filter: 'brightness(0) invert(1)', display: 'block' }}>
+              <Logo height={26} />
+            </span>
           </div>
           <p style={styles.roleLabel}>{roleLabel}</p>
 
@@ -142,7 +145,7 @@ const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
     display: 'flex',
-    background: COLORS.lightGrayBg,
+    background: 'var(--page)',
   },
   backdrop: {
     position: 'fixed',
@@ -151,13 +154,12 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 40,
   },
   sidebar: {
-    width: '240px',
+    width: '236px',
     flexShrink: 0,
-    background: COLORS.white,
-    borderRight: `1px solid ${COLORS.lightGreenBg}`,
+    background: 'var(--nav)',
     display: 'flex',
     flexDirection: 'column',
-    padding: '20px 16px',
+    padding: '20px 14px',
     position: 'sticky',
     top: 0,
     alignSelf: 'flex-start',
@@ -176,13 +178,13 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '4px 8px 16px',
   },
   roleLabel: {
-    margin: '0 0 8px',
-    padding: '0 8px',
+    margin: '0 0 10px',
+    padding: '0 10px',
     fontSize: '11px',
-    fontWeight: 700,
-    color: COLORS.mutedText,
+    fontWeight: 600,
+    color: 'var(--navtx2)',
     textTransform: 'uppercase',
-    letterSpacing: '0.05em',
+    letterSpacing: '0.16em',
   },
   nav: {
     display: 'flex',
@@ -195,18 +197,20 @@ const styles: Record<string, React.CSSProperties> = {
   navItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '12px',
+    // Цель нажатия 40px: по меню попадают и пальцем на планшете.
+    minHeight: '40px',
     padding: '10px 12px',
-    borderRadius: RADIUS.sm,
+    borderRadius: '12px',
     textDecoration: 'none',
-    color: COLORS.darkText,
+    color: 'var(--navtx)',
     fontSize: '14px',
     fontWeight: 500,
   },
   navItemActive: {
-    background: COLORS.lightGreenBg,
-    color: COLORS.accentDark,
-    fontWeight: 700,
+    background: 'var(--navact)',
+    color: '#fff',
+    fontWeight: 600,
   },
   navLabel: {
     flex: 1,
@@ -231,8 +235,8 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '10px',
     padding: '12px',
-    borderRadius: RADIUS.sm,
-    background: COLORS.lightGrayBg,
+    borderRadius: '14px',
+    background: 'rgba(255,255,255,0.06)',
     marginTop: '12px',
   },
   userInfo: {
@@ -242,8 +246,8 @@ const styles: Record<string, React.CSSProperties> = {
   userName: {
     margin: 0,
     fontSize: '13px',
-    fontWeight: 700,
-    color: COLORS.darkText,
+    fontWeight: 600,
+    color: 'var(--navtx)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -251,7 +255,7 @@ const styles: Record<string, React.CSSProperties> = {
   userRole: {
     margin: 0,
     fontSize: '12px',
-    color: COLORS.mutedText,
+    color: 'var(--navtx2)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -259,7 +263,7 @@ const styles: Record<string, React.CSSProperties> = {
   logoutButton: {
     border: 'none',
     background: 'transparent',
-    color: COLORS.mutedText,
+    color: 'var(--navtx2)',
     cursor: 'pointer',
     padding: '6px',
     borderRadius: RADIUS.sm,
@@ -275,7 +279,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    padding: '28px 32px 20px',
+    padding: '26px 24px 18px',
     gap: '16px',
   },
   headerLeft: {
@@ -285,24 +289,31 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: 0,
   },
   hamburger: {
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.white,
-    color: COLORS.darkText,
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    color: 'var(--tx)',
     cursor: 'pointer',
-    padding: '8px',
-    borderRadius: RADIUS.sm,
+    // 44px — в перчатках по мелкому не попасть.
+    minWidth: '44px',
+    minHeight: '44px',
+    borderRadius: '12px',
     display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   breadcrumb: {
     margin: '0 0 4px',
     fontSize: '13px',
-    color: COLORS.mutedText,
+    color: 'var(--tx3)',
   },
   title: {
     margin: 0,
-    fontSize: '22px',
-    color: COLORS.darkText,
+    // 28/600 с плотным межбуквенным — из макета: заголовок задаёт весь строй экрана.
+    fontSize: '28px',
+    fontWeight: 600,
+    letterSpacing: '-0.02em',
+    color: 'var(--tx)',
   },
   headerExtra: {
     display: 'flex',
@@ -311,24 +322,29 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   themeToggle: {
-    border: `1px solid ${COLORS.lightGreenBg}`,
-    background: COLORS.white,
-    color: COLORS.mutedText,
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    color: 'var(--tx2)',
     cursor: 'pointer',
-    padding: '8px',
-    borderRadius: RADIUS.sm,
+    minWidth: '40px',
+    minHeight: '40px',
+    borderRadius: '12px',
     display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   contentMobile: {
     paddingBottom: '76px',
   },
+  /*
+   * Содержимое лежит прямо на фоне страницы, а не в одной общей белой коробке.
+   * Коробка склеивала разные по смыслу блоки в одно пятно: панель со списком,
+   * форма и подсказка выглядели частями одного целого. Теперь каждый блок сам
+   * решает, быть ему панелью или нет.
+   */
   content: {
-    margin: '0 16px 24px',
-    padding: '20px',
-    background: COLORS.white,
-    borderRadius: RADIUS.md,
-    boxShadow: SHADOW.card,
-    color: COLORS.darkText,
+    margin: '0 24px 24px',
+    color: 'var(--tx)',
     flex: 1,
     overflowX: 'auto',
   },

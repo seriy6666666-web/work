@@ -11,8 +11,8 @@ import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortSelect, type SortChoice } from '../../components/TableControls';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS } from '../../theme';
-import { Button, Input } from '../../components/ui';
-import { ListCard } from '../../components/ListCard';
+import { Button, Input, Panel } from '../../components/ui';
+
 
 const STATUS_BADGE: Record<Order['status'], BadgeVariant> = {
   CREATED: 'muted',
@@ -37,6 +37,14 @@ const SORT_CHOICES: SortChoice[] = [
   { key: 'name', dir: 'asc', label: 'по алфавиту' },
   { key: 'quantity', dir: 'desc', label: 'больше по количеству' },
   { key: 'priority', dir: 'desc', label: 'сначала приоритетные' },
+];
+
+/** Фильтры над списком заказов — со счётчиками, как в макете. */
+const FILTERS: { key: 'all' | 'inWork' | 'waiting' | 'closed'; label: string }[] = [
+  { key: 'all', label: 'Все' },
+  { key: 'inWork', label: 'В работе' },
+  { key: 'waiting', label: 'Ждут' },
+  { key: 'closed', label: 'Закрыты' },
 ];
 
 export function OrdersPage() {
@@ -118,6 +126,9 @@ export function OrdersPage() {
     }
   }
 
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]['key']>('all');
+  const [createOpen, setCreateOpen] = useState(false);
+
   const controls = useTableControls(orders, {
     searchText: (o) => `${o.name} ${ORDER_STATUS_LABELS[o.status]}`,
     sortAccessors: {
@@ -131,9 +142,65 @@ export function OrdersPage() {
     defaultSortDir: 'desc',
   });
 
+  /**
+   * Счётчики считаем по всем заказам, а не по отфильтрованным: иначе «Ждут 2»
+   * пропадало бы, стоило выбрать другой фильтр, и понять, есть ли вообще
+   * незапущенные, было бы нельзя.
+   */
+  const counts = {
+    all: orders.length,
+    inWork: orders.filter((o) => o.status === 'IN_PROGRESS').length,
+    waiting: orders.filter((o) => o.status === 'CREATED').length,
+    closed: orders.filter((o) => o.status === 'DONE' || o.status === 'SHIPPED').length,
+  };
+  const visible = controls.result.filter((o) => {
+    if (filter === 'all') return true;
+    if (filter === 'inWork') return o.status === 'IN_PROGRESS';
+    if (filter === 'waiting') return o.status === 'CREATED';
+    return o.status === 'DONE' || o.status === 'SHIPPED';
+  });
+
   return (
     <PlannerLayout title="Заказы" breadcrumb="Планирование">
 
+      {/*
+        Панель над списком. Формы создания раньше стояли открытыми и занимали весь
+        верх экрана — семь полей, которые нужны раз в неделю, отодвигали список,
+        ради которого сюда заходят каждый день.
+      */}
+      <div style={styles.toolbar}>
+        <SearchInput
+          value={controls.query}
+          onChange={controls.setQuery}
+          placeholder="Заказ, проект, статус"
+        />
+        <div style={styles.filters}>
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              style={{ ...styles.filter, ...(filter === f.key ? styles.filterActive : null) }}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label} <span style={styles.filterCount}>{counts[f.key]}</span>
+            </button>
+          ))}
+        </div>
+        <Button style={{ marginLeft: 'auto' }} onClick={() => setCreateOpen((v) => !v)}>
+          + Заказ
+        </Button>
+      </div>
+
+      <div style={styles.sortRow}>
+        <SortSelect
+          choices={SORT_CHOICES}
+          sortKey={controls.sortKey}
+          dir={controls.sortDir}
+          onSelect={controls.setSort}
+        />
+      </div>
+
+      {createOpen && (
+        <Panel style={{ padding: '16px', marginBottom: '14px' }}>
       <form onSubmit={handleCreate} style={styles.createForm}>
         <Input
           placeholder="Наименование (например «1000 батарей»)"
@@ -213,18 +280,9 @@ export function OrdersPage() {
           </button>
         </form>
       )}
-
-      {!loading && orders.length > 0 && (
-        <div style={styles.toolbar}>
-          <SearchInput value={controls.query} onChange={controls.setQuery} placeholder="Поиск по наименованию, статусу..." />
-          <SortSelect
-            choices={SORT_CHOICES}
-            sortKey={controls.sortKey}
-            dir={controls.sortDir}
-            onSelect={controls.setSort}
-          />
-        </div>
+        </Panel>
       )}
+
 
       {loading ? (
         <SkeletonTable rows={5} cols={7} />
@@ -233,58 +291,122 @@ export function OrdersPage() {
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (
-        <div style={styles.list}>
-          {controls.result.map((o) => {
-            // Срок красным, когда он уже прошёл, а заказ не закрыт: это то, из-за
-            // чего в список и заходят.
+        <Panel style={{ padding: 0 }}>
+          <div style={styles.panelHead}>
+            <span style={styles.panelTitle}>Заказы</span>
+            <span style={styles.panelCount}>{visible.length} из {orders.length}</span>
+          </div>
+          {visible.map((o) => {
+            // Срок красным, когда он прошёл, а заказ не закрыт: за этим сюда и приходят.
             const overdue =
               o.status !== 'DONE' && o.status !== 'SHIPPED' && new Date(o.dueDate) < new Date();
+            const ready = o.quantity > 0 ? Math.round((o.readyUnits / o.quantity) * 100) : 0;
             return (
-              <ListCard
-                key={o.id}
-                accent={overdue ? 'var(--err)' : undefined}
-                title={o.name}
-                badge={<Badge variant={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Badge>}
-                subtitle={
-                  <>
-                    <span style={overdue ? styles.overdue : undefined}>
-                      срок {new Date(o.dueDate).toLocaleDateString('ru-RU')}
-                    </span>
-                    {o.priority > 0 && <> · приоритет {o.priority}</>}
-                    {' · '}операций {o.operationsCount}
-                  </>
-                }
-                stats={[
-                  { label: 'заказано, шт', value: o.quantity },
-                  { label: 'готово изделий', value: o.readyUnits, muted: o.readyUnits === 0 },
-                ]}
-                actions={
-                  <Link to={`/planner/orders/${o.id}`} style={styles.linkButton}>
-                    Открыть →
-                  </Link>
-                }
-              />
+              <Link key={o.id} to={`/planner/orders/${o.id}`} style={styles.row}>
+                <div style={styles.rowMain}>
+                  <div style={styles.rowName}>{o.name}</div>
+                  <div style={styles.rowSub}>
+                    {o.quantity} шт · операций {o.operationsCount}
+                    {o.priority > 0 ? ` · приоритет ${o.priority}` : ''}
+                  </div>
+                </div>
+                <div style={styles.rowStat}>
+                  <div style={styles.statLabel}>срок</div>
+                  <div style={{ ...styles.statValue, ...(overdue ? styles.statBad : null) }}>
+                    {new Date(o.dueDate).toLocaleDateString('ru-RU')}
+                  </div>
+                </div>
+                <div style={styles.rowStat}>
+                  <div style={styles.statLabel}>готово</div>
+                  <div style={{ ...styles.statValue, ...(ready === 0 ? styles.statMuted : null) }}>
+                    {ready}%
+                  </div>
+                </div>
+                <Badge variant={STATUS_BADGE[o.status]}>{ORDER_STATUS_LABELS[o.status]}</Badge>
+              </Link>
             );
           })}
-        </div>
+        </Panel>
       )}
     </PlannerLayout>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  list: {
+  toolbar: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
+    marginBottom: '10px',
   },
-  overdue: {
-    color: 'var(--err)',
+  sortRow: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginBottom: '14px',
+  },
+  filters: {
+    display: 'flex',
+    gap: '6px',
+    flexWrap: 'wrap',
+  },
+  filter: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 14px',
+    minHeight: '40px',
+    borderRadius: '999px',
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    color: 'var(--tx2)',
+    fontSize: '14px',
+    cursor: 'pointer',
+  },
+  filterActive: {
+    background: 'var(--accsoft)',
+    borderColor: 'var(--acc)',
+    color: 'var(--accd)',
     fontWeight: 600,
   },
-  toolbar: {
-    marginBottom: '16px',
+  filterCount: { color: 'var(--tx3)', fontSize: '13px' },
+  panelHead: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 18px',
+    borderBottom: '1px solid var(--line2)',
   },
+  panelTitle: {
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.16em',
+    textTransform: 'uppercase',
+    color: 'var(--tx3)',
+  },
+  panelCount: { fontSize: '13px', color: 'var(--tx3)' },
+  row: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '18px',
+    padding: '14px 18px',
+    borderBottom: '1px solid var(--line2)',
+    textDecoration: 'none',
+    color: 'var(--tx)',
+  },
+  rowMain: { flex: 1, minWidth: 0 },
+  rowName: { fontSize: '15px', fontWeight: 600 },
+  rowSub: { marginTop: '3px', fontSize: '13px', color: 'var(--tx2)' },
+  rowStat: { textAlign: 'right', whiteSpace: 'nowrap', minWidth: '92px' },
+  statLabel: { fontSize: '11px', color: 'var(--tx3)' },
+  statValue: {
+    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+    fontVariantNumeric: 'tabular-nums',
+    fontSize: '15px',
+    fontWeight: 600,
+  },
+  statBad: { color: 'var(--err)' },
+  statMuted: { color: 'var(--tx3)', fontWeight: 400 },
   createForm: {
     display: 'flex',
     flexWrap: 'wrap',

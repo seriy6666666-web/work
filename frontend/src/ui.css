@@ -14,6 +14,17 @@
  * должен менять на вид.
  */
 
+/* --- Панель: белый прямоугольник под один блок по смыслу --- */
+.ui-panel {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--sh1);
+  padding: 6px 14px;
+  /* Широкая таблица прокручивается внутри панели, а не ломает страницу. */
+  overflow-x: auto;
+}
+
 /* --- Таблицы --- */
 .ui-table {
   width: 100%;
