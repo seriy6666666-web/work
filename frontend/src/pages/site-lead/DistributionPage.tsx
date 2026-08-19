@@ -27,6 +27,25 @@ import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 const UNDERPERFORMING_THRESHOLD = 0.7;
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+function shiftDay(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** «сегодня», «завтра», «вчера» — иначе дату приходится сверять с календарём. */
+function dayLabel(iso: string): string {
+  const diff = Math.round(
+    (new Date(`${iso}T00:00:00`).getTime() - new Date(`${todayIso()}T00:00:00`).getTime()) / 86400000,
+  );
+  if (diff === 0) return 'сегодня';
+  if (diff === 1) return 'завтра';
+  if (diff === -1) return 'вчера';
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 export function DistributionPage() {
   const { token, user } = useAuth();
   const toast = useToast();
@@ -41,6 +60,14 @@ export function DistributionPage() {
   const [reasonCorrections, setReasonCorrections] = useState<Record<string, DowntimeReasonCode>>({});
   // По операциям, где начальник участка раскрыл сотрудников без нужного навыка.
   const [showUnskilled, setShowUnskilled] = useState<Record<string, boolean>>({});
+
+  /**
+   * День доски. Начальник участка расставляет людей и на завтра, поэтому день
+   * выбирается, а не берётся всегда сегодняшний. Назначения показываются за
+   * выбранный день: раньше даты не было вовсе и вчерашние висели вперемешку с
+   * сегодняшними.
+   */
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const operationsRef = useRef<HTMLDivElement>(null);
 
   async function refresh(showLoader = true) {
@@ -48,7 +75,7 @@ export function DistributionPage() {
     if (showLoader) setLoading(true);
     try {
       const [ops, matrixData, summaryData] = await Promise.all([
-        api.listDistributionOperations(token),
+        api.listDistributionOperations(token, date),
         api.getCompetencyMatrix(token),
         api.getDistributionSummary(token),
       ]);
@@ -65,7 +92,7 @@ export function DistributionPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, date]);
 
   // Live updates: when a worker marks a task done (or the board changes),
   // silently refresh without a loading flash or a toast (avoids echoing the
@@ -121,6 +148,7 @@ export function DistributionPage() {
         operationId,
         userId: form.userId,
         assignedQuantity: form.quantity ? Number(form.quantity) : undefined,
+        date,
       });
       setAssignForms((prev) => ({ ...prev, [operationId]: { userId: '', quantity: '' } }));
       toast.success('Сотрудник назначен');
@@ -139,6 +167,7 @@ export function DistributionPage() {
         operationId,
         userId: user.id,
         assignedQuantity: form?.quantity ? Number(form.quantity) : undefined,
+        date,
       });
       setAssignForms((prev) => ({ ...prev, [operationId]: { userId: '', quantity: '' } }));
       toast.success('Операция назначена вам');
@@ -216,6 +245,33 @@ export function DistributionPage() {
         </div>
       )}
 
+      {/*
+        День доски. Начальник участка расставляет людей вперёд, поэтому день
+        выбирается стрелками, а не берётся всегда сегодняшний. Отдельная кнопка
+        «Сегодня» — чтобы вернуться одним нажатием, а не отсчитывать назад.
+      */}
+      <div style={styles.dayBar}>
+        <button style={styles.dayArrow} onClick={() => setDate(shiftDay(date, -1))} aria-label="Предыдущий день">
+          ←
+        </button>
+        <input
+          style={styles.dayInput}
+          type="date"
+          value={date}
+          onChange={(e) => e.target.value && setDate(e.target.value)}
+          aria-label="День распределения"
+        />
+        <button style={styles.dayArrow} onClick={() => setDate(shiftDay(date, 1))} aria-label="Следующий день">
+          →
+        </button>
+        <span style={styles.dayLabel}>{dayLabel(date)}</span>
+        {date !== todayIso() && (
+          <button style={styles.todayButton} onClick={() => setDate(todayIso())}>
+            Сегодня
+          </button>
+        )}
+      </div>
+
       <div style={styles.statsRow}>
         <StatCard
           label="Выполнение плана"
@@ -274,6 +330,27 @@ export function DistributionPage() {
                       {op.operationType.skill
                         ? `Требуется навык: ${op.operationType.skill.name}`
                         : 'Особый навык не требуется'}
+                    </div>
+                    {/*
+                      Три числа, которые нужны, чтобы распределить смену: сколько
+                      надо за день, сколько уже закрыто сегодня и сколько осталось
+                      по заказу. Раньше было только «всего по заказу», и понять,
+                      что делать сегодня, было не по чему.
+                    */}
+                    <div style={styles.dayPlan}>
+                      {op.dailyQuantity !== null && (
+                        <span>
+                          План на смену: <strong>{op.dailyQuantity}</strong> шт ·{' '}
+                        </span>
+                      )}
+                      <span>
+                        сделано за день: <strong>{op.totalDoneQuantity}</strong>
+                      </span>
+                      <span style={styles.muted}>
+                        {' '}
+                        · всего по заказу {op.doneAllTime} из {op.quantity}, осталось{' '}
+                        {Math.max(0, op.quantity - op.doneAllTime)}
+                      </span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
@@ -475,6 +552,48 @@ export function DistributionPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  dayBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '16px',
+    flexWrap: 'wrap',
+  },
+  dayArrow: {
+    padding: '8px 14px',
+    borderRadius: RADIUS.sm,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    background: COLORS.white,
+    color: COLORS.darkText,
+    fontSize: '16px',
+    cursor: 'pointer',
+  },
+  dayInput: {
+    padding: '8px 12px',
+    borderRadius: RADIUS.sm,
+    border: `1px solid ${COLORS.lightGreenBg}`,
+    background: COLORS.lightGrayBg,
+    fontSize: '15px',
+  },
+  dayLabel: {
+    fontSize: '14px',
+    color: COLORS.mutedText,
+  },
+  todayButton: {
+    padding: '8px 14px',
+    borderRadius: RADIUS.sm,
+    border: 'none',
+    background: COLORS.accent,
+    color: COLORS.white,
+    fontSize: '14px',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  dayPlan: {
+    marginTop: '4px',
+    fontSize: '13px',
+    color: COLORS.darkText,
+  },
   requirement: {
     marginTop: '4px',
     fontSize: '13px',

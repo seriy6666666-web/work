@@ -42,7 +42,7 @@ export function OrderDetailPage() {
    * экране не было — оставалось удалить операцию и завести заново.
    */
   const [editingOpId, setEditingOpId] = useState<string | null>(null);
-  const [editOp, setEditOp] = useState({ operationTypeId: '', quantity: '', siteId: '', secondarySiteId: '' });
+  const [editOp, setEditOp] = useState({ operationTypeId: '', quantity: '', dailyQuantity: '', siteId: '', secondarySiteId: '' });
   const [savingOp, setSavingOp] = useState(false);
 
   const [orderForm, setOrderForm] = useState({
@@ -53,7 +53,7 @@ export function OrderDetailPage() {
     status: 'CREATED' as OrderStatus,
   });
 
-  const [opForm, setOpForm] = useState({ operationTypeId: '', quantity: '', siteId: '', secondarySiteId: '' });
+  const [opForm, setOpForm] = useState({ operationTypeId: '', quantity: '', dailyQuantity: '', siteId: '', secondarySiteId: '' });
   const [addingOp, setAddingOp] = useState(false);
 
   async function refresh() {
@@ -142,10 +142,11 @@ export function OrderDetailPage() {
       await api.createOperation(token, id, {
         operationTypeId: opForm.operationTypeId,
         quantity: Number(opForm.quantity),
+        dailyQuantity: opForm.dailyQuantity ? Number(opForm.dailyQuantity) : undefined,
         siteId: opForm.siteId,
         secondarySiteId: opForm.secondarySiteId || undefined,
       });
-      setOpForm({ operationTypeId: '', quantity: '', siteId: '', secondarySiteId: '' });
+      setOpForm({ operationTypeId: '', quantity: '', dailyQuantity: '', siteId: '', secondarySiteId: '' });
       toast.success('Операция добавлена');
       await refresh();
     } catch (err) {
@@ -160,6 +161,7 @@ export function OrderDetailPage() {
     setEditOp({
       operationTypeId: op.operationTypeId,
       quantity: String(op.quantity),
+      dailyQuantity: op.dailyQuantity === null ? '' : String(op.dailyQuantity),
       siteId: op.siteId,
       secondarySiteId: op.secondarySiteId ?? '',
     });
@@ -172,6 +174,7 @@ export function OrderDetailPage() {
       await api.updateOperation(token, operationId, {
         operationTypeId: editOp.operationTypeId,
         quantity: Number(editOp.quantity),
+        dailyQuantity: editOp.dailyQuantity ? Number(editOp.dailyQuantity) : undefined,
         siteId: editOp.siteId,
         // Пустая строка — «второго участка нет». undefined сервер трактует как
         // «не трогать», поэтому снять его этим способом было бы нельзя.
@@ -308,12 +311,21 @@ export function OrderDetailPage() {
         />
         <input
           style={styles.input}
-          placeholder="Количество"
+          placeholder="Всего"
           type="number"
           min={1}
           value={opForm.quantity}
           onChange={(e) => setOpForm({ ...opForm, quantity: e.target.value })}
           required
+        />
+        {/* План на смену: начальник участка по нему понимает, сколько закрыть сегодня. */}
+        <input
+          style={styles.input}
+          placeholder="В день"
+          type="number"
+          min={1}
+          value={opForm.dailyQuantity}
+          onChange={(e) => setOpForm({ ...opForm, dailyQuantity: e.target.value })}
         />
         <Select
           width="180px"
@@ -347,7 +359,8 @@ export function OrderDetailPage() {
         <thead>
           <tr>
             <th style={styles.th}>Операция</th>
-            <th style={styles.th}>Количество</th>
+            <th style={styles.th}>Всего</th>
+            <th style={styles.th}>В день</th>
             <th style={styles.th}>Участок</th>
             <th style={styles.th}>Второй участок</th>
             <th style={styles.th}></th>
@@ -387,11 +400,28 @@ export function OrderDetailPage() {
                       min={1}
                       value={editOp.quantity}
                       onChange={(e) => setEditOp({ ...editOp, quantity: e.target.value })}
-                      aria-label="Количество"
+                      aria-label="Всего"
                       autoFocus
                     />
                   ) : (
                     op.quantity
+                  )}
+                </td>
+                <td style={styles.td}>
+                  {editing ? (
+                    <input
+                      style={styles.qtyInput}
+                      type="number"
+                      min={1}
+                      placeholder="—"
+                      value={editOp.dailyQuantity}
+                      onChange={(e) => setEditOp({ ...editOp, dailyQuantity: e.target.value })}
+                      aria-label="В день"
+                    />
+                  ) : op.dailyQuantity === null ? (
+                    <span style={styles.opSkill}>не задан</span>
+                  ) : (
+                    op.dailyQuantity
                   )}
                 </td>
                 <td style={styles.td}>

@@ -38,6 +38,7 @@ export class OperationsService {
       return await this.prisma.operation.create({
         data: {
           quantity: dto.quantity,
+          dailyQuantity: dto.dailyQuantity,
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,
           operationTypeId: dto.operationTypeId,
@@ -85,6 +86,7 @@ export class OperationsService {
         where: { id },
         data: {
           quantity: dto.quantity,
+          dailyQuantity: dto.dailyQuantity,
           siteId: dto.siteId,
           secondarySiteId: dto.secondarySiteId,
           operationTypeId: dto.operationTypeId,

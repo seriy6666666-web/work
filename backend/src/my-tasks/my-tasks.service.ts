@@ -6,6 +6,15 @@ import { SubmitCompletionDto } from './dto/submit-completion.dto';
 
 const MAX_CORRECTIONS = 2;
 
+/**
+ * День без времени — тот же расчёт, что и на доске начальника участка, иначе
+ * «сегодня» у них разъедется.
+ */
+function today(): Date {
+  const d = new Date();
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
 const includeTaskDetails = {
   operation: {
     include: {
@@ -36,9 +45,16 @@ export class MyTasksService {
     private materials: MaterialsService,
   ) {}
 
+  /**
+   * Рабочий видит только сегодняшнее задание.
+   *
+   * Начальник участка расставляет людей на несколько дней вперёд, но показывать
+   * рабочему завтрашнюю работу нельзя: он начнёт её сегодня и собьёт план смены.
+   * Вчерашние тоже не показываем — они закрыты своим днём.
+   */
   async list(userId: string) {
     const assignments = await this.prisma.assignment.findMany({
-      where: { userId },
+      where: { userId, date: today() },
       include: includeTaskDetails,
       orderBy: [
         { operation: { order: { priority: 'desc' } } },

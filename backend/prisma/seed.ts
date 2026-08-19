@@ -314,7 +314,14 @@ async function main() {
 
   for (const [operationId, username, done, defect, daysAgo] of work) {
     const assignment = await prisma.assignment.create({
-      data: { operationId, userId: userByUsername.get(username)!, assignedQuantity: done + defect },
+      // Задание выдаётся на день — тот же, которым датирована отметка выработки,
+      // иначе демо-история разъедется с доской.
+      data: {
+        operationId,
+        userId: userByUsername.get(username)!,
+        assignedQuantity: done + defect,
+        date: dayUtc(-daysAgo),
+      },
     });
     await prisma.completionRecord.create({
       data: {

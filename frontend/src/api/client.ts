@@ -217,8 +217,8 @@ export const api = {
   setCompetency: (token: string, payload: SetCompetencyPayload) =>
     request<SetCompetencyPayload>('/competency', { method: 'PUT', body: JSON.stringify(payload) }, token),
 
-  listDistributionOperations: (token: string) =>
-    request<DistributionOperation[]>('/distribution/operations', {}, token),
+  listDistributionOperations: (token: string, date?: string) =>
+    request<DistributionOperation[]>(`/distribution/operations${date ? `?date=${date}` : ''}`, {}, token),
   getDistributionSummary: (token: string) =>
     request<DistributionSummary>('/distribution/summary', {}, token),
   createAssignment: (token: string, payload: CreateAssignmentPayload) =>
@@ -574,6 +574,8 @@ export interface Order {
 export interface Operation {
   id: string;
   quantity: number;
+  /** Сколько участок должен сделать за смену; null — план не задан. */
+  dailyQuantity: number | null;
   orderId: string;
   siteId: string;
   secondarySiteId: string | null;
@@ -604,6 +606,7 @@ export interface UpdateOrderPayload {
 
 export interface CreateOperationPayload {
   quantity: number;
+  dailyQuantity?: number;
   siteId: string;
   secondarySiteId?: string;
   operationTypeId: string;
@@ -611,6 +614,7 @@ export interface CreateOperationPayload {
 
 export interface UpdateOperationPayload {
   quantity?: number;
+  dailyQuantity?: number;
   siteId?: string;
   secondarySiteId?: string;
   operationTypeId?: string;
@@ -912,7 +916,13 @@ export interface DistributionOperation {
   secondarySite: { id: string; name: string } | null;
   assignments: Assignment[];
   hasCompetentWorker: boolean;
+  /** Сделано за выбранный день. */
   totalDoneQuantity: number;
+  /** Сделано по операции за всё время — сколько осталось по заказу. */
+  doneAllTime: number;
+  /** Сколько участок должен сделать за смену; null — план не задан. */
+  dailyQuantity: number | null;
+  date: string;
 }
 
 export interface DistributionRosterEntry {
@@ -937,6 +947,8 @@ export interface DistributionSummary {
 }
 
 export interface CreateAssignmentPayload {
+  /** День задания. Не указан — сегодня. */
+  date?: string;
   operationId: string;
   userId: string;
   assignedQuantity?: number;

@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -38,9 +39,10 @@ export class DistributionController {
   ) {}
 
   @Get('distribution/operations')
-  listOperations(@Req() req: AuthenticatedRequest) {
+  listOperations(@Req() req: AuthenticatedRequest, @Query('date') date?: string) {
     // req.user.sub — чтобы ограничить выборку адресом начальника участка, если он указан.
-    return this.distributionService.listOperations(requireSiteId(req), req.user.sub);
+    // date — день доски: начальник участка расставляет людей и на завтра.
+    return this.distributionService.listOperations(requireSiteId(req), req.user.sub, date);
   }
 
   @Get('distribution/summary')

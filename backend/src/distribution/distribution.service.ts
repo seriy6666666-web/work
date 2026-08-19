@@ -16,6 +16,16 @@ function belongsToSite(operation: { siteId: string; secondarySiteId: string | nu
   return operation.siteId === siteId || operation.secondarySiteId === siteId;
 }
 
+/**
+ * День без времени. В базе поле типа DATE, поэтому час и часовой пояс тут только
+ * мешают: «сегодня» должно совпадать у начальника участка и у рабочего, а не
+ * зависеть от того, в котором часу открыли страницу.
+ */
+function dayOnly(value?: string | Date): Date {
+  const d = value ? new Date(value) : new Date();
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
 @Injectable()
 export class DistributionService {
   constructor(
@@ -28,7 +38,17 @@ export class DistributionService {
     private notifications: NotificationsService,
   ) {}
 
-  async listOperations(siteId: string, viewerId: string) {
+  /**
+   * Доска на конкретный день.
+   *
+   * Назначения показываем только за выбранный день — иначе вчерашние висят
+   * вперемешку с сегодняшними и непонятно, что делать сейчас. А вот сделанное
+   * считаем двумя числами: за день (что закрыто сегодня) и за всё время (сколько
+   * осталось по заказу). Без второго начальник участка не знает, сколько ещё
+   * распределять.
+   */
+  async listOperations(siteId: string, viewerId: string, dateInput?: string) {
+    const date = dayOnly(dateInput);
     const [operations, competencies] = await Promise.all([
       this.prisma.operation.findMany({
         where: { OR: [{ siteId }, { secondarySiteId: siteId }] },
@@ -39,11 +59,14 @@ export class DistributionService {
           },
           secondarySite: { select: { id: true, name: true } },
           assignments: {
+            where: { date },
             include: {
               user: { select: { id: true, fullName: true } },
               completionRecords: true,
             },
           },
+          // Отдельно — все отметки по операции, чтобы знать остаток по заказу.
+          _count: { select: { assignments: true } },
         },
         orderBy: [{ order: { priority: 'desc' } }, { order: { dueDate: 'asc' } }],
       }),
@@ -54,6 +77,28 @@ export class DistributionService {
     ]);
 
     const competentSkillIds = new Set(competencies.map((c) => c.skillId));
+
+    // Сделано по операции за всё время — одним запросом на всю доску, а не по
+    // штуке на каждую: на участке с сотней операций это была бы сотня запросов.
+    const totals = await this.prisma.completionRecord.groupBy({
+      by: ['assignmentId'],
+      where: { assignment: { operationId: { in: operations.map((o) => o.id) } } },
+      _sum: { doneQuantity: true, defectQuantity: true },
+    });
+    const assignmentToOperation = new Map(
+      (
+        await this.prisma.assignment.findMany({
+          where: { operationId: { in: operations.map((o) => o.id) } },
+          select: { id: true, operationId: true },
+        })
+      ).map((a) => [a.id, a.operationId]),
+    );
+    const doneByOperation = new Map<string, number>();
+    for (const t of totals) {
+      const opId = assignmentToOperation.get(t.assignmentId);
+      if (!opId) continue;
+      doneByOperation.set(opId, (doneByOperation.get(opId) ?? 0) + (t._sum.doneQuantity ?? 0));
+    }
 
     return operations.map((op) => {
       const totalDoneQuantity = op.assignments.reduce((sum, a) => {
@@ -67,10 +112,15 @@ export class DistributionService {
        * бы несуществующую проблему.
        */
       const requiredSkillId = op.operationType.skill?.id ?? null;
+      const { _count, ...rest } = op;
       return {
-        ...op,
+        ...rest,
         hasCompetentWorker: requiredSkillId === null || competentSkillIds.has(requiredSkillId),
+        /** Сделано за выбранный день. */
         totalDoneQuantity,
+        /** Сделано по операции за всё время — сколько ещё осталось по заказу. */
+        doneAllTime: doneByOperation.get(op.id) ?? 0,
+        date: date.toISOString().slice(0, 10),
       };
     });
   }
@@ -158,14 +208,16 @@ export class DistributionService {
      * уникальности». Раньше проверки не было вовсе: сотрудника можно было назначить
      * дважды, доска показывала его дважды, а объёмы складывались.
      */
+    const date = dayOnly(dto.date);
     const already = await this.prisma.assignment.findUnique({
-      where: { operationId_userId: { operationId: dto.operationId, userId: dto.userId } },
+      where: { operationId_userId_date: { operationId: dto.operationId, userId: dto.userId, date } },
       include: { user: { select: { fullName: true } } },
     });
     if (already) {
       throw new BadRequestException(
-        `«${already.user.fullName}» уже назначен на эту операцию (${already.assignedQuantity ?? 'весь объём'}). ` +
-          'Чтобы изменить объём, поправьте существующее назначение, а не добавляйте второе.',
+        `«${already.user.fullName}» уже назначен на эту операцию на этот день ` +
+          `(${already.assignedQuantity ?? 'весь объём'}). Чтобы изменить объём, поправьте ` +
+          'существующее назначение, а не добавляйте второе.',
       );
     }
 
@@ -174,6 +226,7 @@ export class DistributionService {
         operationId: dto.operationId,
         userId: dto.userId,
         assignedQuantity: dto.assignedQuantity,
+        date,
       },
       include: includeAssignmentUser,
     });

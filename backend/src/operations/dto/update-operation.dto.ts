@@ -6,6 +6,13 @@ export class UpdateOperationDto {
   @Min(1)
   quantity?: number;
 
+  /** Сколько участок должен сделать за смену. Не задано — план на смену не показываем. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  dailyQuantity?: number;
+
+
   @IsOptional()
   @IsUUID()
   siteId?: string;

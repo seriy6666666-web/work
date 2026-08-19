@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsInt, IsISO8601, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class CreateAssignmentDto {
   @IsUUID()
@@ -11,4 +11,12 @@ export class CreateAssignmentDto {
   @IsInt()
   @Min(1)
   assignedQuantity?: number;
+
+  /**
+   * День, на который выдаётся задание. Не указан — сегодня.
+   * Начальник участка расставляет людей вперёд, поэтому дата может быть будущей.
+   */
+  @IsOptional()
+  @IsISO8601()
+  date?: string;
 }
