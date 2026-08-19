@@ -11,7 +11,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { useTableControls, SortHeader } from '../../components/TableControls';
-import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
+import { Table, Th, Td, Button, LinkButton, Input, CreateBlock } from '../../components/ui';
 
 const TYPE_BADGE: Record<AbsenceType, BadgeVariant> = {
   SICK_LEAVE: 'danger',
@@ -107,43 +107,45 @@ export function AbsencesPage() {
   return (
     <SiteLeadLayout title="Отсутствия" breadcrumb="Начальник участка">
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <Select
-          width="220px"
-          ariaLabel="Сотрудник"
-          placeholder="Выберите сотрудника"
-          value={form.userId}
-          onChange={(userId) => setForm({ ...form, userId })}
-          options={(matrix?.users ?? []).map((u) => ({ value: u.id, label: u.fullName }))}
-        />
-        <Select
-          width="200px"
-          ariaLabel="Тип отсутствия"
-          value={form.type}
-          onChange={(type) => setForm({ ...form, type: type as AbsenceType })}
-          options={ABSENCE_TYPES.map((t) => ({ value: t, label: ABSENCE_TYPE_LABELS[t] }))}
-        />
-        <Input
-          type="date"
-          value={form.startDate}
-          onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-          required
-        />
-        <Input
-          type="date"
-          value={form.endDate}
-          onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-          required
-        />
-        <Button type="submit" disabled={creating}>
-          Добавить
-        </Button>
-      </form>
+      <CreateBlock label="+ Отсутствие">
+        <form onSubmit={handleCreate} style={styles.createForm}>
+          <Select
+            width="220px"
+            ariaLabel="Сотрудник"
+            placeholder="Выберите сотрудника"
+            value={form.userId}
+            onChange={(userId) => setForm({ ...form, userId })}
+            options={(matrix?.users ?? []).map((u) => ({ value: u.id, label: u.fullName }))}
+          />
+          <Select
+            width="200px"
+            ariaLabel="Тип отсутствия"
+            value={form.type}
+            onChange={(type) => setForm({ ...form, type: type as AbsenceType })}
+            options={ABSENCE_TYPES.map((t) => ({ value: t, label: ABSENCE_TYPE_LABELS[t] }))}
+          />
+          <Input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            required
+          />
+          <Input
+            type="date"
+            value={form.endDate}
+            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            required
+          />
+          <Button type="submit" disabled={creating}>
+            Добавить
+          </Button>
+        </form>
+      </CreateBlock>
 
       {loading ? (
         <SkeletonTable rows={4} cols={4} />
       ) : absences.length === 0 ? (
-        <EmptyState icon="calendar-x" title="Отсутствий пока нет" hint="Отметьте отсутствие сотрудника в форме выше." />
+        <EmptyState icon="calendar-x" title="Отсутствий пока нет" hint="Отметьте отсутствие кнопкой «+ Отсутствие»." />
       ) : (
         <Table>
           <thead>

@@ -10,7 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { SearchSelect } from '../../components/SearchSelect';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
-import { Table, Th, Td, Button, Input } from '../../components/ui';
+import { Table, Th, Td, Button, Input, CreateBlock } from '../../components/ui';
 
 function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -113,31 +113,33 @@ export function GoalsPage() {
         выполнена — укажите причину, она попадёт в отчёт.
       </p>
 
-      <form onSubmit={handleSet} style={styles.form}>
-        <label style={styles.dateLabel}>
-          <span style={styles.caption}>Дата</span>
-          <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </label>
-        <SearchSelect
-          width="240px"
-          value={form.userId}
-          onChange={(userId) => setForm({ ...form, userId })}
-          options={(data?.workers ?? []).map((w) => ({ value: w.id, label: w.fullName }))}
-          placeholder="Найти сотрудника"
-        />
-        <input
-          style={{ ...styles.input, maxWidth: '140px' }}
-          type="number"
-          min="0"
-          placeholder="План, шт"
-          value={form.target}
-          onChange={(e) => setForm({ ...form, target: e.target.value })}
-          required
-        />
-        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">
-          Задать цель
-        </Button>
-      </form>
+      <CreateBlock label="+ Цель" >
+        <form onSubmit={handleSet} style={styles.form}>
+          <label style={styles.dateLabel}>
+            <span style={styles.caption}>Дата</span>
+            <Input style={{ padding: '9px 12px', fontSize: '14px' }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          <SearchSelect
+            width="240px"
+            value={form.userId}
+            onChange={(userId) => setForm({ ...form, userId })}
+            options={(data?.workers ?? []).map((w) => ({ value: w.id, label: w.fullName }))}
+            placeholder="Найти сотрудника"
+          />
+          <input
+            style={{ ...styles.input, maxWidth: '140px' }}
+            type="number"
+            min="0"
+            placeholder="План, шт"
+            value={form.target}
+            onChange={(e) => setForm({ ...form, target: e.target.value })}
+            required
+          />
+          <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">
+            Задать цель
+          </Button>
+        </form>
+      </CreateBlock>
 
       {!loading && goals.length > 0 && (
         <div style={styles.summary}>
@@ -151,7 +153,7 @@ export function GoalsPage() {
       {loading ? (
         <SkeletonTable rows={4} cols={5} />
       ) : goals.length === 0 ? (
-        <EmptyState icon="checklist" title="Целей на эту дату нет" hint="Задайте цель в форме выше." />
+        <EmptyState icon="checklist" title="Целей на эту дату нет" hint="Задайте цель кнопкой «+ Цель»." />
       ) : (
         <div style={styles.tableWrap}>
           <Table style={{ fontSize: '14px' }}>

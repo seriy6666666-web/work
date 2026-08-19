@@ -288,7 +288,7 @@ export function OrdersPage() {
       {loading ? (
         <SkeletonTable rows={5} cols={7} />
       ) : orders.length === 0 ? (
-        <EmptyState icon="box" title="Заказов пока нет" hint="Создайте первый заказ в форме выше." />
+        <EmptyState icon="box" title="Заказов пока нет" hint="Создайте первый заказ кнопкой «+ Заказ»." />
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (

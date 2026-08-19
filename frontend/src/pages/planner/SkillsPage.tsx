@@ -9,7 +9,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput } from '../../components/TableControls';
 import { COLORS } from '../../theme';
-import { Button, LinkButton, Input } from '../../components/ui';
+import { Button, LinkButton, Input, CreateBlock } from '../../components/ui';
 import { ListCard } from '../../components/ListCard';
 
 export function SkillsPage() {
@@ -111,16 +111,18 @@ export function SkillsPage() {
         разной скоростью.
       </p>
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <Input style={{ flex: 1 }}
-          placeholder="Название навыка (например «Пайка»)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <Button type="submit" disabled={creating || !newName.trim()}>
-          Добавить
-        </Button>
-      </form>
+      <CreateBlock label="+ Навык" >
+        <form onSubmit={handleCreate} style={styles.createForm}>
+          <Input style={{ flex: 1 }}
+            placeholder="Название навыка (например «Пайка»)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <Button type="submit" disabled={creating || !newName.trim()}>
+            Добавить
+          </Button>
+        </form>
+      </CreateBlock>
 
       {!loading && skills.length > 0 && (
         <div style={styles.toolbar}>
@@ -131,7 +133,7 @@ export function SkillsPage() {
       {loading ? (
         <SkeletonTable rows={4} cols={2} />
       ) : skills.length === 0 ? (
-        <EmptyState icon="star" title="Навыков пока нет" hint="Добавьте первый навык в форме выше." />
+        <EmptyState icon="star" title="Навыков пока нет" hint="Добавьте первый навык кнопкой «+ Навык»." />
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (

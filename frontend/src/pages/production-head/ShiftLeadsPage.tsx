@@ -11,7 +11,7 @@ import { SearchSelect } from '../../components/SearchSelect';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
-import { Table, Th, Td, Button, Input } from '../../components/ui';
+import { Table, Th, Td, Button, Input, CreateBlock } from '../../components/ui';
 
 function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -124,45 +124,47 @@ export function ShiftLeadsPage() {
         получает уведомление и может передавать дела при пересменке.
       </p>
 
-      <form onSubmit={handleSet} style={styles.form}>
-        <Select
-          width="180px"
-          ariaLabel="Участок"
-          placeholder="Участок"
-          value={form.siteId}
-          // Сотрудник выбирается из выбранного участка, поэтому при смене участка
-          // ранее выбранный человек сбрасывается.
-          onChange={(siteId) => setForm({ ...form, siteId, userId: '' })}
-          options={sites.map((s) => ({ value: s.id, label: s.name }))}
-        />
-        <SearchSelect
-          width="240px"
-          value={form.userId}
-          onChange={(userId) => setForm({ ...form, userId })}
-          options={candidates.map((c) => ({ value: c.id, label: c.fullName }))}
-          placeholder={form.siteId ? 'Найти сотрудника' : 'Сначала выберите участок'}
-          disabled={!form.siteId}
-        />
-        <Input style={{ padding: '9px 12px', fontSize: '14px' }}
-          type="date"
-          value={form.date}
-          onChange={(e) => setForm({ ...form, date: e.target.value })}
-          required
-        />
-        <Select
-          width="140px"
-          ariaLabel="Тип смены"
-          value={form.type}
-          onChange={(type) => setForm({ ...form, type })}
-          options={[
-            { value: 'NIGHT', label: 'Ночная' },
-            { value: 'DAY', label: 'Дневная' },
-          ]}
-        />
-        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">
-          Назначить
-        </Button>
-      </form>
+      <CreateBlock label="+ Старший смены">
+        <form onSubmit={handleSet} style={styles.form}>
+          <Select
+            width="180px"
+            ariaLabel="Участок"
+            placeholder="Участок"
+            value={form.siteId}
+            // Сотрудник выбирается из выбранного участка, поэтому при смене участка
+            // ранее выбранный человек сбрасывается.
+            onChange={(siteId) => setForm({ ...form, siteId, userId: '' })}
+            options={sites.map((s) => ({ value: s.id, label: s.name }))}
+          />
+          <SearchSelect
+            width="240px"
+            value={form.userId}
+            onChange={(userId) => setForm({ ...form, userId })}
+            options={candidates.map((c) => ({ value: c.id, label: c.fullName }))}
+            placeholder={form.siteId ? 'Найти сотрудника' : 'Сначала выберите участок'}
+            disabled={!form.siteId}
+          />
+          <Input style={{ padding: '9px 12px', fontSize: '14px' }}
+            type="date"
+            value={form.date}
+            onChange={(e) => setForm({ ...form, date: e.target.value })}
+            required
+          />
+          <Select
+            width="140px"
+            ariaLabel="Тип смены"
+            value={form.type}
+            onChange={(type) => setForm({ ...form, type })}
+            options={[
+              { value: 'NIGHT', label: 'Ночная' },
+              { value: 'DAY', label: 'Дневная' },
+            ]}
+          />
+          <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">
+            Назначить
+          </Button>
+        </form>
+      </CreateBlock>
 
       <div style={styles.period}>
         <span style={styles.periodTitle}>Показать назначения</span>
@@ -179,7 +181,7 @@ export function ShiftLeadsPage() {
       {loading ? (
         <SkeletonTable rows={4} cols={4} />
       ) : leads.length === 0 ? (
-        <EmptyState icon="calendar" title="Назначений нет" hint="Назначьте старшего смены в форме выше." />
+        <EmptyState icon="calendar" title="Назначений нет" hint="Назначьте старшего кнопкой «+ Старший смены»." />
       ) : (
         <div style={styles.tableWrap}>
           <Table style={{ fontSize: '14px' }}>

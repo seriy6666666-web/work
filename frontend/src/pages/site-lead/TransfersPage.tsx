@@ -9,7 +9,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { Select } from '../../components/Select';
 import { COLORS } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
-import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
+import { Table, Th, Td, Button, LinkButton, Input, CreateBlock } from '../../components/ui';
 
 const STATUS_LABELS: Record<Transfer['status'], string> = {
   PENDING: 'Ожидает решения',
@@ -124,35 +124,37 @@ export function TransfersPage() {
   return (
     <SiteLeadLayout title="Переводы между участками" breadcrumb="Начальник участка">
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <Select
-          width="300px"
-          ariaLabel="Сотрудник"
-          placeholder="Выберите сотрудника с другого участка"
-          value={form.userId}
-          onChange={(userId) => setForm({ ...form, userId })}
-          options={eligibleUsers.map((u) => ({
-            value: u.id,
-            label: u.fullName,
-            hint: u.site.name,
-          }))}
-        />
-        <Input
-          type="date"
-          value={form.startDate}
-          onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-          required
-        />
-        <Input
-          type="date"
-          value={form.endDate}
-          onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-          required
-        />
-        <Button type="submit" disabled={creating}>
-          Запросить перевод
-        </Button>
-      </form>
+      <CreateBlock label="+ Запрос перевода">
+        <form onSubmit={handleCreate} style={styles.createForm}>
+          <Select
+            width="300px"
+            ariaLabel="Сотрудник"
+            placeholder="Выберите сотрудника с другого участка"
+            value={form.userId}
+            onChange={(userId) => setForm({ ...form, userId })}
+            options={eligibleUsers.map((u) => ({
+              value: u.id,
+              label: u.fullName,
+              hint: u.site.name,
+            }))}
+          />
+          <Input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            required
+          />
+          <Input
+            type="date"
+            value={form.endDate}
+            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            required
+          />
+          <Button type="submit" disabled={creating}>
+            Запросить перевод
+          </Button>
+        </form>
+      </CreateBlock>
 
       {loading ? (
         <SkeletonTable rows={4} cols={4} />

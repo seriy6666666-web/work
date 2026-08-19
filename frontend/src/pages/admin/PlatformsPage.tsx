@@ -9,7 +9,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
 import { COLORS } from '../../theme';
-import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
+import { Table, Th, Td, Button, LinkButton, Input, CreateBlock } from '../../components/ui';
 
 export function PlatformsPage() {
   const { token } = useAuth();
@@ -117,21 +117,23 @@ export function PlatformsPage() {
         материалов делится по площадкам.
       </p>
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <Input style={{ flex: 1, minWidth: '180px' }}
-          placeholder="Название (например «Площадка Минск»)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <Input style={{ flex: 1, minWidth: '180px' }}
-          placeholder="Адрес (необязательно)"
-          value={newAddress}
-          onChange={(e) => setNewAddress(e.target.value)}
-        />
-        <Button type="submit" disabled={creating || !newName.trim()}>
-          Добавить
-        </Button>
-      </form>
+      <CreateBlock label="+ Площадка">
+        <form onSubmit={handleCreate} style={styles.createForm}>
+          <Input style={{ flex: 1, minWidth: '180px' }}
+            placeholder="Название (например «Площадка Минск»)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <Input style={{ flex: 1, minWidth: '180px' }}
+            placeholder="Адрес (необязательно)"
+            value={newAddress}
+            onChange={(e) => setNewAddress(e.target.value)}
+          />
+          <Button type="submit" disabled={creating || !newName.trim()}>
+            Добавить
+          </Button>
+        </form>
+      </CreateBlock>
 
       {!loading && platforms.length > 0 && (
         <div style={styles.toolbar}>
@@ -142,7 +144,7 @@ export function PlatformsPage() {
       {loading ? (
         <SkeletonTable rows={3} cols={3} />
       ) : platforms.length === 0 ? (
-        <EmptyState icon="building" title="Площадок пока нет" hint="Добавьте первую площадку в форме выше." />
+        <EmptyState icon="building" title="Площадок пока нет" hint="Добавьте первую площадку кнопкой «+ Площадка»." />
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (

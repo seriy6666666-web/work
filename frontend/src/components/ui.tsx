@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
 
 /**
@@ -41,6 +42,43 @@ export function Table({ children, className, style }: Div) {
         {children}
       </table>
     </div>
+  );
+}
+
+/**
+ * Форма создания, спрятанная под кнопку.
+ *
+ * Формы на этих экранах нужны раз в неделю, а стояли открытыми всегда и
+ * отодвигали список, ради которого на экран заходят каждый день. Кнопка
+ * возвращает верх экрана списку и не отнимает возможность добавить.
+ */
+export function CreateBlock({
+  label,
+  children,
+  toolbar,
+}: {
+  /** Надпись на кнопке: «+ Материал», «+ Задача». */
+  label: string;
+  children?: ReactNode;
+  /** Что стоит слева от кнопки — поиск, фильтры, выбор даты. */
+  toolbar?: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="ui-create-row">
+        {toolbar}
+        <button
+          type="button"
+          className="ui-btn"
+          style={{ marginLeft: 'auto' }}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? 'Свернуть' : label}
+        </button>
+      </div>
+      {open && <div className="ui-panel ui-create-panel">{children}</div>}
+    </>
   );
 }
 

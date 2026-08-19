@@ -10,7 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { useTableControls, SortHeader } from '../../components/TableControls';
-import { Table, Th, Td, Button, Input } from '../../components/ui';
+import { Table, Th, Td, Button, Input, CreateBlock } from '../../components/ui';
 
 function isLow(s: MaterialStock): boolean {
   return s.quantity <= s.lowStockThreshold;
@@ -176,11 +176,13 @@ export function MaterialsPage() {
       {/* Каталог */}
       <div style={styles.card}>
         <p style={styles.blockTitle}>Каталог материалов</p>
-        <form onSubmit={handleCreateMaterial} style={styles.row}>
-          <Input style={{ flex: 1, minWidth: '140px' }} placeholder="Название (например «Припой»)" value={matName} onChange={(e) => setMatName(e.target.value)} />
-          <input style={{ ...styles.input, maxWidth: '120px' }} placeholder="Ед. (кг)" value={matUnit} onChange={(e) => setMatUnit(e.target.value)} />
-          <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit" disabled={!matName.trim() || !matUnit.trim()}>Добавить</Button>
-        </form>
+        <CreateBlock label="+ Материал">
+          <form onSubmit={handleCreateMaterial} style={styles.row}>
+            <Input style={{ flex: 1, minWidth: '140px' }} placeholder="Название (например «Припой»)" value={matName} onChange={(e) => setMatName(e.target.value)} />
+            <input style={{ ...styles.input, maxWidth: '120px' }} placeholder="Ед. (кг)" value={matUnit} onChange={(e) => setMatUnit(e.target.value)} />
+            <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit" disabled={!matName.trim() || !matUnit.trim()}>Добавить</Button>
+          </form>
+        </CreateBlock>
         {materials.length > 0 && (
           <div style={styles.chips}>
             {materials.map((m) => (
@@ -199,40 +201,42 @@ export function MaterialsPage() {
         {lowCount > 0 && <Badge variant="danger">Ниже порога: {lowCount}</Badge>}
       </div>
 
-      <form onSubmit={handleUpsertStock} style={styles.row}>
-        <Select
-          width="200px"
-          ariaLabel="Материал"
-          placeholder="Материал"
-          value={stockForm.materialId}
-          onChange={(materialId) => setStockForm({ ...stockForm, materialId })}
-          options={materials.map((m) => ({ value: m.id, label: m.name }))}
-        />
-        <Select
-          width="180px"
-          ariaLabel="Площадка"
-          placeholder="Площадка"
-          value={stockForm.platformId}
-          onChange={(platformId) => setStockForm({ ...stockForm, platformId })}
-          options={platforms.map((p) => ({ value: p.id, label: p.name }))}
-        />
-        <Select
-          width="180px"
-          ariaLabel="Проект"
-          placeholder="Проект"
-          value={stockForm.projectId}
-          onChange={(projectId) => setStockForm({ ...stockForm, projectId })}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
-        />
-        <input style={{ ...styles.input, maxWidth: '110px' }} type="number" step="any" placeholder="Остаток" value={stockForm.quantity} onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })} />
-        <input style={{ ...styles.input, maxWidth: '100px' }} type="number" step="any" placeholder="Порог" value={stockForm.threshold} onChange={(e) => setStockForm({ ...stockForm, threshold: e.target.value })} />
-        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">Задать</Button>
-      </form>
+      <CreateBlock label="+ Остаток">
+        <form onSubmit={handleUpsertStock} style={styles.row}>
+          <Select
+            width="200px"
+            ariaLabel="Материал"
+            placeholder="Материал"
+            value={stockForm.materialId}
+            onChange={(materialId) => setStockForm({ ...stockForm, materialId })}
+            options={materials.map((m) => ({ value: m.id, label: m.name }))}
+          />
+          <Select
+            width="180px"
+            ariaLabel="Площадка"
+            placeholder="Площадка"
+            value={stockForm.platformId}
+            onChange={(platformId) => setStockForm({ ...stockForm, platformId })}
+            options={platforms.map((p) => ({ value: p.id, label: p.name }))}
+          />
+          <Select
+            width="180px"
+            ariaLabel="Проект"
+            placeholder="Проект"
+            value={stockForm.projectId}
+            onChange={(projectId) => setStockForm({ ...stockForm, projectId })}
+            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          />
+          <input style={{ ...styles.input, maxWidth: '110px' }} type="number" step="any" placeholder="Остаток" value={stockForm.quantity} onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })} />
+          <input style={{ ...styles.input, maxWidth: '100px' }} type="number" step="any" placeholder="Порог" value={stockForm.threshold} onChange={(e) => setStockForm({ ...stockForm, threshold: e.target.value })} />
+          <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit">Задать</Button>
+        </form>
+      </CreateBlock>
 
       {loading ? (
         <SkeletonCards count={3} />
       ) : stocks.length === 0 ? (
-        <EmptyState icon="layers" title="Остатков пока нет" hint="Задайте остаток материала на площадке под проект в форме выше." />
+        <EmptyState icon="layers" title="Остатков пока нет" hint="Задайте остаток кнопкой «+ Остаток»: материал, площадка, проект." />
       ) : (
         <div style={styles.tableWrap}>
           <Table style={{ fontSize: '14px' }}>

@@ -8,7 +8,7 @@ import { useConfirm } from '../../components/ConfirmProvider';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortHeader } from '../../components/TableControls';
-import { Table, Th, Td, Button, LinkButton, Input } from '../../components/ui';
+import { Table, Th, Td, Button, LinkButton, Input, CreateBlock } from '../../components/ui';
 
 export function SitesPage() {
   const { token } = useAuth();
@@ -100,16 +100,18 @@ export function SitesPage() {
 
   return (
     <AdminLayout title="Участки" breadcrumb="Администрирование">
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <Input style={{ flex: 1 }}
-          placeholder="Название участка (например «Сварка»)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <Button type="submit" disabled={creating || !newName.trim()}>
-          Добавить
-        </Button>
-      </form>
+      <CreateBlock label="+ Участок">
+        <form onSubmit={handleCreate} style={styles.createForm}>
+          <Input style={{ flex: 1 }}
+            placeholder="Название участка (например «Сварка»)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <Button type="submit" disabled={creating || !newName.trim()}>
+            Добавить
+          </Button>
+        </form>
+      </CreateBlock>
 
       {!loading && sites.length > 0 && (
         <div style={styles.toolbar}>
@@ -120,7 +122,7 @@ export function SitesPage() {
       {loading ? (
         <SkeletonTable rows={4} cols={2} />
       ) : sites.length === 0 ? (
-        <EmptyState icon="building" title="Участков пока нет" hint="Добавьте первый участок в форме выше." />
+        <EmptyState icon="building" title="Участков пока нет" hint="Добавьте первый участок кнопкой «+ Участок»." />
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />
       ) : (

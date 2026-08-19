@@ -11,7 +11,7 @@ import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useTableControls, SearchInput, SortSelect, type SortChoice } from '../../components/TableControls';
 import { COLORS, RADIUS } from '../../theme';
-import { Button, LinkButton, Input } from '../../components/ui';
+import { Button, LinkButton, Input, CreateBlock } from '../../components/ui';
 import { ListCard } from '../../components/ListCard';
 
 /** Значение «навык не требуется» в выпадающем списке. Пустая строка = не выбрано. */
@@ -188,27 +188,29 @@ export function OperationTypesPage() {
         идут с разной скоростью.
       </p>
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <Input style={{ flex: 1, minWidth: '220px' }}
-          placeholder="Название операции (например «Пайка шин»)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <div style={styles.skillPicker}>
-          <Select value={newSkillId} onChange={setNewSkillId} options={skillOptions} />
-        </div>
-        <input
-          style={styles.normInput}
-          type="number"
-          min="1"
-          placeholder="Норма/смена"
-          value={newNorm}
-          onChange={(e) => setNewNorm(e.target.value)}
-        />
-        <Button type="submit" disabled={creating || !newName.trim()}>
-          Добавить
-        </Button>
-      </form>
+      <CreateBlock label="+ Операция" >
+        <form onSubmit={handleCreate} style={styles.createForm}>
+          <Input style={{ flex: 1, minWidth: '220px' }}
+            placeholder="Название операции (например «Пайка шин»)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <div style={styles.skillPicker}>
+            <Select value={newSkillId} onChange={setNewSkillId} options={skillOptions} />
+          </div>
+          <input
+            style={styles.normInput}
+            type="number"
+            min="1"
+            placeholder="Норма/смена"
+            value={newNorm}
+            onChange={(e) => setNewNorm(e.target.value)}
+          />
+          <Button type="submit" disabled={creating || !newName.trim()}>
+            Добавить
+          </Button>
+        </form>
+      </CreateBlock>
 
       {!loading && (
         <div style={styles.toolbar}>
@@ -240,7 +242,7 @@ export function OperationTypesPage() {
         <EmptyState
           icon="list"
           title="Операций пока нет"
-          hint="Добавьте первую операцию в форме выше или загрузите их из файла норм."
+          hint="Добавьте операцию кнопкой «+ Операция» или загрузите их из файла норм."
         />
       ) : controls.result.length === 0 ? (
         <EmptyState icon="search" title="Ничего не найдено" hint="Измените поисковый запрос." />

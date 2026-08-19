@@ -10,7 +10,7 @@ import { SkeletonCards } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
-import { Button } from '../../components/ui';
+import { Button, CreateBlock } from '../../components/ui';
 
 interface Assignable {
   id: string;
@@ -125,34 +125,36 @@ export function TasksPage() {
         уведомлениях.
       </p>
 
-      <form onSubmit={handleCreate} style={styles.form}>
-        <input
-          style={{ ...styles.input, flex: 2, minWidth: '220px' }}
-          placeholder="Что нужно сделать"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-        />
-        <Select
-          width="200px"
-          ariaLabel="Исполнитель"
-          value={form.assigneeId}
-          onChange={(assigneeId) => setForm({ ...form, assigneeId })}
-          // Пустое значение означает «себе» — это осмысленный выбор, а не отсутствие его.
-          options={[
-            { value: '', label: 'Себе' },
-            ...people.filter((p) => p.id !== user?.id).map((p) => ({ value: p.id, label: p.fullName })),
-          ]}
-        />
-        <input
-          style={{ ...styles.input, maxWidth: '170px' }}
-          type="date"
-          value={form.dueDate}
-          onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-        />
-        <Button style={{ fontSize: '14px' }} type="submit" disabled={creating || !form.title.trim()}>
-          Добавить
-        </Button>
-      </form>
+      <CreateBlock label="+ Задача">
+        <form onSubmit={handleCreate} style={styles.form}>
+          <input
+            style={{ ...styles.input, flex: 2, minWidth: '220px' }}
+            placeholder="Что нужно сделать"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+          <Select
+            width="200px"
+            ariaLabel="Исполнитель"
+            value={form.assigneeId}
+            onChange={(assigneeId) => setForm({ ...form, assigneeId })}
+            // Пустое значение означает «себе» — это осмысленный выбор, а не отсутствие его.
+            options={[
+              { value: '', label: 'Себе' },
+              ...people.filter((p) => p.id !== user?.id).map((p) => ({ value: p.id, label: p.fullName })),
+            ]}
+          />
+          <input
+            style={{ ...styles.input, maxWidth: '170px' }}
+            type="date"
+            value={form.dueDate}
+            onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+          />
+          <Button style={{ fontSize: '14px' }} type="submit" disabled={creating || !form.title.trim()}>
+            Добавить
+          </Button>
+        </form>
+      </CreateBlock>
 
       <div style={styles.toolbar}>
         <span style={styles.counter}>
@@ -171,7 +173,7 @@ export function TasksPage() {
         <EmptyState
           icon="checklist"
           title={openCount === 0 ? 'Открытых задач нет' : 'Ничего не найдено'}
-          hint="Добавьте задачу в форме выше."
+          hint="Добавьте задачу кнопкой «+ Задача»."
         />
       ) : (
         <div style={styles.list}>

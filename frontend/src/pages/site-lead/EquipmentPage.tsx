@@ -15,7 +15,7 @@ import { useTableControls, SortSelect, type SortChoice } from '../../components/
 import { EmptyState } from '../../components/EmptyState';
 import { Select } from '../../components/Select';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
-import { Button, Input, LinkButton } from '../../components/ui';
+import { Button, Input, LinkButton, CreateBlock } from '../../components/ui';
 
 const STATUS_META: Record<EquipmentStatus, { label: string; variant: BadgeVariant }> = {
   OPERATIONAL: { label: 'В работе', variant: 'accent' },
@@ -164,24 +164,26 @@ export function EquipmentPage() {
         переводе в статус «Поломка» начальник производства получает уведомление.
       </p>
 
-      <form onSubmit={handleCreate} style={styles.createForm}>
-        <Input
-          placeholder="Название (например «Линия сборки №2»)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <label style={styles.dateLabel}>
-          <span style={styles.dateCaption}>След. обслуживание</span>
+      <CreateBlock label="+ Оборудование">
+        <form onSubmit={handleCreate} style={styles.createForm}>
           <Input
-            type="date"
-            value={newDate}
-            onChange={(e) => setNewDate(e.target.value)}
+            placeholder="Название (например «Линия сборки №2»)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
           />
-        </label>
-        <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit" disabled={creating || !newName.trim()}>
-          Добавить
-        </Button>
-      </form>
+          <label style={styles.dateLabel}>
+            <span style={styles.dateCaption}>След. обслуживание</span>
+            <Input
+              type="date"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+            />
+          </label>
+          <Button style={{ padding: '10px 18px', fontSize: '14px' }} type="submit" disabled={creating || !newName.trim()}>
+            Добавить
+          </Button>
+        </form>
+      </CreateBlock>
 
       {loading ? (
         <SkeletonCards count={3} />
@@ -189,7 +191,7 @@ export function EquipmentPage() {
         <EmptyState
           icon="wrench"
           title="Оборудование не добавлено"
-          hint="Добавьте первую единицу оборудования в форме выше."
+          hint="Добавьте оборудование кнопкой «+ Оборудование»."
         />
       ) : (
         <div style={styles.list}>
