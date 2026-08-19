@@ -58,7 +58,9 @@ export class DistributionService {
         // по ним нечего, а место они занимают.
         where: {
           OR: [{ siteId }, { secondarySiteId: siteId }],
-          order: { status: { not: 'ARCHIVED' } },
+          // Отгруженные и архивные с доски уходят: распределять по ним нечего,
+          // а место они занимают наравне с работой на сегодня.
+          order: { status: { notIn: ['ARCHIVED', 'SHIPPED'] } },
         },
         include: {
           order: { select: { id: true, name: true, priority: true, dueDate: true } },

@@ -25,9 +25,10 @@ import { Select } from '../../components/Select';
 import { useDistributionUpdates } from '../../realtime';
 import { useIsPhone } from '../../responsive';
 import { COLORS, RADIUS } from '../../theme';
-import { deadlineLook, deadlineShort, worstDeadline } from '../../deadline-label';
+import { deadlineLook, worstDeadline } from '../../deadline-label';
 import { useTableControls, SortSelect, type SortChoice } from '../../components/TableControls';
 import { Button, LinkButton, Input } from '../../components/ui';
+import { ProgressRing } from '../../components/ProgressRing';
 
 const UNDERPERFORMING_THRESHOLD = 0.7;
 
@@ -122,23 +123,9 @@ export function DistributionPage() {
    * обновляется при каждой отметке рабочего, и без этого группы распахивались бы
    * по десять раз за смену.
    */
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('belmy_collapsed_orders') ?? '{}');
-    } catch {
-      return {};
-    }
-  });
-
-  function toggleOrder(orderId: string) {
-    setCollapsed((prev) => {
-      const next = { ...prev, [orderId]: !prev[orderId] };
-      localStorage.setItem('belmy_collapsed_orders', JSON.stringify(next));
-      return next;
-    });
-  }
+  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+  /** Куда прокручивать по кнопке «Разобрать» в предупреждении. */
   const operationsRef = useRef<HTMLDivElement>(null);
-
   async function refresh(showLoader = true) {
     if (!token) return;
     if (showLoader) setLoading(true);
@@ -341,6 +328,12 @@ export function DistributionPage() {
     storageKey: 'site-lead-distribution',
   });
   const byOrder = orderControls.result;
+  const openOrder = openOrderId ? byOrder.find((g) => g.orderId === openOrderId) ?? null : null;
+
+  function openOrder2(id: string) {
+    setOpenOrderId(id);
+    window.scrollTo({ top: 0 });
+  }
 
   if (loading) {
     return (
@@ -376,150 +369,9 @@ export function DistributionPage() {
   const present = summary?.roster.filter((r) => !r.absent) ?? [];
   const absent = summary?.roster.filter((r) => r.absent) ?? [];
 
-  return (
-    <SiteLeadLayout
-      title="Распределение операций"
-      breadcrumb={summary ? `Участок «${summary.siteName}» · Распределение` : 'Начальник участка'}
-    >
-      {/*
-        Доска обновляется сама, и именно поэтому молчание опаснее ошибки: без связи
-        она выглядит точно так же, как рабочая, только цифры на ней — на момент
-        открытия страницы. Начальник участка распределял бы людей по вчерашней
-        картине и не понял бы, почему она не сходится.
-      */}
-      {!liveConnected && (
-        <div style={styles.offlineBanner} role="status">
-          Нет связи с сервером — данные могли устареть. Обновление возобновится само,
-          как только связь вернётся.
-        </div>
-      )}
 
-      {/*
-        День доски. Начальник участка расставляет людей вперёд, поэтому день
-        выбирается стрелками, а не берётся всегда сегодняшний. Отдельная кнопка
-        «Сегодня» — чтобы вернуться одним нажатием, а не отсчитывать назад.
-      */}
-      <div style={styles.dayBar}>
-        <button style={styles.dayArrow} onClick={() => setDate(shiftDay(date, -1))} aria-label="Предыдущий день">
-          ←
-        </button>
-        <input
-          style={styles.dayInput}
-          type="date"
-          value={date}
-          onChange={(e) => e.target.value && setDate(e.target.value)}
-          aria-label="День распределения"
-        />
-        <button style={styles.dayArrow} onClick={() => setDate(shiftDay(date, 1))} aria-label="Следующий день">
-          →
-        </button>
-        <span style={styles.dayLabel}>{dayLabel(date)}</span>
-        {date !== todayIso() && (
-          <button style={styles.todayButton} onClick={() => setDate(todayIso())}>
-            Сегодня
-          </button>
-        )}
-      </div>
-
-      <div style={styles.statsRow}>
-        <StatCard
-          label="Выполнение плана"
-          ring={summary?.completionRate ?? 0}
-          value={`${summary?.planDone ?? 0} / ${summary?.planTotal ?? 0} шт`}
-          hint="по участку за смену"
-        />
-        <StatCard
-          label="Операций в работе"
-          value={`${summary?.operationsInWork ?? 0} / ${summary?.operationsTotal ?? 0}`}
-        />
-        <StatCard
-          label="На смене"
-          value={`${present.filter((r) => r.checkedIn).length} чел.`}
-          hint={`${absent.length} отсутствуют · ${present.filter((r) => r.invited).length} приглашено`}
-        />
-        <StatCard
-          label="Риск отставания"
-          value={summary?.atRiskCount ?? 0}
-          hint={
-            summary?.atRiskOrders?.length
-              ? summary.atRiskOrders.join(', ')
-              : 'операции, которые не успеваете сдать'
-          }
-          alert
-        />
-      </div>
-
-      {alertText && (
-        <div style={{ marginBottom: '20px' }}>
-          <AlertBanner
-            text={alertText}
-            actionLabel="Разобрать"
-            onAction={() => operationsRef.current?.scrollIntoView({ behavior: 'smooth' })}
-          />
-        </div>
-      )}
-
-      <div style={{ ...styles.columns, ...(isPhone ? styles.columnsStacked : {}) }}>
-        <div style={styles.leftColumn} ref={operationsRef}>
-          <div style={styles.listControls}>
-            <h3 style={styles.sectionTitle}>Операции участка</h3>
-            <SortSelect
-              choices={SORT_CHOICES}
-              sortKey={orderControls.sortKey}
-              dir={orderControls.sortDir}
-              onSelect={orderControls.setSort}
-            />
-          </div>
-
-          {operations.length === 0 && <p style={styles.muted}>На вашем участке пока нет операций.</p>}
-
-          {byOrder.map((group) => {
-            const uncovered = group.ops.filter((o) => o.assignments.length === 0).length;
-            /**
-             * Заказ с непокрытыми операциями не даём спрятать «молча»: свернуть
-             * можно, но в заголовке остаётся счётчик. Иначе, свернув всё, легко
-             * не заметить, что по заказу вообще никого не поставили.
-             */
-            const isCollapsed = Boolean(collapsed[group.orderId]);
-            const doneAll = group.ops.reduce((sum, o) => sum + o.doneAllTime, 0);
-            const totalAll = group.ops.reduce((sum, o) => sum + o.quantity, 0);
-            return (
-              <div key={group.orderId} style={styles.orderGroup}>
-                <button style={styles.orderHeader} onClick={() => toggleOrder(group.orderId)}>
-                  <span style={styles.orderCaret}>{isCollapsed ? '▸' : '▾'}</span>
-                  <strong style={styles.orderName}>{group.orderName}</strong>
-                  <span style={styles.orderSummary}>
-                    {group.ops.length} оп. · сделано {doneAll} из {totalAll}
-                  </span>
-                  {uncovered > 0 && (
-                    <span style={styles.uncovered}>без исполнителя: {uncovered}</span>
-                  )}
-                  {/*
-                    Худший срок внутри заказа — в заголовке. Без этого сворачивание
-                    прячет ровно то, ради чего заведены цвета: красная операция
-                    уезжает внутрь свёрнутой строки и остаётся незамеченной.
-                  */}
-                  {(() => {
-                    const worst = worstDeadline(group.ops.map((o) => o.deadline));
-                    if (!worst || worst.level === 'ok' || worst.level === 'done' || worst.level === 'none') {
-                      return null;
-                    }
-                    const look = deadlineLook(worst);
-                    return (
-                      <span
-                        style={{
-                          ...styles.headerDeadline,
-                          color: look.color,
-                          background: look.background ?? 'transparent',
-                        }}
-                      >
-                        {deadlineShort(worst)}
-                      </span>
-                    );
-                  })()}
-                </button>
-
-                {!isCollapsed && group.ops.map((op) => {
+  /** Одна операция: всё, что с ней делают, — назначения, срок, отметки. */
+  function renderOperation(op: DistributionOperation) {
             const assignedTotal = op.assignments.reduce((sum, a) => sum + (a.assignedQuantity ?? op.quantity), 0);
             const form = assignForms[op.id] ?? { userId: '', quantity: '' };
             return (
@@ -735,10 +587,206 @@ export function DistributionPage() {
                 })()}
               </div>
             );
-                })}
+  }
+
+  /**
+   * Плитка заказа.
+   *
+   * Раньше операции лежали одним списком, сгруппированным по заказам, и на 27
+   * операциях это была портянка: чтобы понять, где дыра, приходилось читать
+   * подряд. Плитка отвечает на «что с этим заказом» с одного взгляда, а внутрь
+   * человек заходит, когда решил заниматься именно им.
+   */
+  function renderOrderTile(group: { orderId: string; orderName: string; ops: DistributionOperation[] }) {
+    const total = group.ops.reduce((sum, o) => sum + o.quantity, 0);
+    const done = group.ops.reduce((sum, o) => sum + o.doneAllTime, 0);
+    const opsDone = group.ops.filter((o) => o.quantity > 0 && o.doneAllTime >= o.quantity).length;
+    const opsInWork = group.ops.filter(
+      (o) => (o.assignments.length > 0 || o.doneAllTime > 0) && o.doneAllTime < o.quantity,
+    ).length;
+    const uncovered = group.ops.filter((o) => o.assignments.length === 0 && o.doneAllTime === 0).length;
+    const worst = worstDeadline(group.ops.map((o) => o.deadline));
+    const alarming = group.ops.some((o) => o.deadline.level === 'late' || o.deadline.level === 'overdue');
+    const look = worst ? deadlineLook(worst) : null;
+
+    return (
+      <button key={group.orderId} style={styles.tile} onClick={() => openOrder2(group.orderId)}>
+        <div style={styles.tileTop}>
+          <ProgressRing
+            ratio={total > 0 ? done / total : 0}
+            size={52}
+            color={alarming ? COLORS.error : COLORS.accent}
+          />
+          <div style={styles.tileMain}>
+            <div style={styles.tileTitle}>
+              <strong style={styles.tileName}>{group.orderName}</strong>
+              {uncovered > 0 && <span style={styles.tileWarn}>без исполнителя: {uncovered}</span>}
+            </div>
+            <div style={styles.tileMeta}>
+              {group.ops.length} оп. · сделано {done} из {total}
+            </div>
+            {look && worst && worst.level !== 'none' && (
+              <div
+                style={{
+                  ...styles.tileDue,
+                  color: look.color,
+                  background: look.background ?? 'transparent',
+                }}
+              >
+                {look.text}
               </div>
-            );
-          })}
+            )}
+          </div>
+        </div>
+
+        <div style={styles.tileCounters}>
+          <span style={styles.counter}>
+            <i style={{ ...styles.dot, background: 'var(--acc)' }} />готово {opsDone}
+          </span>
+          <span style={styles.counter}>
+            <i style={{ ...styles.dot, background: 'var(--info)' }} />в работе {opsInWork}
+          </span>
+          <span style={styles.counter}>
+            <i style={{ ...styles.dot, background: 'var(--queue)' }} />без исполнителя {uncovered}
+          </span>
+        </div>
+
+        {/* По отрезку на операцию: видно, из скольких шагов набран процент. */}
+        <div style={styles.segments}>
+          {group.ops.map((o) => (
+            <span
+              key={o.id}
+              style={{
+                ...styles.segment,
+                background:
+                  o.quantity > 0 && o.doneAllTime >= o.quantity
+                    ? 'var(--acc)'
+                    : o.assignments.length > 0 || o.doneAllTime > 0
+                      ? 'var(--info)'
+                      : 'var(--queue)',
+              }}
+            />
+          ))}
+        </div>
+      </button>
+    );
+  }
+
+  /** Открытый заказ: все его операции для этого участка. */
+  function renderOrder(group: { orderId: string; orderName: string; ops: DistributionOperation[] }) {
+    return (
+      <>
+        <button style={styles.back} onClick={() => setOpenOrderId(null)}>
+          ← Все заказы
+        </button>
+        <h3 style={styles.orderTitle}>{group.orderName}</h3>
+        {group.ops.map((op) => renderOperation(op))}
+      </>
+    );
+  }
+
+  return (
+    <SiteLeadLayout
+      title="Распределение операций"
+      breadcrumb={summary ? `Участок «${summary.siteName}» · Распределение` : 'Начальник участка'}
+    >
+      {/*
+        Доска обновляется сама, и именно поэтому молчание опаснее ошибки: без связи
+        она выглядит точно так же, как рабочая, только цифры на ней — на момент
+        открытия страницы. Начальник участка распределял бы людей по вчерашней
+        картине и не понял бы, почему она не сходится.
+      */}
+      {!liveConnected && (
+        <div style={styles.offlineBanner} role="status">
+          Нет связи с сервером — данные могли устареть. Обновление возобновится само,
+          как только связь вернётся.
+        </div>
+      )}
+
+      {/*
+        День доски. Начальник участка расставляет людей вперёд, поэтому день
+        выбирается стрелками, а не берётся всегда сегодняшний. Отдельная кнопка
+        «Сегодня» — чтобы вернуться одним нажатием, а не отсчитывать назад.
+      */}
+      <div style={styles.dayBar}>
+        <button style={styles.dayArrow} onClick={() => setDate(shiftDay(date, -1))} aria-label="Предыдущий день">
+          ←
+        </button>
+        <input
+          style={styles.dayInput}
+          type="date"
+          value={date}
+          onChange={(e) => e.target.value && setDate(e.target.value)}
+          aria-label="День распределения"
+        />
+        <button style={styles.dayArrow} onClick={() => setDate(shiftDay(date, 1))} aria-label="Следующий день">
+          →
+        </button>
+        <span style={styles.dayLabel}>{dayLabel(date)}</span>
+        {date !== todayIso() && (
+          <button style={styles.todayButton} onClick={() => setDate(todayIso())}>
+            Сегодня
+          </button>
+        )}
+      </div>
+
+      <div style={styles.statsRow}>
+        <StatCard
+          label="Выполнение плана"
+          ring={summary?.completionRate ?? 0}
+          value={`${summary?.planDone ?? 0} / ${summary?.planTotal ?? 0} шт`}
+          hint="по участку за смену"
+        />
+        <StatCard
+          label="Операций в работе"
+          value={`${summary?.operationsInWork ?? 0} / ${summary?.operationsTotal ?? 0}`}
+        />
+        <StatCard
+          label="На смене"
+          value={`${present.filter((r) => r.checkedIn).length} чел.`}
+          hint={`${absent.length} отсутствуют · ${present.filter((r) => r.invited).length} приглашено`}
+        />
+        <StatCard
+          label="Риск отставания"
+          value={summary?.atRiskCount ?? 0}
+          hint={
+            summary?.atRiskOrders?.length
+              ? summary.atRiskOrders.join(', ')
+              : 'операции, которые не успеваете сдать'
+          }
+          alert
+        />
+      </div>
+
+      {alertText && (
+        <div style={{ marginBottom: '20px' }}>
+          <AlertBanner
+            text={alertText}
+            actionLabel="Разобрать"
+            onAction={() => operationsRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          />
+        </div>
+      )}
+
+      <div style={{ ...styles.columns, ...(isPhone ? styles.columnsStacked : {}) }}>
+        <div style={styles.leftColumn} ref={operationsRef}>
+          <div style={styles.listControls}>
+            <h3 style={styles.sectionTitle}>Операции участка</h3>
+            <SortSelect
+              choices={SORT_CHOICES}
+              sortKey={orderControls.sortKey}
+              dir={orderControls.sortDir}
+              onSelect={orderControls.setSort}
+            />
+          </div>
+
+          {operations.length === 0 && <p style={styles.muted}>На вашем участке пока нет операций.</p>}
+
+          {openOrder ? renderOrder(openOrder) : (
+            <div style={styles.tiles}>
+              {byOrder.map((group) => renderOrderTile(group))}
+            </div>
+          )}
         </div>
 
         <div style={styles.rightColumn}>
@@ -948,6 +996,60 @@ const styles: Record<string, React.CSSProperties> = {
     color: COLORS.mutedText,
     textTransform: 'uppercase',
   },
+  /** Плитки заказов: две колонки на компьютере и планшете, одна на телефоне. */
+  tiles: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+    gap: '12px',
+  },
+  tile: {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    padding: '14px 16px',
+    borderRadius: '14px',
+    border: '1px solid var(--line)',
+    background: 'var(--surf)',
+    boxShadow: 'var(--sh1)',
+    cursor: 'pointer',
+    font: 'inherit',
+    color: 'var(--tx)',
+  },
+  tileTop: { display: 'flex', alignItems: 'flex-start', gap: '12px' },
+  tileMain: { flex: 1, minWidth: 0 },
+  tileTitle: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  tileName: { fontSize: '16px', fontWeight: 600 },
+  tileWarn: { color: 'var(--err)', fontSize: '12px', fontWeight: 600 },
+  tileMeta: { marginTop: '3px', fontSize: '13px', color: 'var(--tx2)' },
+  tileDue: {
+    marginTop: '6px',
+    padding: '3px 8px',
+    borderRadius: '8px',
+    fontSize: '12px',
+    display: 'inline-block',
+  },
+  tileCounters: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    margin: '10px 0 7px',
+    fontSize: '12px',
+    color: 'var(--tx2)',
+  },
+  counter: { display: 'inline-flex', alignItems: 'center', gap: '5px' },
+  dot: { width: '7px', height: '7px', borderRadius: '999px', display: 'inline-block' },
+  segments: { display: 'flex', gap: '2px' },
+  segment: { flex: 1, height: '7px', borderRadius: '999px' },
+  back: {
+    border: 'none',
+    background: 'none',
+    color: 'var(--accd)',
+    cursor: 'pointer',
+    fontSize: '14px',
+    padding: '4px 0',
+    marginBottom: '8px',
+  },
+  orderTitle: { margin: '0 0 12px', fontSize: '19px', fontWeight: 600, color: 'var(--tx)' },
   /** Чипы с числами: их читают взглядом, а не фразой. */
   chips: {
     display: 'flex',
