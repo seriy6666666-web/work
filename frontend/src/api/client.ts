@@ -219,6 +219,7 @@ export const api = {
   setCompetency: (token: string, payload: SetCompetencyPayload) =>
     request<SetCompetencyPayload>('/competency', { method: 'PUT', body: JSON.stringify(payload) }, token),
 
+  getSiteLeadBadges: (token: string) => request<SiteLeadBadges>('/site-lead/badges', {}, token),
   listDistributionOperations: (token: string, date?: string) =>
     request<DistributionOperation[]>(`/distribution/operations${date ? `?date=${date}` : ''}`, {}, token),
   getDistributionSummary: (token: string) =>
@@ -949,6 +950,18 @@ export interface DistributionOperation {
   /** Сколько участок должен сделать за смену; null — план не задан. */
   dailyQuantity: number | null;
   date: string;
+}
+
+/**
+ * Счётчики у пунктов меню начальника участка: где его ждёт работа.
+ * Гаснут сами, когда повод исчез, — «прочитать» их нельзя.
+ */
+export interface SiteLeadBadges {
+  transfers: number;
+  unassigned: number;
+  absences: number;
+  handover: boolean;
+  tasks: number;
 }
 
 export interface DistributionRosterEntry {

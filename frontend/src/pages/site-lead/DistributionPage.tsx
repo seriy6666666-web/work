@@ -28,23 +28,43 @@ import { COLORS, RADIUS, SHADOW } from '../../theme';
 
 const UNDERPERFORMING_THRESHOLD = 0.7;
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+/**
+ * Дни считаем строками, а не через местное время.
+ *
+ * `new Date('2026-08-18T00:00:00')` — это местная полночь, а `toISOString()`
+ * переводит её обратно в UTC. На UTC+3 стрелка «вперёд» не двигала день вовсе,
+ * а «назад» перепрыгивала через два: прибавленные сутки съедал часовой пояс.
+ *
+ * Здесь всё в UTC от начала и до конца, поэтому арифметика точная. А «сегодня»
+ * берём по местному календарю: у ночной смены в час ночи UTC ещё вчерашний день,
+ * и доска открывалась бы на вчера.
+ */
+function todayIso(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 function shiftDay(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00`);
-  d.setDate(d.getDate() + days);
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
 
 /** «сегодня», «завтра», «вчера» — иначе дату приходится сверять с календарём. */
 function dayLabel(iso: string): string {
   const diff = Math.round(
-    (new Date(`${iso}T00:00:00`).getTime() - new Date(`${todayIso()}T00:00:00`).getTime()) / 86400000,
+    (new Date(`${iso}T00:00:00Z`).getTime() - new Date(`${todayIso()}T00:00:00Z`).getTime()) / 86400000,
   );
   if (diff === 0) return 'сегодня';
   if (diff === 1) return 'завтра';
   if (diff === -1) return 'вчера';
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('ru-RU', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
 }
 
 export function DistributionPage() {
@@ -68,7 +88,28 @@ export function DistributionPage() {
    * выбранный день: раньше даты не было вовсе и вчерашние висели вперемешку с
    * сегодняшними.
    */
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayIso);
+
+  /**
+   * Свёрнутые заказы. Держим в localStorage, а не в памяти: доска сама
+   * обновляется при каждой отметке рабочего, и без этого группы распахивались бы
+   * по десять раз за смену.
+   */
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('belmy_collapsed_orders') ?? '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  function toggleOrder(orderId: string) {
+    setCollapsed((prev) => {
+      const next = { ...prev, [orderId]: !prev[orderId] };
+      localStorage.setItem('belmy_collapsed_orders', JSON.stringify(next));
+      return next;
+    });
+  }
   const operationsRef = useRef<HTMLDivElement>(null);
 
   async function refresh(showLoader = true) {
@@ -255,6 +296,20 @@ export function DistributionPage() {
       ? `${underperformer.fullName} отстаёт — ${Math.round(underperformer.loadPercent! * 100)}% от нормы`
       : null;
 
+  /**
+   * Операции по заказам. Плоским списком их было 37 на одном экране, и он будет
+   * расти с каждым запущенным заказом — искать в нём нужную операцию нельзя.
+   *
+   * Порядок заказов сохраняем тот же, в котором пришли операции: сервер уже
+   * отсортировал их по приоритету и сроку.
+   */
+  const byOrder: { orderId: string; orderName: string; ops: DistributionOperation[] }[] = [];
+  for (const op of operations) {
+    const found = byOrder.find((g) => g.orderId === op.order.id);
+    if (found) found.ops.push(op);
+    else byOrder.push({ orderId: op.order.id, orderName: op.order.name, ops: [op] });
+  }
+
   const present = summary?.roster.filter((r) => !r.absent) ?? [];
   const absent = summary?.roster.filter((r) => r.absent) ?? [];
 
@@ -343,7 +398,30 @@ export function DistributionPage() {
 
           {operations.length === 0 && <p style={styles.muted}>На вашем участке пока нет операций.</p>}
 
-          {operations.map((op) => {
+          {byOrder.map((group) => {
+            const uncovered = group.ops.filter((o) => o.assignments.length === 0).length;
+            /**
+             * Заказ с непокрытыми операциями не даём спрятать «молча»: свернуть
+             * можно, но в заголовке остаётся счётчик. Иначе, свернув всё, легко
+             * не заметить, что по заказу вообще никого не поставили.
+             */
+            const isCollapsed = Boolean(collapsed[group.orderId]);
+            const doneAll = group.ops.reduce((sum, o) => sum + o.doneAllTime, 0);
+            const totalAll = group.ops.reduce((sum, o) => sum + o.quantity, 0);
+            return (
+              <div key={group.orderId} style={styles.orderGroup}>
+                <button style={styles.orderHeader} onClick={() => toggleOrder(group.orderId)}>
+                  <span style={styles.orderCaret}>{isCollapsed ? '▸' : '▾'}</span>
+                  <strong style={styles.orderName}>{group.orderName}</strong>
+                  <span style={styles.orderSummary}>
+                    {group.ops.length} оп. · сделано {doneAll} из {totalAll}
+                  </span>
+                  {uncovered > 0 && (
+                    <span style={styles.uncovered}>без исполнителя: {uncovered}</span>
+                  )}
+                </button>
+
+                {!isCollapsed && group.ops.map((op) => {
             const assignedTotal = op.assignments.reduce((sum, a) => sum + (a.assignedQuantity ?? op.quantity), 0);
             const form = assignForms[op.id] ?? { userId: '', quantity: '' };
             return (
@@ -537,6 +615,9 @@ export function DistributionPage() {
                 })()}
               </div>
             );
+                })}
+              </div>
+            );
           })}
         </div>
 
@@ -586,6 +667,41 @@ export function DistributionPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  orderGroup: {
+    marginBottom: '18px',
+  },
+  orderHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    width: '100%',
+    padding: '10px 12px',
+    marginBottom: '8px',
+    borderRadius: RADIUS.sm,
+    border: 'none',
+    background: COLORS.lightGreenBg,
+    color: COLORS.darkText,
+    fontSize: '15px',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
+  orderCaret: {
+    color: COLORS.mutedText,
+    fontSize: '13px',
+  },
+  orderName: {
+    flexShrink: 0,
+  },
+  orderSummary: {
+    color: COLORS.mutedText,
+    fontSize: '13px',
+    flex: 1,
+  },
+  uncovered: {
+    color: COLORS.error,
+    fontSize: '13px',
+    fontWeight: 600,
+  },
   dayBar: {
     display: 'flex',
     alignItems: 'center',

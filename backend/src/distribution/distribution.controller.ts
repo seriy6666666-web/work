@@ -20,6 +20,7 @@ import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ConfirmReasonDto } from './dto/confirm-reason.dto';
 import { CarryOverDto } from './dto/carry-over.dto';
+import { BadgesService } from './badges.service';
 import { DistributionService } from './distribution.service';
 import { EventsGateway } from '../events/events.gateway';
 
@@ -37,7 +38,14 @@ export class DistributionController {
   constructor(
     private distributionService: DistributionService,
     private events: EventsGateway,
+    private badgesService: BadgesService,
   ) {}
+
+  /** Счётчики у пунктов меню: где начальника участка ждёт работа. */
+  @Get('site-lead/badges')
+  badges(@Req() req: AuthenticatedRequest) {
+    return this.badgesService.forSiteLead(requireSiteId(req), req.user.sub);
+  }
 
   @Get('distribution/operations')
   listOperations(@Req() req: AuthenticatedRequest, @Query('date') date?: string) {

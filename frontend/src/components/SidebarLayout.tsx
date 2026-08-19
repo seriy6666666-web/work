@@ -14,7 +14,10 @@ export interface SidebarTab {
   path: string;
   label: string;
   icon: IconName;
+  /** Число рядом с пунктом: сколько дел ждёт. Ноль не показываем. */
   badge?: number;
+  /** Точка без числа — там, где количество ничего не добавляет. */
+  dot?: boolean;
 }
 
 export function SidebarLayout({
@@ -67,7 +70,11 @@ export function SidebarLayout({
                 >
                   <Icon name={tab.icon} size={18} />
                   <span style={styles.navLabel}>{tab.label}</span>
-                  {tab.badge ? <span style={styles.navBadge}>{tab.badge}</span> : null}
+                  {tab.badge ? (
+                    <span style={styles.navBadge}>{tab.badge}</span>
+                  ) : tab.dot ? (
+                    <span style={styles.navDot} aria-label="есть новое" />
+                  ) : null}
                 </Link>
               );
             })}
@@ -204,8 +211,15 @@ const styles: Record<string, React.CSSProperties> = {
   navLabel: {
     flex: 1,
   },
+  navDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    background: COLORS.error,
+    flexShrink: 0,
+  },
   navBadge: {
-    background: COLORS.accent,
+    background: COLORS.error,
     color: COLORS.white,
     fontSize: '11px',
     fontWeight: 700,
