@@ -1,58 +1,57 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { START_SVG } from './belmy-marks';
 
 const SESSION_KEY = 'belmy_intro_shown';
 
+/**
+ * Заставка при входе.
+ *
+ * Собирается из знака BELMY: узлы всплывают снизу вверх, протягиваются связи,
+ * по ним проходит волна свечения, вырастает лист, проявляется надпись. Всё
+ * длится 2,55 с и показывается один раз за сеанс — раньше здесь крутилось
+ * видео на несколько мегабайт.
+ *
+ * Клик пропускает: на планшете в цеху ждать две с половиной секунды каждый раз,
+ * когда браузер перезапустили, никто не станет.
+ */
+const DURATION_MS = 2550;
+/** Столько идёт растворение по CSS — снимаем заставку не раньше. */
+const FADE_MS = 450;
+
 export function IntroSplash({ children }: { children: ReactNode }) {
   const [visible, setVisible] = useState(() => !sessionStorage.getItem(SESSION_KEY));
-  const [fading, setFading] = useState(false);
+  const [done, setDone] = useState(false);
 
-  function finish() {
-    if (fading) return;
+  useEffect(() => {
+    if (!visible) return;
+    const timer = window.setTimeout(() => setDone(true), DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [visible]);
+
+  useEffect(() => {
+    if (!done) return;
     sessionStorage.setItem(SESSION_KEY, '1');
-    setFading(true);
-    setTimeout(() => setVisible(false), 400);
-  }
+    const timer = window.setTimeout(() => setVisible(false), FADE_MS);
+    return () => window.clearTimeout(timer);
+  }, [done]);
 
   if (!visible) return <>{children}</>;
 
   return (
     <>
-      <div style={{ ...styles.overlay, opacity: fading ? 0 : 1 }} onClick={finish}>
-        <video
-          src="/belmy-intro.mp4"
-          autoPlay
-          muted
-          playsInline
-          onEnded={finish}
-          style={styles.video}
-        />
-        <p style={styles.hint}>Нажмите, чтобы пропустить</p>
+      <div
+        className={`belmy-start${done ? ' is-done' : ''}`}
+        onClick={() => setDone(true)}
+        role="presentation"
+      >
+        <div className="belmy-start__mark" dangerouslySetInnerHTML={{ __html: START_SVG }} />
+        {/*
+          Надпись растром из фирменных материалов: своей версии в векторе нет.
+          Тёмная заставка — значит светлый вариант.
+        */}
+        <img className="belmy-start__word" src="/belmy-wordmark-dark.png" alt="BELMY ENERGY" />
       </div>
       <div style={{ visibility: 'hidden' }}>{children}</div>
     </>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    zIndex: 1000,
-    background: '#e5e5e5',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    transition: 'opacity 0.4s ease',
-  },
-  video: {
-    maxWidth: '100%',
-    maxHeight: '80vh',
-  },
-  hint: {
-    marginTop: '16px',
-    color: '#8fa8b0',
-    fontSize: '13px',
-  },
-};

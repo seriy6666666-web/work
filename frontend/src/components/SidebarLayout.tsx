@@ -55,10 +55,11 @@ export function SidebarLayout({
       {showSidebar && (
         <aside style={{ ...styles.sidebar, ...(isMobile ? styles.sidebarMobile : {}) }}>
           <div style={styles.logoWrap}>
-            {/* В тёмном меню логотип выводится белым: цветной на тёмном не читается. */}
-            <span style={{ filter: 'brightness(0) invert(1)', display: 'block' }}>
-              <Logo height={26} />
-            </span>
+            {/*
+              В тёмном меню берём светлую надпись, а не выбеливаем логотип
+              фильтром: от фильтра зелёный лист становился серым.
+            */}
+            <Logo height={34} dark />
           </div>
           <p style={styles.roleLabel}>{roleLabel}</p>
 

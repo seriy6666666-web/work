@@ -1,0 +1,67 @@
+/*
+ * Анимации логотипа: заставка при входе, индикатор загрузки, блик в шапке.
+ *
+ * Перенесены из пакета дизайна как есть — чистый CSS без зависимостей. Во всех
+ * трёх учтено prefers-reduced-motion: если человек запретил анимации в системе,
+ * показывается конечное состояние без движения.
+ */
+
+/* --- Заставка при входе --- */
+.belmy-start{
+  position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;gap:5.6vmin;
+  background:radial-gradient(120% 90% at 50% 32%,#12303c 0%,#0a1b23 68%);
+  transition:opacity .45s ease,visibility .45s
+}
+.belmy-start.is-done{opacity:0;visibility:hidden;pointer-events:none}
+.belmy-start__mark{width:auto;height:44vmin;max-height:420px;animation:bScale 2.3s cubic-bezier(.22,.7,.2,1) both}
+.belmy-start__mark svg{height:100%;width:auto;display:block;overflow:visible}
+.belmy-start__word{height:15vmin;max-height:143px;width:auto;display:block;opacity:0;
+  animation:bWord .6s cubic-bezier(.22,.7,.2,1) 1.72s both}
+
+@keyframes bScale{from{transform:scale(.94)}to{transform:scale(1)}}
+@keyframes bWord{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:none}}
+@keyframes bPop{from{transform:scale(0)}to{transform:scale(1)}}
+@keyframes bDraw{from{stroke-dashoffset:var(--len)}to{stroke-dashoffset:0}}
+@keyframes bGrow{from{transform:translateY(359px)}to{transform:translateY(0)}}
+@keyframes bGlow{0%{opacity:0;transform:scale(.5)}45%{opacity:.85;transform:scale(1.15)}100%{opacity:0;transform:scale(1.3)}}
+
+.belmy-start .nd{animation:bPop .42s cubic-bezier(.34,1.56,.64,1) var(--d) both}
+.belmy-start .lnk{animation:bDraw .8s cubic-bezier(.4,0,.2,1) var(--d) both}
+.belmy-start .grow{transform:translateY(359px);animation:bGrow .92s cubic-bezier(.4,0,.2,1) 1.3s both}
+.belmy-start .glo{opacity:0;animation:bGlow .62s ease-out calc(.95s + var(--r) * .72s) both}
+
+@media (prefers-reduced-motion:reduce){
+  .belmy-start *{animation:none!important}
+  .belmy-start .grow{transform:none}
+  .belmy-start .glo{opacity:0}
+  .belmy-start__word{opacity:1}
+}
+
+
+/* --- Индикатор загрузки --- */
+.belmy-loader{display:inline-flex;align-items:center;justify-content:center;height:var(--belmy-loader-h,120px)}
+.belmy-loader svg{height:100%;width:auto;display:block;overflow:visible}
+
+@keyframes bWave{0%{opacity:0;transform:scale(.5)}
+  9%{opacity:.9;transform:scale(1.18)}
+  26%{opacity:0;transform:scale(1.3)}
+  100%{opacity:0;transform:scale(.5)}}
+
+.belmy-loader .glo{opacity:0;animation:bWave 1.9s ease-out infinite;animation-delay:calc(var(--r) * -1.15s)}
+
+@media (prefers-reduced-motion:reduce){ .belmy-loader .glo{animation:none} }
+
+
+/* --- Логотип в шапке --- */
+.belmy-logo{display:inline-flex;align-items:center;gap:11px;padding:6px 10px;margin:-6px -10px;
+  border:0;background:none;border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:transform .12s ease,background .16s ease}
+.belmy-logo:active{transform:scale(.97);background:rgba(53,118,176,.08)}
+.belmy-logo svg{height:var(--belmy-logo-h,34px);width:auto;display:block;overflow:visible}
+.belmy-logo img{height:calc(var(--belmy-logo-h,34px) * .52);width:auto;display:block}
+.belmy-logo .band{opacity:0}
+.belmy-logo.is-blik .band{animation:bBand .62s cubic-bezier(.36,.1,.28,1) both}
+@keyframes bBand{from{opacity:1;transform:translateX(-190px) skewX(-16deg)}
+                 to{opacity:1;transform:translateX(300px) skewX(-16deg)}}
+@media (prefers-reduced-motion:reduce){ .belmy-logo.is-blik .band{animation:none} }
+
