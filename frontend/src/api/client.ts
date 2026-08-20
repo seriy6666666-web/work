@@ -1,3 +1,5 @@
+import { requestFinished, requestStarted } from '../pending-requests';
+
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export class ApiError extends Error {
@@ -94,8 +96,16 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     ...options.headers,
   };
 
-  const res = await fetchOrOffline(`${API_URL}${path}`, { ...options, headers });
-  return parseResponse<T>(res);
+  // Считаем запросы в пути: по ним показывается знак загрузки, когда ответа
+  // долго нет. Снимаем счётчик в finally — иначе после ошибки он завис бы, и
+  // знак остался бы висеть навсегда.
+  requestStarted();
+  try {
+    const res = await fetchOrOffline(`${API_URL}${path}`, { ...options, headers });
+    return parseResponse<T>(res);
+  } finally {
+    requestFinished();
+  }
 }
 
 /**

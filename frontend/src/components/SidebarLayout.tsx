@@ -9,6 +9,8 @@ import { FeedbackButton } from './FeedbackButton';
 import { useThemeMode } from '../theme-mode';
 import { useDrawerMenu } from '../responsive';
 import { COLORS, RADIUS, SHADOW } from '../theme';
+import { BelmyLoader } from './BelmyLoader';
+import { useSlowRequest } from '../pending-requests';
 
 export interface SidebarTab {
   path: string;
@@ -40,6 +42,7 @@ export function SidebarLayout({
   const isMobile = useDrawerMenu();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [themeMode, toggleTheme] = useThemeMode();
+  const slowRequest = useSlowRequest();
 
   // Close the drawer whenever the route changes.
   useEffect(() => {
@@ -134,6 +137,16 @@ export function SidebarLayout({
           и до неё было не дотянуться.
         */}
         <main style={{ ...styles.content, ...(isMobile ? styles.contentMobile : {}) }}>
+          {/*
+            Знак загрузки поверх содержимого, когда ответа нет дольше секунды.
+            Меню остаётся доступным: человек должен иметь возможность уйти на
+            другой экран, а не сидеть перед заслонкой.
+          */}
+          {slowRequest && (
+            <div style={styles.loadingVeil}>
+              <BelmyLoader size={64} label="Загружаем…" />
+            </div>
+          )}
           {children}
         </main>
       </div>
@@ -270,6 +283,18 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: RADIUS.sm,
     display: 'flex',
   },
+  /** Заслонка со знаком: полупрозрачная, чтобы было видно, что под ней. */
+  loadingVeil: {
+    position: 'absolute',
+    inset: 0,
+    zIndex: 5,
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingTop: '12vh',
+    background: 'color-mix(in srgb, var(--page) 72%, transparent)',
+    backdropFilter: 'blur(1px)',
+  },
   main: {
     flex: 1,
     minWidth: 0,
@@ -344,6 +369,7 @@ const styles: Record<string, React.CSSProperties> = {
    * решает, быть ему панелью или нет.
    */
   content: {
+    position: 'relative',
     margin: '0 24px 24px',
     color: 'var(--tx)',
     flex: 1,
